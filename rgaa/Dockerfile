@@ -4,15 +4,13 @@ WORKDIR /app
 
 RUN pip install --no-cache-dir fastmcp httpx beautifulsoup4 lxml
 
-COPY core/pyproject.toml ./core/
-COPY core/mcp_ref_core/ ./core/mcp_ref_core/
-RUN pip install --no-cache-dir -e ./core
-
+COPY core/mcp_ref_core/ ./mcp_ref_core/
 COPY rgaa/files/ ./files/
 COPY rgaa/tokens/.gitkeep ./tokens/.gitkeep
 
 VOLUME ["/app/tokens"]
 
+ENV PYTHONPATH=/app
 ENV MCP_TRANSPORT=http
 ENV MCP_HOST=0.0.0.0
 ENV MCP_PORT=8000
