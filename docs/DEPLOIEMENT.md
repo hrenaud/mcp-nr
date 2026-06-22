@@ -38,6 +38,12 @@ docker compose -f rgaa/docker-compose.yml    up -d
 docker compose -f rgesn/docker-compose.yml   up -d
 ```
 
+En développement local, un script raccourci est disponible à la racine :
+
+```bash
+./local-build.sh   # build + up greenit et rgaa
+```
+
 Pour lancer les trois en une commande, créez un `docker-compose.override.yml` à la racine ou utilisez un orchestrateur.
 
 ### Vérification
