@@ -8,6 +8,21 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 ---
 
+## [1.1.0] — 2026-06-22
+
+### Modifié
+
+- **UI** : refonte du design des pages `/` et `/guide` pour les 3 MCPs — CSS custom properties, meilleure lisibilité, cartes avec bordure colorée, tableaux avec lignes alternées, largeur de colonne agrandie
+- **Thèmes visuels distincts** : chaque MCP a désormais sa propre identité colorée (greenit : vert, rgesn : ambre, rgaa : bleu) via variables injectables `_LOGO`, `_ACCENT`, `_TAGLINE`
+- **greenit** : suppression de 73 lignes dupliquées (`_http_homepage`, `_http_guide`) — routes désormais partagées via `core/mcp_ref_core`
+
+### Corrigé
+
+- `greenit/tests/test_tools.py` : correction du target de monkeypatching (`data.charger_cache` au lieu de `mcp_module.charger_cache`)
+- `rgesn/tests` : assertions VERSION non liées à une valeur fixe
+
+---
+
 ## [1.0.0] — 2026-06-22
 
 Première release du monorepo `mcp-nr`, regroupant les serveurs MCP greenit et rgaa (précédemment des dépôts séparés) et le nouveau scaffold rgesn.

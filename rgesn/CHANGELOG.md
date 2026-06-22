@@ -1,5 +1,24 @@
 # Changelog — RGESN MCP
 
+## [1.1.0] — 2026-06-22
+
+### Modifié
+
+- **UI** : thème visuel ambre distinct (`#f59e0b`) pour les pages `/` et `/guide`
+- Logo 💡 et tagline « Écoconception des services numériques »
+
+### Corrigé
+
+- Assertions VERSION dans les tests (`isinstance` au lieu de valeur hardcodée)
+
+---
+
+## [1.0.0] — 2026-06-22
+
+Première release dans le monorepo `mcp-nr` (anciennement `0.1.0` en dépôt séparé).
+
+---
+
 ## [0.1.0] — 2026-06-22
 
 ### Ajouté
