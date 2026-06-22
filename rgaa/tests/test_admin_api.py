@@ -20,9 +20,10 @@ class TestDynamicTokenVerifier:
             "tok_abc": {
                 "id": "aabb1122",
                 "name": "Alice",
-                "created_at": "2025-01-01T00:00:00+00:00",
+                "client_id": "Alice",
+                "created_at": time.time(),
                 "expires_at": time.time() + 86400,
-                "updated_at": "2025-01-01T00:00:00+00:00",
+                "scopes": ["read"],
             }
         }
         path.write_text(json.dumps(data))
