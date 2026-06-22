@@ -24,9 +24,9 @@ class TestGetToolDefinitions:
 
     def test_returns_list_of_dicts(self):
         """_get_tool_definitions() returns a list of dictionaries."""
-        # After migration, we test the tools registered on the mcp instance
+        # After migration, we test the tools via _rgaa_tool_definitions
         import rgaa_mcp
-        tools = [t.model_dump() for t in rgaa_mcp.mcp.tools.values()]
+        tools = rgaa_mcp._rgaa_tool_definitions()
         assert isinstance(tools, list)
         assert len(tools) > 0
         assert all(isinstance(tool, dict) for tool in tools)
@@ -71,7 +71,7 @@ class TestGetToolDefinitions:
     def test_expected_tool_count_and_names(self):
         """Verify expected RGAA tools are present."""
         import rgaa_mcp
-        tools = [t.model_dump() for t in rgaa_mcp.mcp.tools.values()]
+        tools = rgaa_mcp._rgaa_tool_definitions()
         tool_names = {tool["name"] for tool in tools}
         expected_names = {
             "rgaa_lister_criteres",

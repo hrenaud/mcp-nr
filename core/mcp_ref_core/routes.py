@@ -17,6 +17,12 @@ _VERSION = ""
 # Injected by greenit_mcp.py: _routes_mod._token_verifier = verifier
 _token_verifier = None
 
+# Injected by MCPs to customize MCP name in homepage and install script
+_MCP_NAME = "GreenIT MCP"
+
+# Injected by MCPs to customize MCP ID in install script (for JSON config)
+_MCP_ID = "greenit"
+
 
 def _get_base_url() -> str:
     url = os.environ.get("MCP_BASE_URL", "").rstrip("/")
@@ -33,7 +39,7 @@ def _get_token_request_url() -> str:
 
 
 _INSTALL_SCRIPT_TEMPLATE = r"""#!/usr/bin/env bash
-# GreenIT MCP — Script d'installation multi-clients
+# __MCP_NAME__ — Script d'installation multi-clients
 # Usage: curl -sSL __BASE_URL__/install.sh | bash -s -- <TOKEN> [options]
 #
 # Options:
@@ -83,7 +89,7 @@ done
 
 echo ""
 echo -e "${BLUE}  ╔══════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}  ║   GreenIT MCP — Installation multi-clients   ║${NC}"
+echo -e "${BLUE}  ║   __MCP_NAME__ — Installation multi-clients   ║${NC}"
 echo -e "${BLUE}  ╚══════════════════════════════════════════════╝${NC}"
 echo ""
 
@@ -261,46 +267,46 @@ fi
 
 # ── JSON helpers ─────────────────────────────────────────────────────────────
 
-# write_json_mcp <path> <root_key> <token> <mcp_url>
+# write_json_mcp <path> <root_key> <token> <mcp_url> <mcp_id>
 write_json_mcp() {
-    local path="$1" key="$2" token="$3" mcp_url="$4"
+    local path="$1" key="$2" token="$3" mcp_url="$4" mcp_id="$5"
     mkdir -p "$(dirname "$path")"
     python3 -c "
 import json, sys
-path, key, token, mcp_url = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+path, key, token, mcp_url, mcp_id = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
 try:
     with open(path) as f:
         data = json.load(f)
 except (FileNotFoundError, json.JSONDecodeError):
     data = {}
-data.setdefault(key, {})['greenit'] = {
+data.setdefault(key, {})[mcp_id] = {
     'url': mcp_url,
     'headers': {'Authorization': 'Bearer ' + token}
 }
 with open(path, 'w') as f:
     json.dump(data, f, indent=2)
     f.write('\n')
-" "$path" "$key" "$token" "$mcp_url"
+" "$path" "$key" "$token" "$mcp_url" "$mcp_id"
 }
 
-# remove_json_mcp <path> <root_key>
+# remove_json_mcp <path> <root_key> <mcp_id>
 remove_json_mcp() {
-    local path="$1" key="$2"
+    local path="$1" key="$2" mcp_id="$3"
     [ -f "$path" ] || return 0
     python3 -c "
 import json, sys
-path, key = sys.argv[1], sys.argv[2]
+path, key, mcp_id = sys.argv[1], sys.argv[2], sys.argv[3]
 try:
     with open(path) as f:
         data = json.load(f)
 except (FileNotFoundError, json.JSONDecodeError):
     exit(0)
-if key in data and 'greenit' in data[key]:
-    del data[key]['greenit']
+if key in data and mcp_id in data[key]:
+    del data[key][mcp_id]
     with open(path, 'w') as f:
         json.dump(data, f, indent=2)
         f.write('\n')
-" "$path" "$key"
+" "$path" "$key" "$mcp_id"
 }
 
 # ── Uninstall ────────────────────────────────────────────────────────────────
@@ -312,7 +318,7 @@ if [ "$UNINSTALL" = true ]; then
         case "$client" in
             claude-code)
                 for s in user local project; do
-                    claude mcp remove greenit -s "$s" > /dev/null 2>&1 && \
+                    claude mcp remove __MCP_ID__ -s "$s" > /dev/null 2>&1 && \
                         echo -e "  ${GREEN}✓${NC} Claude Code CLI ${DIM}(${s})${NC}" || true
                 done
                 if [ -f ".claude/settings.json" ]; then
@@ -335,11 +341,11 @@ if filtered != allow:
                 fi
                 ;;
             cursor)
-                remove_json_mcp "$HOME/.cursor/mcp.json" "mcpServers"
+                remove_json_mcp "$HOME/.cursor/mcp.json" "mcpServers" "__MCP_ID__"
                 echo -e "  ${GREEN}✓${NC} Cursor ${DIM}(~/.cursor/mcp.json)${NC}"
                 ;;
             vscode)
-                remove_json_mcp ".vscode/mcp.json" "servers"
+                remove_json_mcp ".vscode/mcp.json" "servers" "__MCP_ID__"
                 echo -e "  ${GREEN}✓${NC} VS Code ${DIM}(.vscode/mcp.json)${NC}"
                 ;;
         esac
@@ -381,8 +387,8 @@ for client in "${DETECTED[@]}"; do
     case "$client" in
         claude-code)
             echo -ne "  ${DIM}→${NC} Claude Code CLI... "
-            claude mcp remove greenit -s "${SCOPE}" > /dev/null 2>&1 || true
-            if MCP_ERR=$(claude mcp add greenit "${MCP_URL}" \
+            claude mcp remove __MCP_ID__ -s "${SCOPE}" > /dev/null 2>&1 || true
+            if MCP_ERR=$(claude mcp add __MCP_ID__ "${MCP_URL}" \
                 -t http -s "${SCOPE}" \
                 -H "Authorization: Bearer ${TOKEN}" 2>&1); then
                 echo -e "${GREEN}✓${NC} ${DIM}(scope: ${SCOPE})${NC}"
@@ -394,7 +400,7 @@ for client in "${DETECTED[@]}"; do
             ;;
         cursor)
             echo -ne "  ${DIM}→${NC} Cursor... "
-            if write_json_mcp "$HOME/.cursor/mcp.json" "mcpServers" "$TOKEN" "$MCP_URL"; then
+            if write_json_mcp "$HOME/.cursor/mcp.json" "mcpServers" "$TOKEN" "$MCP_URL" "__MCP_ID__"; then
                 echo -e "${GREEN}✓${NC} ${DIM}(~/.cursor/mcp.json)${NC}"
                 INSTALLED_COUNT=$((INSTALLED_COUNT + 1))
             else
@@ -403,7 +409,7 @@ for client in "${DETECTED[@]}"; do
             ;;
         vscode)
             echo -ne "  ${DIM}→${NC} VS Code... "
-            if write_json_mcp ".vscode/mcp.json" "servers" "$TOKEN" "$MCP_URL"; then
+            if write_json_mcp ".vscode/mcp.json" "servers" "$TOKEN" "$MCP_URL" "__MCP_ID__"; then
                 echo -e "${GREEN}✓${NC} ${DIM}(.vscode/mcp.json)${NC}"
                 INSTALLED_COUNT=$((INSTALLED_COUNT + 1))
             else
@@ -424,7 +430,7 @@ for client in "${DETECTED[@]}"; do
         if [ "$FORCE_AUTHORIZE" = true ]; then
             AUTHORIZE=true
         else
-            echo -e "  Pré-autoriser les outils GreenIT MCP"
+            echo -e "  Pré-autoriser les outils __MCP_NAME__"
             echo -e "  ${DIM}(évite de confirmer chaque appel individuellement)${NC}"
             echo ""
             echo -ne "  ${YELLOW}Accepter ? (O/n) : ${NC}"
@@ -471,9 +477,9 @@ echo -e "  ${BOLD}${INSTALLED_COUNT} client(s) configuré(s)${NC}"
 echo ""
 echo -e "  ${BOLD}Exemples de prompts :${NC}"
 echo ""
-echo -e "    ${DIM}›${NC} Quelles fiches GreenIT sont prioritaires pour un site React ?"
-echo -e "    ${DIM}›${NC} Audite https://example.com et donne-moi les recommandations GreenIT"
-echo -e "    ${DIM}›${NC} Compare les fiches RWEB_0049 et RWEB_0051"
+echo -e "    ${DIM}›${NC} Quels outils sont prioritaires avec __MCP_NAME__ ?"
+echo -e "    ${DIM}›${NC} Audite https://example.com et donne-moi les recommandations"
+echo -e "    ${DIM}›${NC} Compare les critères ou recommandations"
 echo ""
 echo -e "  ${DIM}Désinstaller : curl -sSL ${BASE_URL}/install.sh | bash -s -- --uninstall${NC}"
 echo -e "  ${DIM}Documentation : ${BASE_URL}/guide${NC}"
@@ -542,7 +548,7 @@ async def _http_homepage(request) -> "Response":
 <body>
   <div class="card">
     <div class="logo">🌱</div>
-    <h1>GreenIT MCP</h1>
+    <h1>{_MCP_NAME}</h1>
     <div class="version">v{_VERSION}</div>
     {status_html}
     <div class="install-block">
@@ -657,6 +663,8 @@ async def _http_install_script(request) -> "Response":
         .replace("__BASE_URL__", base_url)
         .replace("__MCP_URL__", mcp_url)
         .replace("__TOKEN_REQUEST_URL__", token_request_url)
+        .replace("__MCP_NAME__", _MCP_NAME)
+        .replace("__MCP_ID__", _MCP_ID)
     )
     return PlainTextResponse(script, media_type="text/plain; charset=utf-8")
 
@@ -816,7 +824,7 @@ async def _http_guide(request) -> "Response":
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>GreenIT MCP — Guide d'installation</title>
+  <title>{_MCP_NAME} — Guide d'installation</title>
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
     body {{
@@ -850,7 +858,7 @@ async def _http_guide(request) -> "Response":
 </head>
 <body>
   <div class="wrap">
-    <a class="back" href="/">← GreenIT MCP</a>
+    <a class="back" href="/">← {_MCP_NAME}</a>
     <h1>🌱 Guide d'installation</h1>
     <p class="subtitle">Connectez Claude aux bonnes pratiques d'éco-conception web GreenIT</p>
 
@@ -876,14 +884,14 @@ curl -sSL {base_url}/install.sh | bash -s -- --uninstall</code></pre>
 
     <h3 style="font-size:15px;color:#94a3b8;margin:24px 0 10px;">Commande directe — Claude Code (token manuel)</h3>
     <p>Authentification par token personnel :</p>
-    <pre><code>claude mcp add greenit {base_url}/mcp -t http -H "Authorization: Bearer VOTRE_TOKEN"</code></pre>
+    <pre><code>claude mcp add {_MCP_ID} {base_url}/mcp -t http -H "Authorization: Bearer VOTRE_TOKEN"</code></pre>
     <p>Remplacez <code>VOTRE_TOKEN</code> par votre token personnel.{f' <a href="{token_request_url}" target="_blank" rel="noopener" style="color:#22c55e;">Demander un accès →</a>' if token_request_url and token_request_url.startswith("http") else ''}</p>
 
     <h2>3. Installation manuelle</h2>
     <p>Pour Cursor, VS Code ou tout autre client MCP :</p>
     <pre><code>{{
   "mcpServers": {{
-    "greenit": {{
+    "{_MCP_ID}": {{
       "type": "http",
       "url": "{base_url}/mcp",
       "headers": {{
@@ -904,10 +912,10 @@ curl -sSL {base_url}/install.sh | bash -s -- --uninstall</code></pre>
     <table>
       <thead><tr><th>Ressource</th><th>Description</th></tr></thead>
       <tbody>
-        <tr><td><code>greenit://version</code></td><td>Version du serveur et des données</td></tr>
-        <tr><td><code>greenit://index</code></td><td>Index de toutes les fiches (id, titre, lifecycle, impact, priorité)</td></tr>
-        <tr><td><code>greenit://fiche/{'{'}fiche_id{'}'}</code></td><td>Contenu complet d'une fiche spécifique (ex : <code>RWEB_0051</code>)</td></tr>
-        <tr><td><code>greenit://metadata</code></td><td>Métadonnées du référentiel (source, nb fiches, nb lifecycles)</td></tr>
+        <tr><td><code>{_MCP_ID}://version</code></td><td>Version du serveur et des données</td></tr>
+        <tr><td><code>{_MCP_ID}://index</code></td><td>Index de toutes les fiches (id, titre, lifecycle, impact, priorité)</td></tr>
+        <tr><td><code>{_MCP_ID}://fiche/{'{'}fiche_id{'}'}</code></td><td>Contenu complet d'une fiche spécifique (ex : <code>RWEB_0051</code>)</td></tr>
+        <tr><td><code>{_MCP_ID}://metadata</code></td><td>Métadonnées du référentiel (source, nb fiches, nb lifecycles)</td></tr>
       </tbody>
     </table>
 

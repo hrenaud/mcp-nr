@@ -60,6 +60,8 @@ GREENIT_API_URL = "https://rweb.greenit.fr/api"
 # Helper to inject VERSION into routes module
 def _setup_routes():
     routes._VERSION = VERSION
+    routes._MCP_NAME = "GreenIT MCP"
+    routes._MCP_ID = "greenit"
 
 
 
@@ -125,7 +127,7 @@ async def _http_homepage(request) -> "Response":
 <body>
   <div class="card">
     <div class="logo">🌱</div>
-    <h1>GreenIT MCP</h1>
+    <h1>{routes._MCP_NAME}</h1>
     <div class="version">v{VERSION}</div>
     {status_html}
     <div class="install-block">
@@ -152,6 +154,8 @@ async def _http_install_script(request) -> "Response":
         .replace("__BASE_URL__", base_url)
         .replace("__MCP_URL__", mcp_url)
         .replace("__TOKEN_REQUEST_URL__", token_request_url)
+        .replace("__MCP_NAME__", routes._MCP_NAME)
+        .replace("__MCP_ID__", routes._MCP_ID)
     )
     return PlainTextResponse(script, media_type="text/plain; charset=utf-8")
 

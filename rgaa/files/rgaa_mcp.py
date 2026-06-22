@@ -44,6 +44,8 @@ TOKENS_FILE = str(_BASE_DIR.parent / "tokens" / "tokens.json")
 
 VERSION = "1.2.2"
 _routes_mod._VERSION = VERSION
+_routes_mod._MCP_NAME = "RGAA MCP"
+_routes_mod._MCP_ID = "rgaa"
 
 from mcp_ref_core.routes import (
     _get_base_url,
