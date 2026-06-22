@@ -5,8 +5,8 @@
 
 docker build -f greenit/Dockerfile -t greenit-mcp .
 docker build -f rgaa/Dockerfile    -t rgaa-mcp .
-# docker build -f rgesn/Dockerfile   -t rgesn-mcp .
+docker build -f rgesn/Dockerfile   -t rgesn-mcp .
 
 docker compose -f greenit/docker-compose.yml up -d
 docker compose -f rgaa/docker-compose.yml    up -d
-# docker compose -f rgesn/docker-compose.yml   up -d
+docker compose -f rgesn/docker-compose.yml   up -d
