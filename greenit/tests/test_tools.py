@@ -1654,8 +1654,8 @@ class TestHomepageEmptyCache:
         from starlette.applications import Starlette
         from starlette.routing import Route
 
-        # Mock charger_cache to return empty dict
-        monkeypatch.setattr(mcp_module, "charger_cache", lambda: {})
+        # Mock charger_cache in data module (routes._http_homepage imports from there)
+        monkeypatch.setattr("data.charger_cache", lambda: {})
 
         app = Starlette(routes=[
             Route("/", mcp_module._http_homepage, methods=["GET"]),

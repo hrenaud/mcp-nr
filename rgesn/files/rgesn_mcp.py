@@ -43,6 +43,12 @@ VERSION = "1.0.0"
 _routes_mod._VERSION = VERSION
 _routes_mod._MCP_NAME = "RGESN MCP"
 _routes_mod._MCP_ID = "rgesn"
+_routes_mod._LOGO = "💡"
+_routes_mod._ACCENT = "#f59e0b"
+_routes_mod._ACCENT_DARK = "#92400e"
+_routes_mod._ACCENT_LIGHT = "#fde68a"
+_routes_mod._ACCENT_BTN_TEXT = "#000"
+_routes_mod._TAGLINE = "Écoconception des services numériques"
 
 from mcp_ref_core.routes import (
     _get_base_url,

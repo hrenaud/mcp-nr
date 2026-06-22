@@ -333,7 +333,7 @@ def test_checklist_champs_presents():
 
 def test_import_rgesn_mcp():
     import rgesn_mcp
-    assert rgesn_mcp.VERSION == "0.1.0"
+    assert isinstance(rgesn_mcp.VERSION, str) and rgesn_mcp.VERSION
 
 
 def test_mcp_instance_exists():

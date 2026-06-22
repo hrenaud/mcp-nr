@@ -24,6 +24,14 @@ _MCP_NAME = "GreenIT MCP"
 # Injected by MCPs to customize MCP ID in install script (for JSON config)
 _MCP_ID = "greenit"
 
+# Injected by MCPs to customize visual identity
+_LOGO = "🌱"
+_ACCENT = "#22c55e"
+_ACCENT_DARK = "#14532d"
+_ACCENT_LIGHT = "#4ade80"
+_ACCENT_BTN_TEXT = "#000"
+_TAGLINE = ""
+
 
 def _get_base_url() -> str:
     url = os.environ.get("MCP_BASE_URL", "").rstrip("/")
@@ -504,6 +512,7 @@ async def _http_homepage(request) -> "Response":
         if fiches_count else
         '<span class="badge warn">Cache vide</span>'
     )
+    tagline_html = f'<p class="tagline">{escape(_TAGLINE)}</p>' if _TAGLINE else ''
 
     html = f"""<!DOCTYPE html>
 <html lang="fr">
@@ -512,22 +521,30 @@ async def _http_homepage(request) -> "Response":
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{_MCP_NAME}</title>
   <style>
+    :root {{
+      --accent: {_ACCENT};
+      --accent-dark: {_ACCENT_DARK};
+      --accent-light: {_ACCENT_LIGHT};
+      --accent-btn-text: {_ACCENT_BTN_TEXT};
+    }}
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
     body {{
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #0f1117; color: #e2e8f0;
+      font-size: 16px; background: #0f1117; color: #e2e8f0;
       min-height: 100vh; display: flex; align-items: center; justify-content: center;
     }}
     .card {{
       background: #1a1d27; border: 1px solid #2d3147;
+      border-top: 3px solid var(--accent);
       border-radius: 12px; padding: 48px; max-width: 560px; width: 100%;
       text-align: center;
     }}
     .logo {{ font-size: 48px; margin-bottom: 16px; }}
-    h1 {{ font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 8px; }}
-    .version {{ font-size: 14px; color: #64748b; margin-bottom: 24px; }}
+    h1 {{ font-size: 32px; font-weight: 700; color: #fff; margin-bottom: 6px; }}
+    .version {{ font-size: 13px; color: #475569; margin-bottom: 6px; }}
+    .tagline {{ font-size: 14px; color: #64748b; margin-bottom: 20px; }}
     .badge {{ display: inline-block; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: 500; }}
-    .badge.ok {{ background: #14532d; color: #4ade80; }}
+    .badge.ok {{ background: var(--accent-dark); color: var(--accent-light); }}
     .badge.warn {{ background: #713f12; color: #fbbf24; }}
     .actions {{ margin-top: 36px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }}
     a.btn {{
@@ -535,25 +552,32 @@ async def _http_homepage(request) -> "Response":
       text-decoration: none; font-size: 15px; font-weight: 500; transition: opacity .15s;
     }}
     a.btn:hover {{ opacity: .8; }}
-    a.btn.primary {{ background: #22c55e; color: #000; }}
+    a.btn.primary {{ background: var(--accent); color: var(--accent-btn-text); }}
     a.btn.secondary {{ background: #1e293b; color: #94a3b8; border: 1px solid #334155; }}
     .footer {{ margin-top: 32px; font-size: 12px; color: #334155; }}
     .install-block {{
       margin-top: 28px; background: #0f1117; border: 1px solid #2d3147;
       border-radius: 8px; padding: 14px 16px; text-align: left;
     }}
-    .install-label {{ font-size: 12px; color: #64748b; margin-bottom: 8px; }}
-    .install-cmd {{ font-family: monospace; font-size: 13px; color: #e2e8f0; word-break: break-all; }}
+    .install-label {{
+      font-size: 11px; color: #64748b; margin-bottom: 8px;
+      letter-spacing: .06em; text-transform: uppercase;
+    }}
+    .install-cmd {{
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 13px; color: #e2e8f0; word-break: break-all; line-height: 1.6;
+    }}
   </style>
 </head>
 <body>
   <div class="card">
-    <div class="logo">🌱</div>
+    <div class="logo">{_LOGO}</div>
     <h1>{_MCP_NAME}</h1>
     <div class="version">v{_VERSION}</div>
+    {tagline_html}
     {status_html}
     <div class="install-block">
-      <div class="install-label">Installer (remplacez TOKEN par votre token) :</div>
+      <div class="install-label">Installation rapide</div>
       <div class="install-cmd">curl -sSL {base_url}/install.sh | bash -s -- TOKEN</div>
     </div>
     <div class="actions">
@@ -881,6 +905,11 @@ async def _http_guide(request) -> "Response":
         for tool in tools
     )
 
+    access_link = (
+        f' <a href="{token_request_url}" target="_blank" rel="noopener">Demander un accès →</a>'
+        if token_request_url and token_request_url.startswith("http") else ''
+    )
+
     html = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -888,15 +917,23 @@ async def _http_guide(request) -> "Response":
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{_MCP_NAME} — Guide d'installation</title>
   <style>
+    :root {{
+      --accent: {_ACCENT};
+      --accent-dark: {_ACCENT_DARK};
+      --accent-light: {_ACCENT_LIGHT};
+      --accent-btn-text: {_ACCENT_BTN_TEXT};
+    }}
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
     body {{
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #0f1117; color: #cbd5e1; line-height: 1.7;
+      font-size: 16px; background: #0f1117; color: #cbd5e1; line-height: 1.7;
     }}
-    .wrap {{ max-width: 760px; margin: 0 auto; padding: 48px 24px 80px; }}
-    h1 {{ font-size: 28px; color: #fff; margin-bottom: 4px; }}
+    .top-bar {{ height: 3px; background: var(--accent); position: fixed; top: 0; left: 0; right: 0; }}
+    .wrap {{ max-width: 760px; margin: 0 auto; padding: 56px 24px 80px; }}
+    h1 {{ font-size: 30px; color: #fff; margin-bottom: 4px; }}
     .subtitle {{ color: #64748b; font-size: 14px; margin-bottom: 48px; }}
-    h2 {{ font-size: 18px; color: #fff; margin: 40px 0 16px; border-left: 3px solid #22c55e; padding-left: 12px; }}
+    h2 {{ font-size: 18px; color: #fff; margin: 48px 0 16px; border-left: 4px solid var(--accent); padding-left: 12px; }}
+    h3 {{ font-size: 15px; color: #94a3b8; margin: 24px 0 10px; font-weight: 500; }}
     p {{ margin-bottom: 12px; }}
     pre {{
       background: #1e293b; border: 1px solid #334155; border-radius: 8px;
@@ -905,20 +942,24 @@ async def _http_guide(request) -> "Response":
     code {{ font-family: "SF Mono", "Fira Code", monospace; font-size: 13px; background: #1e293b; padding: 2px 6px; border-radius: 4px; }}
     pre code {{ background: none; padding: 0; }}
     table {{ width: 100%; border-collapse: collapse; margin: 16px 0; }}
-    th {{ text-align: left; padding: 10px 12px; background: #1e293b; color: #94a3b8; font-size: 13px; }}
-    td {{ padding: 10px 12px; border-bottom: 1px solid #1e293b; font-size: 14px; vertical-align: top; }}
-    td:first-child {{ white-space: nowrap; width: 220px; }}
+    th {{ text-align: left; padding: 10px 12px; background: #1e293b; color: #94a3b8; font-size: 14px; border-bottom: 1px solid #334155; }}
+    td {{ padding: 10px 12px; border-bottom: 1px solid #1e293b; font-size: 15px; vertical-align: top; }}
+    td:first-child {{ white-space: nowrap; width: 240px; }}
+    tr:nth-child(even) td {{ background: rgba(255,255,255,.02); }}
+    a {{ color: var(--accent); text-decoration: none; }}
+    a:hover {{ text-decoration: underline; }}
     a.btn {{
       display: inline-block; margin-top: 12px; padding: 12px 24px; border-radius: 8px;
       text-decoration: none; font-size: 15px; font-weight: 500;
     }}
-    a.btn.primary {{ background: #22c55e; color: #000; }}
-    .note {{ background: #1e293b; border-left: 3px solid #22c55e; padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 14px; margin: 8px 0; }}
+    a.btn.primary {{ background: var(--accent); color: var(--accent-btn-text); }}
+    .note {{ background: #1e293b; border-left: 3px solid var(--accent); padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 14px; margin: 8px 0; }}
     .back {{ display: inline-block; margin-bottom: 32px; color: #64748b; text-decoration: none; font-size: 14px; }}
     .back:hover {{ color: #94a3b8; }}
   </style>
 </head>
 <body>
+  <div class="top-bar"></div>
   <div class="wrap">
     <a class="back" href="/">← {_MCP_NAME}</a>
     <h1>Guide d'installation — {_MCP_NAME}</h1>
@@ -929,7 +970,7 @@ async def _http_guide(request) -> "Response":
 
     <h2>2. Installation</h2>
 
-    <h3 style="font-size:15px;color:#94a3b8;margin:24px 0 10px;">Script automatique — Claude Code (recommandé)</h3>
+    <h3>Script automatique — Claude Code (recommandé)</h3>
     <pre><code>curl -sSL {base_url}/install.sh | bash -s -- VOTRE_TOKEN</code></pre>
     <p>Options disponibles :</p>
     <pre><code># Installer pour le projet courant uniquement (dans ~/.claude.json)
@@ -944,10 +985,10 @@ curl -sSL {base_url}/install.sh | bash -s -- VOTRE_TOKEN --authorize
 # Désinstaller
 curl -sSL {base_url}/install.sh | bash -s -- --uninstall</code></pre>
 
-    <h3 style="font-size:15px;color:#94a3b8;margin:24px 0 10px;">Commande directe — Claude Code (token manuel)</h3>
+    <h3>Commande directe — Claude Code (token manuel)</h3>
     <p>Authentification par token personnel :</p>
     <pre><code>claude mcp add {_MCP_ID} {base_url}/mcp -t http -H "Authorization: Bearer VOTRE_TOKEN"</code></pre>
-    <p>Remplacez <code>VOTRE_TOKEN</code> par votre token personnel.{f' <a href="{token_request_url}" target="_blank" rel="noopener" style="color:#22c55e;">Demander un accès →</a>' if token_request_url and token_request_url.startswith("http") else ''}</p>
+    <p>Remplacez <code>VOTRE_TOKEN</code> par votre token personnel.{access_link}</p>
 
     <h2>3. Installation manuelle</h2>
     <p>Pour Cursor, VS Code ou tout autre client MCP :</p>

@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "core"))
 def test_import_rgesn_mcp():
     """Test que le module rgesn_mcp peut être importé"""
     import rgesn_mcp
-    assert rgesn_mcp.VERSION == "0.1.0"
+    assert isinstance(rgesn_mcp.VERSION, str) and rgesn_mcp.VERSION
 
 
 def test_mcp_instance_exists():

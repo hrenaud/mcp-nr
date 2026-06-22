@@ -57,92 +57,25 @@ _BASE_DIR = Path(__file__).parent
 TOKENS_FILE = str(_BASE_DIR / "tokens" / "tokens.json")
 GREENIT_API_URL = "https://rweb.greenit.fr/api"
 
-# Helper to inject VERSION into routes module
+# Helper to inject VERSION and theme into routes module
 def _setup_routes():
     routes._VERSION = VERSION
     routes._MCP_NAME = "GreenIT MCP"
     routes._MCP_ID = "greenit"
+    routes._LOGO = "🌱"
+    routes._ACCENT = "#22c55e"
+    routes._ACCENT_DARK = "#14532d"
+    routes._ACCENT_LIGHT = "#4ade80"
+    routes._ACCENT_BTN_TEXT = "#000"
+    routes._TAGLINE = "Bonnes pratiques d'écoconception web"
 
+
+from mcp_ref_core.routes import _http_homepage, _http_guide  # noqa: E402
 
 
 # ============================================================================
 # HTTP ROUTES (public endpoints — no auth)
 # ============================================================================
-
-async def _http_homepage(request) -> "Response":
-    from starlette.responses import HTMLResponse
-    from html import escape
-    cache = charger_cache()
-    fiches_count = len(cache)
-    base_url_escaped = escape(_get_base_url())
-
-    if fiches_count:
-        status_html = (
-            f'<span class="badge ok">{fiches_count} fiches chargées</span>'
-        )
-    else:
-        status_html = '<span class="badge warn">Cache vide</span>'
-
-    html = f"""<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>GreenIT MCP</title>
-  <style>
-    *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
-    body {{
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #0f1117; color: #e2e8f0;
-      min-height: 100vh; display: flex; align-items: center; justify-content: center;
-    }}
-    .card {{
-      background: #1a1d27; border: 1px solid #2d3147;
-      border-radius: 12px; padding: 48px; max-width: 560px; width: 100%;
-      text-align: center;
-    }}
-    .logo {{ font-size: 48px; margin-bottom: 16px; }}
-    h1 {{ font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 8px; }}
-    .version {{ font-size: 14px; color: #64748b; margin-bottom: 24px; }}
-    .badge {{ display: inline-block; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: 500; }}
-    .badge.ok {{ background: #14532d; color: #4ade80; }}
-    .badge.warn {{ background: #713f12; color: #fbbf24; }}
-    .actions {{ margin-top: 36px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }}
-    a.btn {{
-      display: inline-block; padding: 12px 24px; border-radius: 8px;
-      text-decoration: none; font-size: 15px; font-weight: 500; transition: opacity .15s;
-    }}
-    a.btn:hover {{ opacity: .8; }}
-    a.btn.primary {{ background: #22c55e; color: #000; }}
-    a.btn.secondary {{ background: #1e293b; color: #94a3b8; border: 1px solid #334155; }}
-    .footer {{ margin-top: 32px; font-size: 12px; color: #334155; }}
-    .install-block {{
-      margin-top: 28px; background: #0f1117; border: 1px solid #2d3147;
-      border-radius: 8px; padding: 14px 16px; text-align: left;
-    }}
-    .install-label {{ font-size: 12px; color: #64748b; margin-bottom: 8px; }}
-    .install-cmd {{ font-family: monospace; font-size: 13px; color: #e2e8f0; word-break: break-all; }}
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="logo">🌱</div>
-    <h1>{routes._MCP_NAME}</h1>
-    <div class="version">v{VERSION}</div>
-    {status_html}
-    <div class="install-block">
-      <div class="install-label">Installer (remplacez TOKEN par votre token) :</div>
-      <div class="install-cmd">curl -sSL {base_url_escaped}/install.sh | bash -s -- TOKEN</div>
-    </div>
-    <div class="actions">
-      <a class="btn primary" href="/guide">Documentation</a>
-    </div>
-    <div class="footer">{base_url_escaped}/mcp</div>
-  </div>
-</body>
-</html>"""
-    return HTMLResponse(html)
-
 
 async def _http_install_script(request) -> "Response":
     from starlette.responses import PlainTextResponse
@@ -158,12 +91,6 @@ async def _http_install_script(request) -> "Response":
         .replace("__MCP_ID__", routes._MCP_ID)
     )
     return PlainTextResponse(script, media_type="text/plain; charset=utf-8")
-
-
-async def _http_guide(request) -> "Response":
-    """HTTP /guide endpoint with Accept header content negotiation."""
-    # Delegate to routes._http_guide which handles both JSON and HTML responses
-    return await routes._http_guide(request)
 
 
 # ============================================================================

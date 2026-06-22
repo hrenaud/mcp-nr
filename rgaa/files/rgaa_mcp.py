@@ -46,6 +46,12 @@ VERSION = "1.0.0"
 _routes_mod._VERSION = VERSION
 _routes_mod._MCP_NAME = "RGAA MCP"
 _routes_mod._MCP_ID = "rgaa"
+_routes_mod._LOGO = "♿"
+_routes_mod._ACCENT = "#2563eb"
+_routes_mod._ACCENT_DARK = "#1e3a8a"
+_routes_mod._ACCENT_LIGHT = "#93c5fd"
+_routes_mod._ACCENT_BTN_TEXT = "#fff"
+_routes_mod._TAGLINE = "Référentiel d'accessibilité des services web"
 
 from mcp_ref_core.routes import (
     _get_base_url,
