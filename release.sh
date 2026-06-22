@@ -24,6 +24,16 @@ fi
 
 MCPS=(greenit rgaa rgesn)
 
+echo "Exécution des tests avant release..."
+for MCP in "${MCPS[@]}"; do
+  echo "[$MCP] tests..."
+  (cd "${MCP}/files" && pytest ../tests/ -q) || {
+    echo "Erreur: les tests $MCP ont échoué. Release annulée."
+    exit 1
+  }
+done
+echo "Tous les tests passent. Bump de version..."
+
 for MCP in "${MCPS[@]}"; do
   SCRIPT="${MCP}/files/${MCP}_mcp.py"
   PYPROJECT="${MCP}/pyproject.toml"

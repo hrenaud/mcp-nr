@@ -27,7 +27,7 @@ jobs:
             work_dir: rgesn/files
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -59,7 +59,7 @@ jobs:
             image: rgesn-mcp
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Build Docker image
         run: docker build -f ${{ matrix.mcp }}/Dockerfile -t ${{ matrix.image }} .
