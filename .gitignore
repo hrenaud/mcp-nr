@@ -221,6 +221,7 @@ __marimo__/
 # Project-specific
 tokens/*.json
 !tokens/.gitkeep
+.mcp.json
 .DS_Store
 .venv-py313/
 *.json.cover

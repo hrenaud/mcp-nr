@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "greenit": {
+      "type": "http",
+      "url": "https://mcp.example.com/greenit/mcp",
+      "headers": {
+        "Authorization": "Bearer <votre-token-greenit>"
+      }
+    },
+    "rgaa": {
+      "type": "http",
+      "url": "https://mcp.example.com/rgaa/mcp",
+      "headers": {
+        "Authorization": "Bearer <votre-token-rgaa>"
+      }
+    },
+    "rgesn": {
+      "type": "http",
+      "url": "https://mcp.example.com/rgesn/mcp",
+      "headers": {
+        "Authorization": "Bearer <votre-token-rgesn>"
+      }
+    }
+  }
+}
