@@ -4,8 +4,9 @@ WORKDIR /app
 
 RUN pip install --no-cache-dir fastmcp httpx beautifulsoup4 lxml
 
-COPY core/ ./core/
-RUN cd core && pip install --no-cache-dir -e . && cd ..
+COPY core/pyproject.toml ./core/
+COPY core/mcp_ref_core/ ./core/mcp_ref_core/
+RUN pip install --no-cache-dir -e ./core
 
 COPY rgaa/files/ ./files/
 COPY rgaa/tokens/.gitkeep ./tokens/.gitkeep
