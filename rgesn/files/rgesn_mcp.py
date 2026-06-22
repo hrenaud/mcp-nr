@@ -1,20 +1,32 @@
 """
-Serveur MCP pour le référentiel RGESN (Référentiel Général d'Écoconception de Services Numériques)
+Serveur MCP RGESN 2024
+Expose les outils d'écoconception numérique à Claude.
+
+Variables d'environnement :
+  MCP_TRANSPORT   stdio (défaut) | http
+  MCP_HOST        0.0.0.0 (défaut, mode http)
+  MCP_PORT        8000 (défaut, mode http)
+
+Gestion des tokens :
+  python rgesn_mcp.py --generate-token --name <nom> [--expires-days <N>]
+  python rgesn_mcp.py --list-tokens
+  python rgesn_mcp.py --revoke-token <token>
 """
 
 from fastmcp import FastMCP
-from pathlib import Path
+from fastmcp.exceptions import ToolError
+from data import charger_cache
+from mcp_ref_core import routes as _routes_mod
+import json
 import logging
 import os
+import secrets
 import sys
-from typing import Any
-
-from mcp_ref_core.auth import DynamicTokenVerifier, construire_verifier, tokens_pour_auth
-from mcp_ref_core import routes as _routes_mod
-
-# Re-export helper functions from routes for backward compatibility with tests
-_get_base_url = _routes_mod._get_base_url
-_get_token_request_url = _routes_mod._get_token_request_url
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+from difflib import get_close_matches
+from typing import Optional, Any
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,66 +36,140 @@ logging.basicConfig(
 )
 logger = logging.getLogger("rgesn-mcp")
 
-VERSION = "0.1.0"
-
 _BASE_DIR = Path(__file__).parent
-TOKENS_FILE = str(_BASE_DIR / "tokens" / "tokens.json")
+TOKENS_FILE = str(_BASE_DIR.parent / "tokens" / "tokens.json")
+
+VERSION = "0.1.0"
+_routes_mod._VERSION = VERSION
+_routes_mod._MCP_NAME = "RGESN MCP"
+_routes_mod._MCP_ID = "rgesn"
+
+from mcp_ref_core.routes import (
+    _get_base_url,
+    _get_token_request_url,
+    _http_homepage,
+    _http_install_script,
+    _http_guide,
+)
+
+_VALID_PRIORITES = {"Prioritaire", "Recommandé", "Modéré"}
+_VALID_DIFFICULTES = {"Faible", "Moyen", "Fort"}
+_NB_THEMES = 9
 
 
-# ============================================================================
-# TOOL DEFINITIONS (Scaffold vide)
-# ============================================================================
+def _validate_theme(theme: int) -> None:
+    if theme not in range(1, _NB_THEMES + 1):
+        raise ToolError(
+            f"Thème '{theme}' invalide. Les thèmes vont de 1 à {_NB_THEMES}. "
+            f"Utilise rgesn_statistiques() pour voir la liste des thèmes."
+        )
+
 
 def _rgesn_tool_definitions() -> list[dict[str, Any]]:
-    """Build tool definitions for RGESN MCP.
+    tool_defs = [
+        {
+            "name": "rgesn_lister_criteres",
+            "description": "Liste les critères RGESN, filtrables par thème, priorité et/ou difficulté",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "theme": {"type": ["integer", "null"], "description": "Numéro de thème (1-9)"},
+                    "priorite": {"type": ["string", "null"], "description": "Priorité (Prioritaire, Recommandé, Modéré)"},
+                    "difficulte": {"type": ["string", "null"], "description": "Difficulté (Faible, Moyen, Fort)"}
+                }
+            }
+        },
+        {
+            "name": "rgesn_obtenir_critere",
+            "description": "Retourne le détail complet d'un critère RGESN (objectif, mise en œuvre, moyen de contrôle)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string", "description": "Identifiant du critère (ex: 1.1, 8.3)"}
+                },
+                "required": ["id"]
+            }
+        },
+        {
+            "name": "rgesn_chercher",
+            "description": "Recherche par mot-clé dans les critères RGESN",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Terme à rechercher"},
+                    "theme": {"type": ["integer", "null"], "description": "Restreindre la recherche à un thème (1-9)"}
+                },
+                "required": ["query"]
+            }
+        },
+        {
+            "name": "rgesn_statistiques",
+            "description": "Statistiques du référentiel RGESN (priorités, thèmes, difficultés)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {}
+            }
+        },
+        {
+            "name": "rgesn_taux_conformite",
+            "description": "Calcule le taux de conformité RGESN pondéré par priorité à partir des résultats d'audit",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "resultats": {
+                        "type": "object",
+                        "description": "Dict {id_critere: statut} avec statuts C (conforme), NC (non-conforme), NA (non-applicable)"
+                    }
+                },
+                "required": ["resultats"]
+            }
+        },
+        {
+            "name": "rgesn_checklist",
+            "description": "Génère une checklist RGESN prête à l'emploi, filtrable par thème et/ou priorité",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "themes": {"type": ["array", "null"], "description": "Liste de thèmes (1-9)"},
+                    "priorites": {"type": ["array", "null"], "description": "Liste de priorités (Prioritaire, Recommandé, Modéré)"}
+                }
+            }
+        }
+    ]
 
-    Retourne une liste vide (scaffold vide).
+    for tool in tool_defs:
+        assert "name" in tool
+        assert "description" in tool
+        assert "inputSchema" in tool
 
-    Returns:
-        list[dict[str, Any]]: Tool definitions (empty for now)
-    """
-    return []
-
-
-# ============================================================================
-# HTTP ROUTES (public endpoints — no auth)
-# ============================================================================
-
-async def _http_homepage(request) -> "Response":
-    """Délègue à routes._http_homepage"""
-    return await _routes_mod._http_homepage(request)
+    return tool_defs
 
 
-async def _http_install_script(request) -> "Response":
-    """Délègue à routes._http_install_script"""
-    return await _routes_mod._http_install_script(request)
+def _rgesn_guide_extra_sections() -> str:
+    return """
+    <h2>5. Exemples de prompts</h2>
+    <div class="note">Quels critères RGESN s'appliquent à l'hébergement ?</div>
+    <div class="note">Explique le critère 1.1 du RGESN et comment le mettre en œuvre</div>
+    <div class="note">Génère une checklist pour les critères Prioritaire du thème 4</div>
+    <div class="note">Calcule le taux de conformité RGESN à partir de ces résultats</div>
+    <div class="note">Quels critères RGESN concernent l'algorithmie et l'IA ?</div>
+    <div class="note">Donne-moi les statistiques du référentiel RGESN</div>"""
 
-
-async def _http_guide(request) -> "Response":
-    """Délègue à routes._http_guide"""
-    return await _routes_mod._http_guide(request)
-
-
-# ============================================================================
-# MCP INITIALIZATION
-# ============================================================================
 
 def _create_mcp() -> FastMCP:
-    """Crée et configure l'instance FastMCP avec auth et routes HTTP."""
+    from mcp_ref_core.auth import DynamicTokenVerifier
 
     token_path = Path(TOKENS_FILE)
     verifier = DynamicTokenVerifier(token_path)
     _routes_mod._token_verifier = verifier
     _routes_mod._get_tool_definitions = _rgesn_tool_definitions
-    _routes_mod._VERSION = VERSION
-    _routes_mod._MCP_NAME = "RGESN MCP"
-    _routes_mod._MCP_ID = "rgesn"
+    _routes_mod._guide_extra_sections = _rgesn_guide_extra_sections
 
     if verifier.tokens:
-        mcp_instance = FastMCP("RGESN-Referentiel", auth=verifier)
+        mcp_instance = FastMCP("RGESN MCP", auth=verifier)
         mcp_instance._auth = verifier
     else:
-        mcp_instance = FastMCP("RGESN-Referentiel")
+        mcp_instance = FastMCP("RGESN MCP")
         mcp_instance._auth = None
 
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
@@ -96,80 +182,700 @@ def _create_mcp() -> FastMCP:
         mcp_instance.custom_route("/admin/tokens/{id}", methods=["GET"])(_routes_mod._http_admin_get_token)
         mcp_instance.custom_route("/admin/tokens/{id}", methods=["PATCH"])(_routes_mod._http_admin_update_token)
         mcp_instance.custom_route("/admin/tokens/{id}", methods=["DELETE"])(_routes_mod._http_admin_delete_token)
-
     return mcp_instance
 
 
-# Create MCP instance
 mcp = _create_mcp()
 
 
 # ============================================================================
-# MAIN: CLI et démarrage du serveur
+# OUTILS : Référentiel
+# ============================================================================
+
+@mcp.tool(
+    output_schema={
+        "type": "object",
+        "properties": {
+            "total": {"type": "integer"},
+            "criteres": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "theme": {"type": "integer"},
+                        "question": {"type": "string"},
+                        "priorite": {"type": "string"},
+                        "difficulte": {"type": "string"}
+                    },
+                    "required": ["id", "theme", "question", "priorite", "difficulte"]
+                }
+            }
+        },
+        "required": ["total", "criteres"]
+    },
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False
+    }
+)
+def rgesn_lister_criteres(
+    theme: Optional[int] = None,
+    priorite: Optional[str] = None,
+    difficulte: Optional[str] = None,
+) -> dict:
+    """
+    Liste les critères RGESN avec filtres optionnels.
+
+    Args:
+        theme: Numéro de thème (1-9). None = tous les thèmes.
+        priorite: Priorité (Prioritaire, Recommandé, Modéré). None = toutes.
+        difficulte: Difficulté (Faible, Moyen, Fort). None = toutes.
+
+    Returns:
+        {"total": N, "criteres": [...]}
+    """
+    if theme is not None:
+        _validate_theme(theme)
+
+    if priorite is not None and priorite not in _VALID_PRIORITES:
+        raise ToolError(
+            f"Priorité '{priorite}' invalide. "
+            f"Valeurs acceptées : {', '.join(sorted(_VALID_PRIORITES))}."
+        )
+
+    if difficulte is not None and difficulte not in _VALID_DIFFICULTES:
+        raise ToolError(
+            f"Difficulté '{difficulte}' invalide. "
+            f"Valeurs acceptées : {', '.join(sorted(_VALID_DIFFICULTES))}."
+        )
+
+    cache = charger_cache()
+    criteres = list(cache["criteres"].values())
+
+    if theme is not None:
+        criteres = [c for c in criteres if c["theme"] == theme]
+    if priorite is not None:
+        criteres = [c for c in criteres if c["priorite"] == priorite]
+    if difficulte is not None:
+        criteres = [c for c in criteres if c["difficulte"] == difficulte]
+
+    return {
+        "total": len(criteres),
+        "criteres": [
+            {
+                "id": c["id"],
+                "theme": c["theme"],
+                "question": c["question"],
+                "priorite": c["priorite"],
+                "difficulte": c["difficulte"],
+            }
+            for c in criteres
+        ],
+    }
+
+
+@mcp.tool(
+    output_schema={
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "theme": {"type": "integer"},
+            "question": {"type": "string"},
+            "priorite": {"type": "string"},
+            "difficulte": {"type": "string"},
+            "cible": {"type": "string"},
+            "metiers": {"type": "array", "items": {"type": "string"}},
+            "objectif": {"type": "string"},
+            "mise_en_oeuvre": {"type": "string"},
+            "moyen_de_controle": {"type": "string"}
+        },
+        "required": ["id", "theme", "question", "priorite", "difficulte"]
+    },
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False
+    }
+)
+def rgesn_obtenir_critere(id: str) -> dict:
+    """
+    Retourne le détail complet d'un critère RGESN.
+
+    Args:
+        id: Identifiant du critère (ex: "1.1", "8.3")
+
+    Returns:
+        Détail complet : question, priorité, difficulté, cible, métiers, objectif, mise en œuvre, moyen de contrôle
+    """
+    cache = charger_cache()
+    critere = cache["criteres"].get(id)
+    if critere is None:
+        valid_ids = list(cache["criteres"].keys())
+        suggestions = get_close_matches(id, valid_ids, n=1, cutoff=0.4)
+        suggest_msg = f" As-tu voulu dire '{suggestions[0]}'?" if suggestions else ""
+        raise ToolError(
+            f"Critère '{id}' n'existe pas.{suggest_msg} "
+            f"Les IDs valides vont de 1.1 à 9.7. "
+            f"Utilise rgesn_lister_criteres() pour lister tous les critères."
+        )
+    return critere
+
+
+@mcp.tool(
+    output_schema={
+        "type": "object",
+        "properties": {
+            "total": {"type": "integer"},
+            "criteres": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "theme": {"type": "integer"},
+                        "question": {"type": "string"},
+                        "priorite": {"type": "string"}
+                    },
+                    "required": ["id", "theme", "question", "priorite"]
+                }
+            }
+        },
+        "required": ["total", "criteres"]
+    },
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True
+    }
+)
+def rgesn_chercher(query: str, theme: Optional[int] = None) -> dict:
+    """
+    Recherche par mot-clé dans les questions et objectifs des critères RGESN.
+
+    Args:
+        query: Terme à rechercher
+        theme: Restreindre la recherche à un thème (1-9). None = tous.
+
+    Returns:
+        {"total": N, "criteres": [...]}
+    """
+    if not query or not query.strip():
+        raise ToolError(
+            "La requête de recherche ne peut pas être vide. "
+            "Fournis un terme ou un mot-clé (ex: 'hébergement', 'vidéo', 'données')."
+        )
+
+    if theme is not None:
+        _validate_theme(theme)
+
+    cache = charger_cache()
+    q = query.lower()
+    criteres_trouves = []
+
+    for c in cache["criteres"].values():
+        if theme is not None and c["theme"] != theme:
+            continue
+        texte = " ".join([
+            c.get("question", ""),
+            c.get("objectif", ""),
+            c.get("mise_en_oeuvre", ""),
+            c.get("moyen_de_controle", ""),
+            c.get("cible", ""),
+        ]).lower()
+        if q in texte:
+            criteres_trouves.append({
+                "id": c["id"],
+                "theme": c["theme"],
+                "question": c["question"],
+                "priorite": c["priorite"],
+            })
+
+    return {"total": len(criteres_trouves), "criteres": criteres_trouves}
+
+
+@mcp.tool(
+    output_schema={
+        "type": "object",
+        "properties": {
+            "total_criteres": {"type": "integer"},
+            "par_priorite": {
+                "type": "object",
+                "additionalProperties": {"type": "integer"}
+            },
+            "par_theme": {
+                "type": "object",
+                "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                        "titre": {"type": "string"},
+                        "nb_criteres": {"type": "integer"}
+                    },
+                    "required": ["titre", "nb_criteres"]
+                }
+            },
+            "par_difficulte": {
+                "type": "object",
+                "additionalProperties": {"type": "integer"}
+            }
+        },
+        "required": ["total_criteres", "par_priorite", "par_theme", "par_difficulte"]
+    },
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False
+    }
+)
+def rgesn_statistiques() -> dict:
+    """
+    Retourne les statistiques du référentiel RGESN.
+
+    Returns:
+        Total de critères, répartition par priorité, par thème et par difficulté
+    """
+    cache = charger_cache()
+    criteres = list(cache["criteres"].values())
+
+    par_priorite = {}
+    for p in _VALID_PRIORITES:
+        par_priorite[p] = sum(1 for c in criteres if c["priorite"] == p)
+
+    par_theme = {}
+    for num, titre in cache["themes"].items():
+        num_int = int(num)
+        subset = [c for c in criteres if c["theme"] == num_int]
+        par_theme[num] = {
+            "titre": titre,
+            "nb_criteres": len(subset),
+        }
+
+    par_difficulte = {}
+    for d in _VALID_DIFFICULTES:
+        par_difficulte[d] = sum(1 for c in criteres if c["difficulte"] == d)
+
+    return {
+        "total_criteres": len(criteres),
+        "par_priorite": par_priorite,
+        "par_theme": par_theme,
+        "par_difficulte": par_difficulte,
+    }
+
+
+@mcp.tool(
+    output_schema={
+        "type": "object",
+        "properties": {
+            "score": {"type": "number"},
+            "nb_conformes": {"type": "integer"},
+            "nb_non_conformes": {"type": "integer"},
+            "nb_non_applicables": {"type": "integer"},
+            "detail_ponderations": {
+                "type": "object",
+                "additionalProperties": {"type": "number"}
+            }
+        },
+        "required": ["score", "nb_conformes", "nb_non_conformes", "nb_non_applicables"]
+    },
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False
+    }
+)
+def rgesn_taux_conformite(resultats: dict) -> dict:
+    """
+    Calcule le taux de conformité RGESN pondéré par priorité.
+
+    Formule : [Σ(C × poids) / Σ(applicables × poids)] × 100
+    Pondérations : Prioritaire=1.5, Recommandé=1.25, Modéré=1.0
+    Les NA sont exclus du calcul.
+
+    Args:
+        resultats: Dict {id_critere: statut} avec statuts "C", "NC", ou "NA"
+                   Exemple: {"1.1": "C", "1.2": "NC", "1.3": "NA"}
+
+    Returns:
+        {"score": float, "nb_conformes": int, "nb_non_conformes": int, "nb_non_applicables": int}
+    """
+    if not resultats:
+        raise ToolError(
+            "Les résultats ne peuvent pas être vides. "
+            "Fournis un dictionnaire avec au moins un critère et son statut (C, NC ou NA). "
+            "Exemple : {'1.1': 'C', '1.2': 'NC'}."
+        )
+
+    valides_statuts = {"C", "NC", "NA"}
+    invalid_statuts = [(cid, s) for cid, s in resultats.items() if s not in valides_statuts]
+    if invalid_statuts:
+        details = ", ".join(f"'{cid}': '{s}'" for cid, s in invalid_statuts)
+        raise ToolError(
+            f"Statuts invalides : {details}. "
+            f"Les statuts acceptés sont : C (conforme), NC (non-conforme), NA (non-applicable)."
+        )
+
+    cache = charger_cache()
+    criteres = cache["criteres"]
+    ponderations = cache["ponderations"]
+
+    invalid_ids = [cid for cid in resultats if cid not in criteres]
+    if invalid_ids:
+        raise ToolError(
+            f"Critères inconnus : {invalid_ids}. "
+            f"Utilise rgesn_lister_criteres() pour voir les IDs valides."
+        )
+
+    somme_conformes = 0.0
+    somme_applicables = 0.0
+    nb_c = nb_nc = nb_na = 0
+
+    for cid, statut in resultats.items():
+        if statut == "NA":
+            nb_na += 1
+            continue
+        poids = ponderations[criteres[cid]["priorite"]]
+        somme_applicables += poids
+        if statut == "C":
+            somme_conformes += poids
+            nb_c += 1
+        else:
+            nb_nc += 1
+
+    score = round(somme_conformes / somme_applicables * 100, 2) if somme_applicables > 0 else 0.0
+
+    return {
+        "score": score,
+        "nb_conformes": nb_c,
+        "nb_non_conformes": nb_nc,
+        "nb_non_applicables": nb_na,
+        "detail_ponderations": {
+            p: v for p, v in ponderations.items()
+        },
+    }
+
+
+@mcp.tool(
+    output_schema={
+        "type": "object",
+        "properties": {
+            "total": {"type": "integer"},
+            "criteres": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "theme": {"type": "integer"},
+                        "question": {"type": "string"},
+                        "priorite": {"type": "string"},
+                        "difficulte": {"type": "string"},
+                        "statut": {"type": "string"}
+                    },
+                    "required": ["id", "theme", "question", "priorite", "difficulte", "statut"]
+                }
+            }
+        },
+        "required": ["total", "criteres"]
+    },
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False
+    }
+)
+def rgesn_checklist(
+    themes: Optional[list] = None,
+    priorites: Optional[list] = None,
+) -> dict:
+    """
+    Génère une checklist RGESN prête à l'emploi.
+
+    Args:
+        themes: Liste de thèmes (ex: [1, 8]). None = tous.
+        priorites: Liste de priorités (ex: ["Prioritaire"]). None = toutes.
+
+    Returns:
+        {"total": N, "criteres": [{id, question, priorite, difficulte, statut="NE"}, ...]}
+    """
+    if themes is not None:
+        for t in themes:
+            _validate_theme(t)
+
+    if priorites is not None:
+        invalid_p = [p for p in priorites if p not in _VALID_PRIORITES]
+        if invalid_p:
+            raise ToolError(
+                f"Priorités invalides : {invalid_p}. "
+                f"Valeurs acceptées : {', '.join(sorted(_VALID_PRIORITES))}."
+            )
+
+    cache = charger_cache()
+    criteres = list(cache["criteres"].values())
+
+    if themes is not None:
+        criteres = [c for c in criteres if c["theme"] in themes]
+    if priorites is not None:
+        criteres = [c for c in criteres if c["priorite"] in priorites]
+
+    result = [
+        {
+            "id": c["id"],
+            "theme": c["theme"],
+            "question": c["question"],
+            "priorite": c["priorite"],
+            "difficulte": c["difficulte"],
+            "statut": "NE",
+        }
+        for c in criteres
+    ]
+
+    return {"total": len(result), "criteres": result}
+
+
+# ============================================================================
+# RESSOURCES MCP
+# ============================================================================
+
+@mcp.resource("rgesn://version")
+async def resource_version() -> str:
+    """Version du serveur MCP et des données RGESN."""
+    cache = charger_cache()
+    meta = cache.get("meta", {})
+    return json.dumps({
+        "server_version": VERSION,
+        "data_version": meta.get("version", "inconnue"),
+        "nb_criteres": len(cache.get("criteres", {})),
+    }, ensure_ascii=False, indent=2)
+
+
+@mcp.resource("rgesn://criteres/{critere_id}")
+async def resource_critere(critere_id: str) -> str:
+    """Détail complet d'un critère RGESN."""
+    cache = charger_cache()
+    critere = cache["criteres"].get(critere_id)
+    if critere is None:
+        return json.dumps({"erreur": f"Critère '{critere_id}' introuvable"}, ensure_ascii=False)
+    return json.dumps(critere, ensure_ascii=False, indent=2)
+
+
+@mcp.resource("rgesn://index")
+async def resource_index() -> str:
+    """Index léger de tous les critères RGESN (id, thème, question, priorité)."""
+    cache = charger_cache()
+    index = [
+        {
+            "id": c["id"],
+            "theme": c["theme"],
+            "question": c["question"],
+            "priorite": c["priorite"],
+            "difficulte": c["difficulte"],
+        }
+        for c in cache["criteres"].values()
+    ]
+    return json.dumps(index, ensure_ascii=False, indent=2)
+
+
+# ============================================================================
+# PROMPTS MCP
+# ============================================================================
+
+@mcp.prompt()
+def audit_ecoconception(url: str, themes: str = "") -> str:
+    """
+    Template pour auditer l'écoconception d'un service numérique.
+
+    Args:
+        url: URL du service à auditer
+        themes: Thèmes à cibler, séparés par virgule (ex: "1,4,8"). Vide = tous.
+    """
+    themes_str = f"en ciblant les thèmes {themes}" if themes else "sur tous les thèmes"
+    return f"""Tu es un expert en écoconception numérique RGESN 2024.
+
+Réalise une évaluation de l'écoconception du service {url} {themes_str}.
+
+Étapes :
+1. Utilise rgesn_statistiques() pour avoir une vue d'ensemble du référentiel.
+2. Utilise rgesn_lister_criteres() pour lister les critères pertinents.
+3. Utilise rgesn_checklist() pour générer une liste de vérification.
+4. Pour les critères complexes, utilise rgesn_obtenir_critere() pour le détail complet (objectif, mise en œuvre, moyen de contrôle).
+5. Synthétise dans un rapport structuré avec : résumé exécutif, points positifs, axes d'amélioration, prochaines étapes.
+
+Commence par récupérer les statistiques du référentiel."""
+
+
+@mcp.prompt()
+def expliquer_critere(id_critere: str) -> str:
+    """
+    Template pour expliquer un critère RGESN et comment le mettre en œuvre.
+
+    Args:
+        id_critere: Identifiant du critère (ex: "1.1", "8.3")
+    """
+    return f"""Tu es un expert en écoconception numérique RGESN 2024.
+
+Explique le critère RGESN {id_critere} de façon pédagogique.
+
+Étapes :
+1. Utilise rgesn_obtenir_critere("{id_critere}") pour obtenir le détail complet.
+2. Présente une explication structurée :
+   - **Objectif** — pourquoi ce critère existe et quel impact environnemental il adresse
+   - **Qui est concerné** — métiers impliqués
+   - **Comment mettre en œuvre** — étapes concrètes et bonnes pratiques
+   - **Comment vérifier** — moyen de contrôle officiel
+   - **Applicabilité** — cible et cas où le critère est NA"""
+
+
+@mcp.prompt()
+def checklist_prioritaire(themes: str = "") -> str:
+    """
+    Template pour générer une checklist des critères Prioritaire du RGESN.
+
+    Args:
+        themes: Thèmes à cibler, séparés par virgule (ex: "1,4"). Vide = tous.
+    """
+    themes_param = f", themes=[{themes}]" if themes else ""
+    return f"""Tu es un expert en écoconception numérique RGESN 2024.
+
+Génère une checklist des critères RGESN Prioritaire{f' pour les thèmes {themes}' if themes else ''}.
+
+Étapes :
+1. Utilise rgesn_checklist(priorites=["Prioritaire"]{themes_param}) pour obtenir la liste.
+2. Présente la checklist sous forme de tableau opérationnel :
+   - Pour chaque critère : **ID**, **Question**, **Thème**, **Difficulté**
+   - Regroupe par thème
+   - Ajoute une colonne Statut vide pour la saisie (C / NC / NA / NE)
+3. Rappelle en fin de checklist que les critères Prioritaire ont un poids de 1.5 dans le calcul du score RGESN."""
+
+
+# ============================================================================
+# Gestion des tokens
+# ============================================================================
+
+def _load_tokens() -> dict:
+    path = Path(TOKENS_FILE)
+    if path.exists():
+        try:
+            with open(path, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error("Erreur tokens: %s", e)
+    return {}
+
+
+def _save_tokens(tokens: dict) -> None:
+    Path(TOKENS_FILE).parent.mkdir(parents=True, exist_ok=True)
+    with open(TOKENS_FILE, "w", encoding="utf-8") as f:
+        json.dump(tokens, f, ensure_ascii=False, indent=2)
+
+
+def _tokens_for_auth() -> dict:
+    now = time.time()
+    result = {}
+    for token, info in _load_tokens().items():
+        expires_at = info.get("expires_at")
+        if expires_at and expires_at < now:
+            continue
+        entry = {"client_id": info.get("name", token[:8]), "scopes": ["read"]}
+        if expires_at:
+            entry["expires_at"] = int(expires_at)
+        result[token] = entry
+    return result
+
+
+def _cmd_generate_token(name: str, expires_days: int = 365) -> None:
+    token = secrets.token_urlsafe(32)
+    expires_at = time.time() + expires_days * 86400
+    tokens = _load_tokens()
+    tokens[token] = {
+        "name": name,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": expires_at,
+    }
+    _save_tokens(tokens)
+    print(f"Token généré pour '{name}' (expire dans {expires_days} jours):")
+    print(f"  {token}")
+
+
+def _cmd_list_tokens() -> None:
+    tokens = _load_tokens()
+    if not tokens:
+        print("Aucun token.")
+        return
+    now = time.time()
+    for token, info in tokens.items():
+        expires_at = info.get("expires_at", 0)
+        statut = "EXPIRÉ" if expires_at and expires_at < now else "actif"
+        print(f"  {token[:16]}...  {info.get('name')}  [{statut}]")
+
+
+def _cmd_revoke_token(token: str) -> None:
+    tokens = _load_tokens()
+    if token in tokens:
+        del tokens[token]
+        _save_tokens(tokens)
+        print("Token révoqué.")
+    else:
+        print("Token introuvable.")
+
+
+# ============================================================================
+# Entrypoint
 # ============================================================================
 
 if __name__ == "__main__":
     args = sys.argv[1:]
 
-    # --generate-token --name <nom> [--expires-days <N>]
-    if "--generate-token" in args:
-        from mcp_ref_core.auth import cmd_generate_token
-        name = None
-        expires_days = 365
-        if "--name" in args:
-            idx = args.index("--name")
-            if idx + 1 < len(args):
-                name = args[idx + 1]
-        if "--expires-days" in args:
-            idx = args.index("--expires-days")
-            if idx + 1 < len(args):
-                expires_days = int(args[idx + 1])
+    cache = charger_cache()
+    logger.info("Serveur MCP RGESN v%s", VERSION)
+    logger.info("Cache: %d critères", len(cache.get("criteres", {})))
 
-        cmd_generate_token(Path(TOKENS_FILE), name, expires_days)
-        sys.exit(0)
-
-    # --list-tokens
-    if "--list-tokens" in args:
-        from mcp_ref_core.auth import cmd_list_tokens
-        cmd_list_tokens(Path(TOKENS_FILE))
-        sys.exit(0)
-
-    # --revoke-token <token>
-    if "--revoke-token" in args:
-        from mcp_ref_core.auth import cmd_revoke_token
-        idx = args.index("--revoke-token")
-        if idx + 1 >= len(args):
-            print("Usage: --revoke-token <token>", file=sys.stderr)
-            sys.exit(1)
-        target = args[idx + 1]
-        try:
-            cmd_revoke_token(Path(TOKENS_FILE), target)
-            sys.exit(0)
-        except ValueError as e:
-            print(f"Erreur: {e}", file=sys.stderr)
-            sys.exit(1)
-
-    # --health
     if "--health" in args:
-        print("OK")
+        nb = len(cache.get("criteres", {}))
+        if nb > 0:
+            print(f"OK: {nb} critères chargés")
+            sys.exit(0)
+        else:
+            print("ERREUR: Cache vide")
+            sys.exit(1)
+
+    if "--generate-token" in args:
+        try:
+            name = args[args.index("--name") + 1] if "--name" in args else "default"
+            days = int(args[args.index("--expires-days") + 1]) if "--expires-days" in args else 365
+            _cmd_generate_token(name, days)
+        except (IndexError, ValueError) as e:
+            print(f"Erreur d'argument : {e}", file=sys.stderr)
+            sys.exit(1)
         sys.exit(0)
 
-    # Démarrage serveur
+    if "--list-tokens" in args:
+        _cmd_list_tokens()
+        sys.exit(0)
+
+    if "--revoke-token" in args:
+        try:
+            token = args[args.index("--revoke-token") + 1]
+            _cmd_revoke_token(token)
+        except IndexError as e:
+            print(f"Erreur d'argument : {e}", file=sys.stderr)
+            sys.exit(1)
+        sys.exit(0)
+
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
-    host = os.environ.get("MCP_HOST", "0.0.0.0")
-    port = int(os.environ.get("MCP_PORT", "8000"))
-
-    logger.info("Serveur MCP RGESN v%s en démarrage...", VERSION)
-
     if transport == "http":
-        tokens = tokens_pour_auth(Path(TOKENS_FILE))
+        host = os.environ.get("MCP_HOST", "0.0.0.0")
+        port = int(os.environ.get("MCP_PORT", "8000"))
+        tokens = _tokens_for_auth()
         auth_info = f"activée ({len(tokens)} token(s))" if tokens else "désactivée"
         logger.info("Auth: %s", auth_info)
         logger.info("HTTP: %s:%d", host, port)
-
-    logger.info("Serveur prêt")
-
-    if transport == "http":
         mcp.run(transport="streamable-http", host=host, port=port)
     else:
-        mcp.run()
+        mcp.run(transport="stdio")
