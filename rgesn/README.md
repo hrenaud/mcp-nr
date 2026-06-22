@@ -4,7 +4,7 @@
 
 Serveur [MCP (Model Context Protocol)](https://modelcontextprotocol.io) donnant accès au [RGESN](https://ecoresponsable.numerique.gouv.fr/publications/referentiel-general-ecoconception/) (Référentiel Général d'Écoconception de Services Numériques) depuis Claude (Desktop, Code, ou tout client MCP).
 
-> **État actuel : scaffold — outils RGESN à implémenter.**
+Outils disponibles : `rgesn_lister_criteres`, `rgesn_obtenir_critere`, `rgesn_chercher`, `rgesn_statistiques`, `rgesn_taux_conformite`, `rgesn_checklist`.
 
 ## Démarrage rapide
 
@@ -70,8 +70,12 @@ rgesn/
 ├── pyproject.toml
 ├── CHANGELOG.md
 ├── files/
-│   └── rgesn_mcp.py          # Serveur MCP principal (scaffold)
+│   ├── rgesn_mcp.py          # Serveur MCP principal (6 outils)
+│   ├── data.py               # Chargeur de cache singleton
+│   ├── rgesn_cache.json      # 78 critères RGESN 2024
+│   └── preparer_donnees.py   # Script pour compléter les données depuis le PDF
 ├── tests/
+│   ├── test_rgesn.py         # Tests fonctionnels (41 tests)
 │   └── test_smoke.py         # Tests smoke (2 tests)
 └── tokens/
     └── .gitkeep              # Volume Docker (tokens.json non embarqué)
@@ -86,11 +90,18 @@ pip install fastmcp httpx pytest pytest-asyncio
 cd rgesn/files && pytest ../tests/ -v
 ```
 
-## Développement
+## Données
 
-Ce scaffold est prêt à recevoir les outils RGESN. Le pattern à suivre est identique à `rgaa/` :
+Le cache contient les 78 critères RGESN 2024 avec leurs métadonnées complètes. Les champs `objectif`, `mise_en_oeuvre` et `moyen_de_controle` sont remplis pour le **thème 1 (Stratégie)**. Pour les thèmes 2-9, utiliser `preparer_donnees.py` pour compléter depuis le [PDF officiel](https://www.arcep.fr/uploads/tx_gspublication/referentiel_general_ecoconception_des_services_numeriques_version_2024.pdf).
 
-1. Ajouter les données RGESN dans `files/`
-2. Définir `_rgesn_tool_definitions()` dans `rgesn_mcp.py`
-3. Implémenter les outils avec `@mcp.tool()`
-4. Ajouter les tests dans `tests/`
+## Calcul du taux de conformité
+
+Le taux est pondéré par priorité : `[Σ(C×poids) / Σ(applicables×poids)] × 100`
+
+| Priorité    | Poids |
+| ----------- | ----- |
+| Prioritaire | 1.5   |
+| Recommandé  | 1.25  |
+| Modéré      | 1.0   |
+
+Les critères NA sont exclus du calcul.
