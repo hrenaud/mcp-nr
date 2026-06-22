@@ -74,5 +74,8 @@ Redémarrez Claude Desktop ou relancez `claude` pour que les MCPs soient actifs.
 
 ## Pour aller plus loin
 
-- **Déployer les MCPs sur un serveur** (Docker, tokens, reverse proxy) → [guide de déploiement](docs/DEPLOIEMENT.md)
-- **Lancer les MCPs en local** sans serveur (usage avancé, Docker requis) → voir le guide de déploiement, section _Mode stdio_
+- **Déployer les MCPs sur un serveur** (Docker, tokens, reverse proxy) → [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md)
+- **Lancer les MCPs en local** sans serveur (usage avancé, Docker requis) → [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md), section _Mode stdio_
+- **Outils GreenIT avec exemples de prompts** → [greenit/docs/GUIDE_DEVELOPPEMENT.md](greenit/docs/GUIDE_DEVELOPPEMENT.md)
+- **Outils RGAA avec exemples de prompts** → [rgaa/docs/GUIDE_DEVELOPPEMENT.md](rgaa/docs/GUIDE_DEVELOPPEMENT.md)
+- **Structure et outils par MCP** (dev/archi) → [greenit/README.md](greenit/README.md), [rgaa/README.md](rgaa/README.md)
