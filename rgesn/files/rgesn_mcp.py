@@ -153,7 +153,23 @@ def _rgesn_tool_definitions() -> list[dict[str, Any]]:
 
 def _rgesn_guide_extra_sections() -> str:
     return """
-    <h2>5. Exemples de prompts</h2>
+    <h2>5. Prompts MCP</h2>
+    <p>Ces prompts sont des workflows préconfigurés invocables directement depuis Claude&nbsp;Code avec <code>/mcp__rgesn__&lt;nom&gt;</code>.</p>
+    <table>
+      <thead><tr><th>Prompt</th><th>Paramètres</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>audit_ecoconception</code></td><td><code>url</code>, <code>themes?</code></td><td>Audit complet d'un service numérique selon le RGESN 2024</td></tr>
+        <tr><td><code>expliquer_critere</code></td><td><code>id_critere</code></td><td>Explication pédagogique d'un critère (objectif, mise en œuvre, contrôle)</td></tr>
+        <tr><td><code>checklist_prioritaire</code></td><td><code>themes?</code></td><td>Checklist des 30 critères Prioritaire (poids ×1.5), groupés par thème</td></tr>
+        <tr><td><code>rapport_conformite</code></td><td><code>resultats</code></td><td>Rapport structuré à partir d'un dict C/NC/NA — calcule le score pondéré</td></tr>
+        <tr><td><code>checklist_par_metier</code></td><td><code>metier?</code></td><td>Checklist filtrée par profil (développeur, designer, chef de projet…)</td></tr>
+        <tr><td><code>audit_rapide_rgesn</code></td><td><code>url</code></td><td>Audit express sur les 30 critères Prioritaire (~30 min)</td></tr>
+        <tr><td><code>plan_action</code></td><td><code>service</code></td><td>Plan d'action écoconception en 3 horizons (court / moyen / long terme)</td></tr>
+        <tr><td><code>evaluer_score</code></td><td><code>criteres_nc</code></td><td>Simule le gain de score RGESN en corrigeant des critères NC</td></tr>
+      </tbody>
+    </table>
+
+    <h2>6. Exemples de questions</h2>
     <div class="note">Quels critères RGESN s'appliquent à l'hébergement ?</div>
     <div class="note">Explique le critère 1.1 du RGESN et comment le mettre en œuvre</div>
     <div class="note">Génère une checklist pour les critères Prioritaire du thème 4</div>

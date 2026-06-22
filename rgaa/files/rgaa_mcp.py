@@ -188,13 +188,31 @@ def _rgaa_tool_definitions() -> list[dict[str, Any]]:
 
 def _rgaa_guide_extra_sections() -> str:
     return """
-    <h2>5. Exemples de prompts</h2>
+    <h2>5. Prompts MCP</h2>
+    <p>Ces prompts sont des workflows préconfigurés invocables directement depuis Claude&nbsp;Code avec <code>/mcp__rgaa__&lt;nom&gt;</code>.</p>
+    <table>
+      <thead><tr><th>Prompt</th><th>Paramètres</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>audit_page</code></td><td><code>url</code>, <code>themes?</code></td><td>Audit complet d'une page — analyse automatique + tests manuels complémentaires</td></tr>
+        <tr><td><code>rapport_audit</code></td><td><code>resultats</code></td><td>Rapport d'audit Markdown structuré (résumé, violations, recommandations)</td></tr>
+        <tr><td><code>expliquer_critere</code></td><td><code>id_critere</code></td><td>Explication pédagogique d'un critère (objectif, impacts, tests, WCAG)</td></tr>
+        <tr><td><code>criteres_par_sujet</code></td><td><code>sujet</code>, <code>niveau?</code></td><td>Critères RGAA liés à un sujet (images, formulaires, couleurs…)</td></tr>
+        <tr><td><code>checklist_audit</code></td><td><code>themes</code></td><td>Checklist de tests manuels par thème, prête pour un audit terrain</td></tr>
+        <tr><td><code>criteres_wcag</code></td><td><code>niveau_wcag?</code></td><td>Critères RGAA correspondant à un niveau WCAG (A / AA / AAA)</td></tr>
+        <tr><td><code>audit_par_type</code></td><td><code>url</code>, <code>type?</code></td><td>Audit selon un type RGAA officiel (complet / rapide / complémentaire)</td></tr>
+        <tr><td><code>audit_rapide</code></td><td><code>url</code></td><td>Audit express — 25 critères essentiels niveau A (diagnostic premier niveau)</td></tr>
+        <tr><td><code>audit_complementaire</code></td><td><code>url</code></td><td>Audit complémentaire — 25 critères additionnels (médias, tableaux, consultation)</td></tr>
+        <tr><td><code>plan_correction</code></td><td><code>violations</code></td><td>Plan de correction priorisé par impact utilisateur, avec exemples de code</td></tr>
+        <tr><td><code>formuler_exigences</code></td><td><code>contexte</code></td><td>Exigences d'accessibilité pour un projet — légales, de base, de qualité</td></tr>
+      </tbody>
+    </table>
+
+    <h2>6. Exemples de questions</h2>
     <div class="note">Quels critères RGAA s'appliquent aux images décoratives ?</div>
     <div class="note">Explique le critère 1.1 du RGAA et ses tests associés</div>
     <div class="note">Génère une checklist d'audit pour un composant navigation</div>
     <div class="note">Quels critères WCAG AA concernent les formulaires ?</div>
     <div class="note">Compare les critères 9.1 et 9.2 du RGAA</div>
-    <div class="note">Quels sont les critères de niveau A les plus souvent non conformes ?</div>
     <div class="note">Donne-moi les statistiques du référentiel RGAA</div>"""
 
 
