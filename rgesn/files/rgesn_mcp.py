@@ -39,7 +39,7 @@ logger = logging.getLogger("rgesn-mcp")
 _BASE_DIR = Path(__file__).parent
 TOKENS_FILE = str(_BASE_DIR.parent / "tokens" / "tokens.json")
 
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 _routes_mod._VERSION = VERSION
 _routes_mod._MCP_NAME = "RGESN MCP"
 _routes_mod._MCP_ID = "rgesn"
