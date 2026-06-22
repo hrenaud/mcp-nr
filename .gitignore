@@ -217,3 +217,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project-specific
+tokens/*.json
+!tokens/.gitkeep
+.DS_Store
+.venv-py313/
+*.json.cover

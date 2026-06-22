@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        mcp: [greenit, rgaa, rgesn]
+        include:
+          - mcp: greenit
+            extra_deps: ""
+            test_dir: greenit/tests
+            work_dir: greenit/files
+          - mcp: rgaa
+            extra_deps: "beautifulsoup4 lxml"
+            test_dir: rgaa/tests
+            work_dir: rgaa/files
+          - mcp: rgesn
+            extra_deps: ""
+            test_dir: rgesn/tests
+            work_dir: rgesn/files
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install core
+        run: pip install -e core/
+
+      - name: Install MCP dependencies
+        run: pip install fastmcp httpx pytest pytest-asyncio ${{ matrix.extra_deps }}
+
+      - name: Run tests
+        working-directory: ${{ matrix.work_dir }}
+        run: pytest ../../${{ matrix.test_dir }} -v
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: test
+    strategy:
+      matrix:
+        mcp: [greenit, rgaa, rgesn]
+        include:
+          - mcp: greenit
+            image: greenit-mcp
+          - mcp: rgaa
+            image: rgaa-mcp
+          - mcp: rgesn
+            image: rgesn-mcp
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -f ${{ matrix.mcp }}/Dockerfile -t ${{ matrix.image }} .
+
+      - name: Smoke test
+        run: docker run --rm ${{ matrix.image }} --health
