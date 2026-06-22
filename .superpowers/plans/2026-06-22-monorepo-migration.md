@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Fusionner les repos `mcp-rgaa` et `mcp-115-greenit` dans un monorepo `mcp-referentiels`, avec un package partagé `core/` pour `auth.py`, `routes.py` et `_helpers.py`, et préparer l'accueil d'un troisième MCP (RGESN).
+**Goal:** Fusionner les repos `mcp-rgaa` et `mcp-115-greenit` dans le monorepo `mcp-nr` (déjà cloné dans `/Users/renaudheluin/DEV/ia/mcp/mcp-nr`), avec un package partagé `core/` pour `auth.py`, `routes.py` et `_helpers.py`, et préparer l'accueil d'un troisième MCP (RGESN).
 
 **Architecture:** Un seul repo Git contient trois packages indépendants (`greenit/`, `rgaa/`, `rgesn/`) et un package partagé `core/`. Chaque MCP importe `core` comme dépendance locale via `pip install -e ../../core`. Les Dockerfiles copient `core/` aux côtés des `files/` de chaque MCP. Le CI utilise une matrice GitHub Actions pour tester et builder chaque MCP indépendamment.
 
@@ -24,7 +24,7 @@
 ## Structure cible
 
 ```
-mcp-referentiels/                 ← nouveau repo Git
+mcp-nr/                           ← repo Git existant (https://github.com/hrenaud/mcp-nr.git)
   core/                           ← package partagé
     mcp_ref_core/
       __init__.py
@@ -90,12 +90,12 @@ mcp-referentiels/                 ← nouveau repo Git
 
 **Files:**
 
-- Create: `mcp-referentiels/core/mcp_ref_core/__init__.py`
-- Create: `mcp-referentiels/core/mcp_ref_core/auth.py`
-- Create: `mcp-referentiels/core/mcp_ref_core/routes.py`
-- Create: `mcp-referentiels/core/mcp_ref_core/_helpers.py`
-- Create: `mcp-referentiels/core/pyproject.toml`
-- Create: `mcp-referentiels/core/tests/test_auth_core.py`
+- Create: `mcp-nr/core/mcp_ref_core/__init__.py`
+- Create: `mcp-nr/core/mcp_ref_core/auth.py`
+- Create: `mcp-nr/core/mcp_ref_core/routes.py`
+- Create: `mcp-nr/core/mcp_ref_core/_helpers.py`
+- Create: `mcp-nr/core/pyproject.toml`
+- Create: `mcp-nr/core/tests/test_auth_core.py`
 
 **Interfaces:**
 
@@ -103,14 +103,16 @@ mcp-referentiels/                 ← nouveau repo Git
 - Produit: `from mcp_ref_core.routes import _get_base_url, _get_token_request_url, _get_tool_definitions, _http_homepage, _http_guide, _check_admin_auth, _http_admin_list_tokens, _http_admin_create_token, _http_admin_get_token, _http_admin_update_token, _http_admin_delete_token, _http_install_script`
 - Produit: `from mcp_ref_core._helpers import validate_themes, validate_score_range, validate_nonnegative`
 
-- [ ] **Step 1 : Initialiser le repo monorepo**
+- [ ] **Step 1 : Vérifier le repo monorepo existant**
+
+Le repo `mcp-nr` est déjà cloné depuis `https://github.com/hrenaud/mcp-nr.git`.
 
 ```bash
-cd /Users/renaudheluin/DEV
-mkdir mcp-referentiels
-cd mcp-referentiels
-git init
+cd /Users/renaudheluin/DEV/ia/mcp/mcp-nr
+git status
 ```
+
+Expected : working tree clean, branche `main`.
 
 - [ ] **Step 2 : Créer la structure de répertoires**
 
@@ -164,7 +166,7 @@ __all__ = [
 
 ```bash
 cp /Users/renaudheluin/DEV/DEV_GREENIT/refs/mcp-115-greenit/files/auth.py \
-   /Users/renaudheluin/DEV/mcp-referentiels/core/mcp_ref_core/auth.py
+   /Users/renaudheluin/DEV/ia/mcp/mcp-nr/core/mcp_ref_core/auth.py
 ```
 
 Puis remplacer la ligne du logger dans `auth.py` :
@@ -180,10 +182,10 @@ logger = logging.getLogger("mcp-ref-core")
 
 ```bash
 cp /Users/renaudheluin/DEV/DEV_GREENIT/refs/mcp-115-greenit/files/routes.py \
-   /Users/renaudheluin/DEV/mcp-referentiels/core/mcp_ref_core/routes.py
+   /Users/renaudheluin/DEV/ia/mcp/mcp-nr/core/mcp_ref_core/routes.py
 
 cp /Users/renaudheluin/DEV/DEV_GREENIT/refs/mcp-115-greenit/files/_helpers.py \
-   /Users/renaudheluin/DEV/mcp-referentiels/core/mcp_ref_core/_helpers.py
+   /Users/renaudheluin/DEV/ia/mcp/mcp-nr/core/mcp_ref_core/_helpers.py
 ```
 
 - [ ] **Step 7 : Écrire un test de fumée pour `core/`**
@@ -223,7 +225,7 @@ def test_validate_score_range_rejects_negative():
 - [ ] **Step 8 : Vérifier que les tests échouent (imports manquants attendus)**
 
 ```bash
-cd /Users/renaudheluin/DEV/mcp-referentiels/core
+cd /Users/renaudheluin/DEV/ia/mcp/mcp-nr/core
 pip install -e ".[dev]" -q
 pytest tests/ -v
 ```
@@ -241,7 +243,7 @@ Expected : 4 tests PASSED.
 - [ ] **Step 10 : Commit**
 
 ```bash
-cd /Users/renaudheluin/DEV/mcp-referentiels
+cd /Users/renaudheluin/DEV/ia/mcp/mcp-nr
 git add core/
 git commit -m "feat: add shared core package mcp-ref-core"
 ```
@@ -252,10 +254,10 @@ git commit -m "feat: add shared core package mcp-ref-core"
 
 **Files:**
 
-- Create: `mcp-referentiels/greenit/` (copie de mcp-115-greenit sans les fichiers partagés)
-- Modify: `mcp-referentiels/greenit/files/greenit_mcp.py` — imports vers `mcp_ref_core`
-- Modify: `mcp-referentiels/greenit/Dockerfile` — COPY core/
-- Modify: `mcp-referentiels/greenit/pyproject.toml` — dépendance core locale
+- Create: `mcp-nr/greenit/` (copie de mcp-115-greenit sans les fichiers partagés)
+- Modify: `mcp-nr/greenit/files/greenit_mcp.py` — imports vers `mcp_ref_core`
+- Modify: `mcp-nr/greenit/Dockerfile` — COPY core/
+- Modify: `mcp-nr/greenit/pyproject.toml` — dépendance core locale
 
 **Interfaces:**
 
@@ -265,26 +267,26 @@ git commit -m "feat: add shared core package mcp-ref-core"
 
 ```bash
 cp -r /Users/renaudheluin/DEV/DEV_GREENIT/refs/mcp-115-greenit \
-      /Users/renaudheluin/DEV/mcp-referentiels/greenit
+      /Users/renaudheluin/DEV/ia/mcp/mcp-nr/greenit
 ```
 
 Supprimer les fichiers qui vont dans `core/` :
 
 ```bash
-trash /Users/renaudheluin/DEV/mcp-referentiels/greenit/files/auth.py
-trash /Users/renaudheluin/DEV/mcp-referentiels/greenit/files/routes.py
-trash /Users/renaudheluin/DEV/mcp-referentiels/greenit/files/_helpers.py
+trash /Users/renaudheluin/DEV/ia/mcp/mcp-nr/greenit/files/auth.py
+trash /Users/renaudheluin/DEV/ia/mcp/mcp-nr/greenit/files/routes.py
+trash /Users/renaudheluin/DEV/ia/mcp/mcp-nr/greenit/files/_helpers.py
 ```
 
 Supprimer les artefacts inutiles dans le monorepo :
 
 ```bash
-trash /Users/renaudheluin/DEV/mcp-referentiels/greenit/.git
-trash /Users/renaudheluin/DEV/mcp-referentiels/greenit/.venv
-trash /Users/renaudheluin/DEV/mcp-referentiels/greenit/.venv-py313
-trash /Users/renaudheluin/DEV/mcp-referentiels/greenit/htmlcov
-trash /Users/renaudheluin/DEV/mcp-referentiels/greenit/.coverage
-trash /Users/renaudheluin/DEV/mcp-referentiels/greenit/.worktrees
+trash /Users/renaudheluin/DEV/ia/mcp/mcp-nr/greenit/.git
+trash /Users/renaudheluin/DEV/ia/mcp/mcp-nr/greenit/.venv
+trash /Users/renaudheluin/DEV/ia/mcp/mcp-nr/greenit/.venv-py313
+trash /Users/renaudheluin/DEV/ia/mcp/mcp-nr/greenit/htmlcov
+trash /Users/renaudheluin/DEV/ia/mcp/mcp-nr/greenit/.coverage
+trash /Users/renaudheluin/DEV/ia/mcp/mcp-nr/greenit/.worktrees
 ```
 
 - [ ] **Step 2 : Mettre à jour `greenit/pyproject.toml`**
@@ -364,7 +366,7 @@ Note : le Dockerfile doit être buildé depuis la racine du monorepo (`docker bu
 - [ ] **Step 5 : Installer core et tester greenit**
 
 ```bash
-cd /Users/renaudheluin/DEV/mcp-referentiels
+cd /Users/renaudheluin/DEV/ia/mcp/mcp-nr
 pip install -e core/ -q
 cd greenit
 pip install -e ".[dev]" -q
@@ -377,7 +379,7 @@ Expected : même nombre de tests passants qu'avant la migration.
 - [ ] **Step 6 : Tester le build Docker depuis la racine**
 
 ```bash
-cd /Users/renaudheluin/DEV/mcp-referentiels
+cd /Users/renaudheluin/DEV/ia/mcp/mcp-nr
 docker build -f greenit/Dockerfile -t greenit-mcp-mono .
 docker run --rm greenit-mcp-mono --health
 ```
@@ -387,7 +389,7 @@ Expected : `OK` sur stdout, exit code 0.
 - [ ] **Step 7 : Commit**
 
 ```bash
-cd /Users/renaudheluin/DEV/mcp-referentiels
+cd /Users/renaudheluin/DEV/ia/mcp/mcp-nr
 git add greenit/
 git commit -m "feat: migrate greenit MCP into monorepo"
 ```
@@ -398,10 +400,10 @@ git commit -m "feat: migrate greenit MCP into monorepo"
 
 **Files:**
 
-- Create: `mcp-referentiels/rgaa/` (copie de mcp-rgaa sans les fichiers partagés)
-- Modify: `mcp-referentiels/rgaa/files/rgaa_mcp.py` — imports vers `mcp_ref_core`
-- Modify: `mcp-referentiels/rgaa/Dockerfile` — COPY core/
-- Modify: `mcp-referentiels/rgaa/pyproject.toml`
+- Create: `mcp-nr/rgaa/` (copie de mcp-rgaa sans les fichiers partagés)
+- Modify: `mcp-nr/rgaa/files/rgaa_mcp.py` — imports vers `mcp_ref_core`
+- Modify: `mcp-nr/rgaa/Dockerfile` — COPY core/
+- Modify: `mcp-nr/rgaa/pyproject.toml`
 
 **Interfaces:**
 
@@ -411,16 +413,16 @@ git commit -m "feat: migrate greenit MCP into monorepo"
 
 ```bash
 cp -r /Users/renaudheluin/DEV/mcp-rgaa \
-      /Users/renaudheluin/DEV/mcp-referentiels/rgaa
+      /Users/renaudheluin/DEV/ia/mcp/mcp-nr/rgaa
 
-trash /Users/renaudheluin/DEV/mcp-referentiels/rgaa/files/auth.py
-trash /Users/renaudheluin/DEV/mcp-referentiels/rgaa/files/routes.py
-trash /Users/renaudheluin/DEV/mcp-referentiels/rgaa/files/_helpers.py
-trash /Users/renaudheluin/DEV/mcp-referentiels/rgaa/.git
-trash /Users/renaudheluin/DEV/mcp-referentiels/rgaa/.venv-py313
-trash /Users/renaudheluin/DEV/mcp-referentiels/rgaa/htmlcov
-trash /Users/renaudheluin/DEV/mcp-referentiels/rgaa/.coverage
-trash /Users/renaudheluin/DEV/mcp-referentiels/rgaa/.worktrees
+trash /Users/renaudheluin/DEV/ia/mcp/mcp-nr/rgaa/files/auth.py
+trash /Users/renaudheluin/DEV/ia/mcp/mcp-nr/rgaa/files/routes.py
+trash /Users/renaudheluin/DEV/ia/mcp/mcp-nr/rgaa/files/_helpers.py
+trash /Users/renaudheluin/DEV/ia/mcp/mcp-nr/rgaa/.git
+trash /Users/renaudheluin/DEV/ia/mcp/mcp-nr/rgaa/.venv-py313
+trash /Users/renaudheluin/DEV/ia/mcp/mcp-nr/rgaa/htmlcov
+trash /Users/renaudheluin/DEV/ia/mcp/mcp-nr/rgaa/.coverage
+trash /Users/renaudheluin/DEV/ia/mcp/mcp-nr/rgaa/.worktrees
 ```
 
 - [ ] **Step 2 : Mettre à jour `rgaa/pyproject.toml`**
@@ -456,7 +458,7 @@ asyncio_mode = "auto"
 
 ```bash
 grep -n "from auth\|from _helpers\|import routes" \
-  /Users/renaudheluin/DEV/mcp-referentiels/rgaa/files/rgaa_mcp.py
+  /Users/renaudheluin/DEV/ia/mcp/mcp-nr/rgaa/files/rgaa_mcp.py
 ```
 
 Remplacer chaque occurrence trouvée :
@@ -504,7 +506,7 @@ ENTRYPOINT ["python", "files/rgaa_mcp.py"]
 
 ```bash
 grep -rn "from auth\|from _helpers\|import routes" \
-  /Users/renaudheluin/DEV/mcp-referentiels/rgaa/tests/
+  /Users/renaudheluin/DEV/ia/mcp/mcp-nr/rgaa/tests/
 ```
 
 Mettre à jour chaque occurrence trouvée avec les imports `mcp_ref_core`.
@@ -512,7 +514,7 @@ Mettre à jour chaque occurrence trouvée avec les imports `mcp_ref_core`.
 - [ ] **Step 6 : Tester rgaa**
 
 ```bash
-cd /Users/renaudheluin/DEV/mcp-referentiels
+cd /Users/renaudheluin/DEV/ia/mcp/mcp-nr
 pip install -e core/ -q
 cd rgaa/files
 pytest ../tests/ -v --tb=short 2>&1 | tail -20
@@ -523,7 +525,7 @@ Expected : même nombre de tests passants qu'avant.
 - [ ] **Step 7 : Tester le build Docker**
 
 ```bash
-cd /Users/renaudheluin/DEV/mcp-referentiels
+cd /Users/renaudheluin/DEV/ia/mcp/mcp-nr
 docker build -f rgaa/Dockerfile -t rgaa-mcp-mono .
 docker run --rm rgaa-mcp-mono --health
 ```
@@ -533,7 +535,7 @@ Expected : `OK`, exit code 0.
 - [ ] **Step 8 : Commit**
 
 ```bash
-cd /Users/renaudheluin/DEV/mcp-referentiels
+cd /Users/renaudheluin/DEV/ia/mcp/mcp-nr
 git add rgaa/
 git commit -m "feat: migrate rgaa MCP into monorepo"
 ```
@@ -544,12 +546,12 @@ git commit -m "feat: migrate rgaa MCP into monorepo"
 
 **Files:**
 
-- Create: `mcp-referentiels/rgesn/files/rgesn_mcp.py` — squelette minimal
-- Create: `mcp-referentiels/rgesn/pyproject.toml`
-- Create: `mcp-referentiels/rgesn/Dockerfile`
-- Create: `mcp-referentiels/rgesn/docker-compose.yml`
-- Create: `mcp-referentiels/rgesn/tests/test_smoke.py`
-- Create: `mcp-referentiels/rgesn/CHANGELOG.md`
+- Create: `mcp-nr/rgesn/files/rgesn_mcp.py` — squelette minimal
+- Create: `mcp-nr/rgesn/pyproject.toml`
+- Create: `mcp-nr/rgesn/Dockerfile`
+- Create: `mcp-nr/rgesn/docker-compose.yml`
+- Create: `mcp-nr/rgesn/tests/test_smoke.py`
+- Create: `mcp-nr/rgesn/CHANGELOG.md`
 
 **Interfaces:**
 
@@ -559,10 +561,10 @@ git commit -m "feat: migrate rgaa MCP into monorepo"
 - [ ] **Step 1 : Créer la structure rgesn**
 
 ```bash
-mkdir -p /Users/renaudheluin/DEV/mcp-referentiels/rgesn/files
-mkdir -p /Users/renaudheluin/DEV/mcp-referentiels/rgesn/tests
-mkdir -p /Users/renaudheluin/DEV/mcp-referentiels/rgesn/tokens
-touch /Users/renaudheluin/DEV/mcp-referentiels/rgesn/tokens/.gitkeep
+mkdir -p /Users/renaudheluin/DEV/ia/mcp/mcp-nr/rgesn/files
+mkdir -p /Users/renaudheluin/DEV/ia/mcp/mcp-nr/rgesn/tests
+mkdir -p /Users/renaudheluin/DEV/ia/mcp/mcp-nr/rgesn/tokens
+touch /Users/renaudheluin/DEV/ia/mcp/mcp-nr/rgesn/tokens/.gitkeep
 ```
 
 - [ ] **Step 2 : Créer `rgesn/pyproject.toml`**
@@ -727,7 +729,7 @@ volumes:
 - [ ] **Step 8 : Tester le smoke test**
 
 ```bash
-cd /Users/renaudheluin/DEV/mcp-referentiels/rgesn/files
+cd /Users/renaudheluin/DEV/ia/mcp/mcp-nr/rgesn/files
 pytest ../tests/test_smoke.py -v
 ```
 
@@ -736,7 +738,7 @@ Expected : 2 tests PASSED.
 - [ ] **Step 9 : Commit**
 
 ```bash
-cd /Users/renaudheluin/DEV/mcp-referentiels
+cd /Users/renaudheluin/DEV/ia/mcp/mcp-nr
 git add rgesn/
 git commit -m "feat: scaffold rgesn MCP"
 ```
@@ -747,11 +749,11 @@ git commit -m "feat: scaffold rgesn MCP"
 
 **Files:**
 
-- Create: `mcp-referentiels/.github/workflows/ci.yml`
-- Create: `mcp-referentiels/.github/workflows/release-greenit.yml`
-- Create: `mcp-referentiels/.github/workflows/release-rgaa.yml`
-- Create: `mcp-referentiels/.gitignore`
-- Create: `mcp-referentiels/README.md`
+- Create: `mcp-nr/.github/workflows/ci.yml`
+- Create: `mcp-nr/.github/workflows/release-greenit.yml`
+- Create: `mcp-nr/.github/workflows/release-rgaa.yml`
+- Create: `mcp-nr/.gitignore`
+- Create: `mcp-nr/README.md`
 
 - [ ] **Step 1 : Créer `.gitignore` racine**
 
@@ -885,7 +887,7 @@ docker build -f greenit/Dockerfile -t greenit-mcp .
 - [ ] **Step 4 : Commit final**
 
 ```bash
-cd /Users/renaudheluin/DEV/mcp-referentiels
+cd /Users/renaudheluin/DEV/ia/mcp/mcp-nr
 git add .github/ .gitignore README.md
 git commit -m "chore: add monorepo CI and root README"
 ````
