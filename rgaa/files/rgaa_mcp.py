@@ -1,0 +1,1212 @@
+"""
+Serveur MCP RGAA 4.2.1
+Expose les outils d'audit d'accessibilité à Claude.
+
+Variables d'environnement :
+  MCP_TRANSPORT   stdio (défaut) | http
+  MCP_HOST        0.0.0.0 (défaut, mode http)
+  MCP_PORT        8000 (défaut, mode http)
+
+Gestion des tokens :
+  python rgaa_mcp.py --generate-token --name <nom> [--expires-days <N>]
+  python rgaa_mcp.py --list-tokens
+  python rgaa_mcp.py --revoke-token <token>
+"""
+
+from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
+from analyseur import fetcher_html, analyser_html
+from data import charger_cache, charger_audit_types
+from mcp_ref_core._helpers import validate_themes
+from mcp_ref_core import routes as _routes_mod
+import httpx
+import json
+import logging
+import os
+import secrets
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+from difflib import get_close_matches
+from typing import Literal, Optional
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S",
+    stream=sys.stderr,
+)
+logger = logging.getLogger("rgaa-mcp")
+
+_BASE_DIR = Path(__file__).parent
+TOKENS_FILE = str(_BASE_DIR.parent / "tokens" / "tokens.json")
+
+VERSION = "1.2.2"
+_routes_mod._VERSION = VERSION
+
+from mcp_ref_core.routes import (
+    _get_base_url,
+    _get_token_request_url,
+    _http_homepage,
+    _http_install_script,
+    _http_guide,
+)
+
+
+def _create_mcp() -> FastMCP:
+    from mcp_ref_core.auth import DynamicTokenVerifier
+    from mcp_ref_core import routes as _routes_mod
+
+    token_path = Path(TOKENS_FILE)
+    verifier = DynamicTokenVerifier(token_path)
+    _routes_mod._token_verifier = verifier
+
+    if verifier.tokens:
+        mcp_instance = FastMCP("RGAA MCP", auth=verifier)
+        mcp_instance._auth = verifier
+    else:
+        mcp_instance = FastMCP("RGAA MCP")
+        mcp_instance._auth = None
+
+    transport = os.environ.get("MCP_TRANSPORT", "stdio")
+    if transport == "http":
+        mcp_instance.custom_route("/", methods=["GET"])(_http_homepage)
+        mcp_instance.custom_route("/install.sh", methods=["GET"])(_http_install_script)
+        mcp_instance.custom_route("/guide", methods=["GET"])(_http_guide)
+        mcp_instance.custom_route("/admin/tokens", methods=["GET"])(_routes_mod._http_admin_list_tokens)
+        mcp_instance.custom_route("/admin/tokens", methods=["POST"])(_routes_mod._http_admin_create_token)
+        mcp_instance.custom_route("/admin/tokens/{id}", methods=["GET"])(_routes_mod._http_admin_get_token)
+        mcp_instance.custom_route("/admin/tokens/{id}", methods=["PATCH"])(_routes_mod._http_admin_update_token)
+        mcp_instance.custom_route("/admin/tokens/{id}", methods=["DELETE"])(_routes_mod._http_admin_delete_token)
+    return mcp_instance
+
+
+mcp = _create_mcp()
+
+
+# ============================================================================
+# OUTILS : Référentiel
+# ============================================================================
+
+@mcp.tool(
+    output_schema={
+        "type": "object",
+        "properties": {
+            "total": {"type": "integer"},
+            "criteres": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "theme": {"type": "integer"},
+                        "titre": {"type": "string"},
+                        "automatisable": {"type": "boolean"},
+                        "niveau": {"type": ["string", "null"]}
+                    },
+                    "required": ["id", "theme", "titre", "automatisable"]
+                }
+            }
+        },
+        "required": ["total", "criteres"]
+    },
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False
+    }
+)
+def rgaa_lister_criteres(theme: Optional[int] = None, niveau_wcag: Optional[Literal["A", "AA", "AAA"]] = None) -> dict:
+    """
+    Liste les critères RGAA avec filtres optionnels par thème et/ou niveau WCAG.
+
+    Args:
+        theme: Numéro de thème (1-13). None = tous les thèmes.
+        niveau_wcag: Niveau WCAG à filtrer. None = tous les niveaux.
+
+    Returns:
+        {"total": N, "criteres": [...]}
+    """
+    if theme is not None:
+        validate_themes([theme])
+
+    if niveau_wcag is not None:
+        valid_levels = {"A", "AA", "AAA"}
+        if niveau_wcag not in valid_levels:
+            raise ToolError(
+                f"Niveau WCAG '{niveau_wcag}' invalide. "
+                f"Les niveaux acceptés sont : A, AA, AAA. "
+                f"Utilise rgaa_lister_criteres() sans filtre pour voir tous les critères."
+            )
+
+    cache = charger_cache()
+    criteres = list(cache["criteres"].values())
+    if theme is not None:
+        criteres = [c for c in criteres if c["theme"] == theme]
+    if niveau_wcag is not None:
+        token = f"({niveau_wcag.upper()})"
+        criteres = [c for c in criteres if any(token in ref for ref in c.get("wcag", []))]
+    return {
+        "total": len(criteres),
+        "criteres": [
+            {
+                "id": c["id"],
+                "theme": c["theme"],
+                "titre": c["titre"],
+                "automatisable": c["automatisable"],
+                "niveau": c.get("niveau"),
+            }
+            for c in criteres
+        ],
+    }
+
+
+@mcp.tool(
+    output_schema={
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "theme": {"type": "integer"},
+            "titre": {"type": "string"},
+            "tests": {"type": "object"},
+            "wcag": {"type": "array", "items": {"type": "string"}},
+            "cas_particuliers": {"type": ["string", "null"]},
+            "niveau": {"type": ["string", "null"]},
+            "automatisable": {"type": "boolean"},
+            "erreur": {"type": "string"}
+        }
+    },
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False
+    }
+)
+def rgaa_obtenir_critere(id: str) -> dict:
+    """
+    Retourne le détail complet d'un critère RGAA.
+
+    Args:
+        id: Identifiant du critère (ex: "1.1", "11.3")
+
+    Returns:
+        Détail complet : titre, tests, références WCAG, cas particuliers, niveau
+    """
+    cache = charger_cache()
+    critere = cache["criteres"].get(id)
+    if critere is None:
+        # Essayer de suggérer un critère proche
+        valid_ids = list(cache["criteres"].keys())
+        suggestions = get_close_matches(id, valid_ids, n=1, cutoff=0.4)
+        suggest_msg = f" As-tu voulu dire '{suggestions[0]}'?" if suggestions else ""
+        raise ToolError(
+            f"Critère '{id}' n'existe pas.{suggest_msg} "
+            f"Les ID valides vont de 1.1 à 13.13. "
+            f"Utilise rgaa_lister_criteres() pour lister tous les critères."
+        )
+    return critere
+
+
+@mcp.tool(
+    output_schema={
+        "type": "object",
+        "properties": {
+            "criteres": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "theme": {"type": "integer"},
+                        "titre": {"type": "string"}
+                    },
+                    "required": ["id", "theme", "titre"]
+                }
+            },
+            "termes_glossaire": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "terme": {"type": "string"},
+                        "definition": {"type": "string"},
+                        "examples": {"type": ["array", "null"]}
+                    },
+                    "required": ["terme", "definition"]
+                }
+            }
+        },
+        "required": ["criteres", "termes_glossaire"]
+    },
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True
+    }
+)
+def rgaa_chercher(query: str, scope: Optional[list[Literal["criteres", "glossaire"]]] = None) -> dict:
+    """
+    Recherche par mot-clé dans les critères et/ou le glossaire.
+
+    Args:
+        query: Terme à rechercher
+        scope: Périmètre de recherche. None = critères et glossaire.
+
+    Returns:
+        {"criteres": [...], "termes_glossaire": [...]}
+    """
+    if not query or not query.strip():
+        raise ToolError(
+            "La requête de recherche ne peut pas être vide. "
+            "Fournis un terme ou un mot-clé (ex: 'images', 'formulaires', 'couleurs')."
+        )
+
+    if scope is None:
+        scope = ["criteres", "glossaire"]
+
+    cache = charger_cache()
+    q = query.lower()
+    criteres_trouves = []
+    termes_trouves = []
+
+    if "criteres" in scope:
+        for c in cache["criteres"].values():
+            if q in c["titre"].lower() or q in str(c.get("tests", "")).lower():
+                criteres_trouves.append({
+                    "id": c["id"],
+                    "theme": c["theme"],
+                    "titre": c["titre"],
+                })
+
+    if "glossaire" in scope:
+        for terme, entry in cache["glossaire"].items():
+            if q in terme or q in entry["definition"].lower():
+                termes_trouves.append(entry)
+
+    return {"criteres": criteres_trouves, "termes_glossaire": termes_trouves}
+
+
+@mcp.tool(
+    output_schema={
+        "type": "object",
+        "properties": {
+            "terme": {"type": "string"},
+            "definition": {"type": "string"},
+            "exemples": {"type": ["array", "null"], "items": {"type": "string"}},
+            "suggestion": {"type": ["string", "null"]},
+            "erreur": {"type": ["string", "null"]}
+        },
+        "required": ["terme", "definition"]
+    },
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False
+    }
+)
+def rgaa_glossaire(terme: str) -> dict:
+    """
+    Retourne la définition d'un terme du glossaire RGAA.
+
+    Args:
+        terme: Terme à rechercher (insensible à la casse)
+
+    Returns:
+        {"terme": "...", "definition": "...", "exemples": [...]}
+    """
+    if not terme or not terme.strip():
+        raise ToolError(
+            "Le terme de recherche ne peut pas être vide. "
+            "Fournis un terme du glossaire RGAA (ex: 'alternatives textuelles', 'contraste')."
+        )
+
+    cache = charger_cache()
+    entry = cache["glossaire"].get(terme.lower())
+    if entry is None:
+        keys = list(cache["glossaire"].keys())
+        t = terme.lower()
+        # Sous-chaîne directe
+        for key in keys:
+            if t in key or key in t:
+                val = cache["glossaire"][key]
+                return {**val, "suggestion": f"Terme exact '{terme}' introuvable — je pense que tu voulais parler de \"{val['terme']}\""}
+        # Correspondance floue (difflib)
+        matches = get_close_matches(t, keys, n=1, cutoff=0.4)
+        if matches:
+            val = cache["glossaire"][matches[0]]
+            return {**val, "suggestion": f"Terme exact '{terme}' introuvable — je pense que tu voulais parler de \"{val['terme']}\""}
+        raise ToolError(
+            f"Terme '{terme}' introuvable dans le glossaire RGAA. "
+            f"Utilise rgaa_chercher('{terme}', scope=['glossaire']) pour chercher des termes similaires."
+        )
+    return entry
+
+
+@mcp.tool(
+    output_schema={
+        "type": "object",
+        "properties": {
+            "total_criteres": {"type": "integer"},
+            "automatisables": {"type": "integer"},
+            "manuels": {"type": "integer"},
+            "par_theme": {
+                "type": "object",
+                "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                        "titre": {"type": "string"},
+                        "nb_criteres": {"type": "integer"},
+                        "automatisables": {"type": "integer"}
+                    },
+                    "required": ["titre", "nb_criteres", "automatisables"]
+                }
+            }
+        },
+        "required": ["total_criteres", "automatisables", "manuels", "par_theme"]
+    },
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False
+    }
+)
+def rgaa_statistiques() -> dict:
+    """
+    Retourne les statistiques du référentiel RGAA.
+
+    Returns:
+        Nombre de critères par thème, automatisables vs manuels, total
+    """
+    cache = charger_cache()
+    criteres = list(cache["criteres"].values())
+
+    par_theme = {}
+    for num, titre in cache["themes"].items():
+        num_int = int(num)
+        subset = [c for c in criteres if c["theme"] == num_int]
+        par_theme[num] = {
+            "titre": titre,
+            "nb_criteres": len(subset),
+            "automatisables": sum(1 for c in subset if c["automatisable"]),
+        }
+
+    auto = sum(1 for c in criteres if c["automatisable"])
+    return {
+        "total_criteres": len(criteres),
+        "automatisables": auto,
+        "manuels": len(criteres) - auto,
+        "par_theme": par_theme,
+    }
+
+
+@mcp.tool(
+    output_schema={
+        "type": "object",
+        "properties": {
+            "types": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "type": {"type": "string"},
+                        "nom": {"type": "string"},
+                        "description": {"type": "string"},
+                        "conforme_obligation": {"type": "boolean"},
+                        "nb_criteres": {"type": "integer"}
+                    },
+                    "required": ["type", "nom", "description", "conforme_obligation", "nb_criteres"]
+                }
+            }
+        },
+        "required": ["types"]
+    },
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False
+    }
+)
+def rgaa_types_audit() -> dict:
+    """
+    Liste les types d'audit RGAA disponibles et indique lequel répond à l'obligation légale.
+
+    Returns:
+        {"types": [{"type": "...", "nom": "...", "description": "...", "conforme_obligation": bool, "nb_criteres": int}]}
+    """
+    audit_types = charger_audit_types()
+    cache = charger_cache()
+    nb_complet = len(cache["criteres"])
+
+    result = []
+    for slug, info in audit_types.items():
+        nb = nb_complet if info["criteres"] is None else len(info["criteres"])
+        result.append({
+            "type": slug,
+            "nom": info["nom"],
+            "description": info["description"],
+            "conforme_obligation": info["conforme_obligation"],
+            "nb_criteres": nb,
+        })
+
+    return {"types": result}
+
+
+@mcp.tool(
+    output_schema={
+        "type": "object",
+        "properties": {
+            "type": {"type": "string"},
+            "nom": {"type": "string"},
+            "conforme_obligation": {"type": "boolean"},
+            "nb_criteres": {"type": "integer"},
+            "criteres": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "theme": {"type": "integer"},
+                        "titre": {"type": "string"}
+                    },
+                    "required": ["id", "theme", "titre"]
+                }
+            },
+            "erreur": {"type": ["string", "null"]}
+        },
+        "required": ["type", "nom", "conforme_obligation", "nb_criteres", "criteres"]
+    },
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False
+    }
+)
+def rgaa_criteres_audit(type: Literal["complet", "rapide", "complementaire"]) -> dict:
+    """
+    Retourne la liste des critères pour un type d'audit RGAA donné.
+
+    Args:
+        type: Type d'audit — "complet" (106 critères, obligation légale), "rapide" (25 critères), "complementaire" (25 critères)
+
+    Returns:
+        {"type": "...", "nom": "...", "conforme_obligation": bool, "nb_criteres": int, "criteres": [{"id": "...", "theme": int, "titre": "..."}]}
+    """
+    audit_types = charger_audit_types()
+    if type not in audit_types:
+        valid_types = ", ".join(audit_types.keys())
+        raise ToolError(
+            f"Type d'audit '{type}' invalide. Valeurs acceptées : {valid_types}. "
+            f"Utilise rgaa_types_audit() pour voir tous les types disponibles."
+        )
+
+    info = audit_types[type]
+    cache = charger_cache()
+
+    ids = list(cache["criteres"].keys()) if info["criteres"] is None else info["criteres"]
+
+    criteres = []
+    for cid in ids:
+        c = cache["criteres"].get(cid)
+        if c:
+            criteres.append({
+                "id": c["id"],
+                "theme": c["theme"],
+                "titre": c["titre"],
+            })
+
+    return {
+        "type": type,
+        "nom": info["nom"],
+        "conforme_obligation": info["conforme_obligation"],
+        "nb_criteres": len(criteres),
+        "criteres": criteres,
+    }
+
+
+# ============================================================================
+# OUTILS : Analyse automatisée
+# ============================================================================
+
+@mcp.tool(
+    output_schema={
+        "type": "object",
+        "properties": {
+            "url": {"type": "string"},
+            "date": {"type": "string"},
+            "themes_analyses": {"type": "array", "items": {"type": "integer"}},
+            "nb_violations": {"type": "integer"},
+            "criteres": {"type": "array", "items": {"type": "object"}},
+            "note": {"type": "string"}
+        },
+        "required": ["url", "date", "themes_analyses", "nb_violations", "criteres"]
+    },
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True
+    }
+)
+def rgaa_analyser(url: str, themes: list[int] = None) -> dict:
+    """
+    Analyse une page web pour détecter les violations RGAA automatisables.
+
+    Args:
+        url: URL de la page à analyser
+        themes: Liste de thèmes à cibler (1-13). None = tous les automatisables [1,2,5,6,8,9,11,12]
+
+    Returns:
+        {"url": "...", "date": "...", "themes_analyses": [...], "nb_violations": N, "criteres": [...], "note": "..."}
+    """
+    if not url or not url.strip():
+        raise ToolError(
+            "L'URL ne peut pas être vide. "
+            "Fournis une URL valide (ex: https://example.com)."
+        )
+
+    if not url.startswith(("http://", "https://")):
+        raise ToolError(
+            f"L'URL '{url}' est invalide. "
+            "Les URLs doivent commencer par http:// ou https://."
+        )
+
+    if themes is not None:
+        validate_themes(themes)
+
+    try:
+        html = fetcher_html(url)
+    except (httpx.RequestError, httpx.TimeoutException) as e:
+        raise ToolError(f"Impossible de récupérer la page: {e}. Vérifie que l'URL est accessible et que le serveur répond.")
+    except httpx.HTTPStatusError as e:
+        raise ToolError(f"Erreur HTTP {e.response.status_code}: {e}. La page n'existe pas ou le serveur refuse l'accès.")
+
+    result = analyser_html(html, themes)
+    return {
+        "url": url,
+        "date": datetime.now(timezone.utc).isoformat(),
+        **result,
+    }
+
+
+# ============================================================================
+# OUTILS : Guidage (IGT)
+# ============================================================================
+
+OUTILS_CHECKLIST = {
+    1: ["DevTools (onglet Éléments)", "Web Developer Toolbar", "NVDA + Firefox"],
+    2: ["DevTools (onglet Éléments)"],
+    3: ["Color Contrast Analyser", "DevTools", "WCAG Contrast Checker"],
+    4: ["VLC", "Sous-titres natifs du navigateur"],
+    5: ["DevTools (onglet Éléments)", "NVDA"],
+    6: ["DevTools", "WAVE", "NVDA"],
+    7: ["DevTools (onglet Console)", "NVDA", "JAWS"],
+    8: ["DevTools (vue Source)", "W3C Validator"],
+    9: ["HeadingsMap (extension)", "WAVE", "DevTools"],
+    10: ["DevTools (onglet Styles)", "zoom navigateur 200%"],
+    11: ["DevTools", "NVDA", "WAVE"],
+    12: ["Navigation clavier (Tab)", "NVDA", "DevTools"],
+    13: ["DevTools", "NVDA", "tests de défilement"],
+}
+
+
+@mcp.tool(
+    output_schema={
+        "type": "object",
+        "properties": {
+            "criteres": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "titre": {"type": "string"},
+                        "tests": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "description": {"type": "string"},
+                                    "methode": {"type": "string"},
+                                    "outils": {"type": "array", "items": {"type": "string"}}
+                                },
+                                "required": ["description", "methode", "outils"]
+                            }
+                        }
+                    },
+                    "required": ["id", "titre", "tests"]
+                }
+            },
+            "erreur": {"type": ["string", "null"]}
+        },
+        "required": ["criteres"]
+    },
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True
+    }
+)
+def rgaa_checklist(themes: list[int] = None, criteres: list[str] = None) -> dict:
+    """
+    Génère une checklist de test manuel RGAA.
+
+    Args:
+        themes: Liste de thèmes (ex: [1, 6, 11])
+        criteres: Liste d'identifiants de critères (ex: ["1.1", "6.1"])
+        Au moins un des deux paramètres est requis.
+
+    Returns:
+        {"criteres": [{"id": "...", "titre": "...", "tests": [...]}]}
+    """
+    if not themes and not criteres:
+        raise ToolError(
+            "Au moins un paramètre est requis : themes ou criteres. "
+            "Exemples : themes=[1, 6, 11] ou criteres=['1.1', '6.1']."
+        )
+
+    cache = charger_cache()
+
+    # Valider les thèmes
+    if themes:
+        validate_themes(themes)
+
+    # Valider les critères
+    if criteres:
+        invalid_criteres = [c for c in criteres if c not in cache["criteres"]]
+        if invalid_criteres:
+            raise ToolError(
+                f"Critères invalides : {invalid_criteres}. "
+                f"Utilise rgaa_lister_criteres() pour voir les IDs valides."
+            )
+
+    ids_cibles = set()
+
+    if themes:
+        for c in cache["criteres"].values():
+            if c["theme"] in themes:
+                ids_cibles.add(c["id"])
+
+    if criteres:
+        ids_cibles.update(criteres)
+
+    result = []
+    for cid in sorted(ids_cibles, key=lambda x: [int(p) for p in x.split(".")]):
+        c = cache["criteres"].get(cid)
+        if not c:
+            continue
+        outils = OUTILS_CHECKLIST.get(c["theme"], ["DevTools"])
+        tests_raw = c.get("tests", {})
+        if isinstance(tests_raw, dict):
+            tests_list = [v[0] if isinstance(v, list) and v else str(v) for v in tests_raw.values()]
+        elif isinstance(tests_raw, list):
+            tests_list = [str(t) for t in tests_raw]
+        else:
+            tests_list = [str(tests_raw)]
+
+        tests = [
+            {
+                "description": t,
+                "methode": "Inspecter manuellement avec les outils ci-dessous",
+                "outils": outils,
+            }
+            for t in tests_list if t
+        ] or [{"description": "Vérifier la conformité selon le critère", "methode": "Inspection manuelle", "outils": outils}]
+
+        result.append({"id": cid, "titre": c["titre"], "tests": tests})
+
+    return {"criteres": result}
+
+
+# ============================================================================
+# OUTILS : Reporting
+# ============================================================================
+
+@mcp.tool(
+    output_schema={
+        "type": "object",
+        "properties": {
+            "taux": {"type": "number"},
+            "nb_conformes": {"type": "integer"},
+            "nb_non_conformes": {"type": "integer"},
+            "nb_non_applicables": {"type": "integer"},
+            "criteres_evalues": {"type": "integer"},
+            "erreur": {"type": ["string", "null"]}
+        },
+        "required": ["taux", "nb_conformes", "nb_non_conformes", "nb_non_applicables", "criteres_evalues"]
+    },
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False
+    }
+)
+def rgaa_taux_conformite(resultats: dict) -> dict:
+    """
+    Calcule le taux de conformité RGAA selon la formule officielle.
+
+    Formule : C / (C + NC) × 100  (les NA sont exclus du calcul)
+
+    Args:
+        resultats: Dict {id_critere: statut} avec statuts "C", "NC", ou "NA"
+                   Exemple: {"1.1": "C", "1.2": "NC", "1.3": "NA"}
+
+    Returns:
+        {"taux": float, "nb_conformes": int, "nb_non_conformes": int, "nb_non_applicables": int, "criteres_evalues": int}
+    """
+    if not resultats:
+        raise ToolError(
+            "Les résultats d'audit ne peuvent pas être vides. "
+            "Fournis un dictionnaire avec au moins un critère et son statut (C, NC ou NA). "
+            "Exemple : {'1.1': 'C', '1.2': 'NC', '1.3': 'NA'}."
+        )
+
+    valides = {"C", "NC", "NA"}
+    invalid_statuts = []
+    for cid, statut in resultats.items():
+        if statut not in valides:
+            invalid_statuts.append((cid, statut))
+
+    if invalid_statuts:
+        all_details = ", ".join([f"'{cid}': '{statut}'" for cid, statut in invalid_statuts])
+        raise ToolError(
+            f"Statuts invalides : {all_details}. "
+            f"Les statuts acceptés sont uniquement : C (conforme), NC (non-conforme), NA (non-applicable)."
+        )
+
+    nb_c = sum(1 for s in resultats.values() if s == "C")
+    nb_nc = sum(1 for s in resultats.values() if s == "NC")
+    nb_na = sum(1 for s in resultats.values() if s == "NA")
+    evalues = nb_c + nb_nc
+    taux = round(nb_c / evalues * 100, 2) if evalues > 0 else 0.0
+
+    return {
+        "taux": taux,
+        "nb_conformes": nb_c,
+        "nb_non_conformes": nb_nc,
+        "nb_non_applicables": nb_na,
+        "criteres_evalues": evalues,
+    }
+
+
+# ============================================================================
+# PROMPTS MCP
+# ============================================================================
+
+@mcp.prompt()
+def audit_page(url: str, themes: str = "") -> str:
+    """
+    Template pour auditer une page web avec le MCP RGAA.
+
+    Args:
+        url: URL de la page à auditer
+        themes: Thèmes à cibler, séparés par virgule (ex: "1,6,11"). Vide = tous.
+    """
+    themes_str = f"en ciblant les thèmes {themes}" if themes else "sur tous les thèmes automatisables"
+    themes_param = f", themes=[{themes}]" if themes else ""
+    return f"""Tu es un expert en accessibilité numérique RGAA 4.2.1.
+
+Effectue un audit de la page {url} {themes_str}.
+
+Étapes :
+1. Utilise `rgaa_analyser` avec l'URL {url}{themes_param} pour obtenir les violations automatiques détectées.
+2. Pour chaque thème avec des violations, utilise `rgaa_checklist` pour obtenir les tests manuels complémentaires.
+3. Pour les critères NC, utilise `rgaa_obtenir_critere` si tu as besoin du détail (tests précis, références WCAG).
+4. Si Playwright MCP est disponible dans la session, utilise-le pour analyser le DOM rendu (focus visible, contrastes, comportements dynamiques).
+5. Synthétise les résultats dans un rapport structuré avec : résumé exécutif, violations par thème, recommandations prioritaires.
+
+Commence par lancer l'analyse automatique."""
+
+
+@mcp.prompt()
+def rapport_audit(resultats: str) -> str:
+    """
+    Template pour générer un rapport d'audit RGAA structuré.
+
+    Args:
+        resultats: Résultats d'audit au format JSON ou description textuelle
+    """
+    return f"""Tu es un expert en accessibilité numérique RGAA 4.2.1.
+
+Génère un rapport d'audit complet au format Markdown à partir des résultats suivants :
+
+{resultats}
+
+Structure du rapport :
+1. **Résumé exécutif** — taux de conformité, nombre de critères C/NC/NA, point clé
+2. **Violations par thème** — pour chaque thème NC : critère, impact utilisateur, élément(s) concerné(s)
+3. **Recommandations prioritaires** — top 5 corrections à fort impact, avec exemple de code corrigé si pertinent
+4. **Méthode** — préciser que l'analyse automatique couvre ~57% des critères et qu'un audit manuel complet est recommandé
+
+Utilise `rgaa_taux_conformite` si tu as le détail C/NC/NA par critère pour calculer le taux officiel.
+Utilise `rgaa_obtenir_critere` pour enrichir les descriptions avec les références WCAG officielles."""
+
+
+@mcp.prompt()
+def expliquer_critere(id_critere: str) -> str:
+    """
+    Template pour expliquer un critère RGAA et comment le tester.
+
+    Args:
+        id_critere: Identifiant du critère (ex: "1.1", "11.3")
+    """
+    return f"""Tu es un expert en accessibilité numérique RGAA 4.2.1.
+
+Explique le critère RGAA {id_critere} de façon pédagogique.
+
+Étapes :
+1. Utilise `rgaa_obtenir_critere` avec l'id "{id_critere}" pour obtenir le détail complet.
+2. Si des termes techniques apparaissent dans les tests ou cas particuliers, utilise `rgaa_glossaire` pour les définir.
+3. Présente une explication structurée :
+   - **Objectif** — pourquoi ce critère existe et quel problème d'accessibilité il adresse
+   - **Qui est impacté** — profils d'utilisateurs concernés (non-voyants, moteur, cognitif…)
+   - **Comment tester** — étapes concrètes avec les outils recommandés
+   - **Exemple conforme / non conforme** — code HTML si pertinent
+   - **Références WCAG** — critères WCAG correspondants et leur niveau"""
+
+
+@mcp.prompt()
+def criteres_par_sujet(sujet: str, niveau: str = "A") -> str:
+    """
+    Template pour lister les critères RGAA liés à un sujet, filtrés par niveau WCAG.
+
+    Args:
+        sujet: Mot-clé du sujet (ex: "images", "formulaires", "couleurs")
+        niveau: Niveau WCAG à cibler : "A", "AA" ou "AAA" (défaut : "A")
+    """
+    return f"""Tu es un expert en accessibilité numérique RGAA 4.2.1.
+
+Liste les critères RGAA de niveau {niveau} liés à "{sujet}".
+
+Étapes :
+1. Utilise `rgaa_chercher` avec la query "{sujet}" pour trouver les critères correspondants.
+2. Utilise `rgaa_lister_criteres` avec niveau_wcag="{niveau}" pour obtenir tous les critères de ce niveau.
+3. Croise les deux résultats pour ne garder que les critères de niveau {niveau} en rapport avec "{sujet}".
+4. Pour chaque critère retenu, utilise `rgaa_obtenir_critere` si tu as besoin du détail.
+5. Présente les résultats sous forme de tableau : **ID**, **Titre**, **Thème**, avec une brève explication de pourquoi ce critère concerne "{sujet}"."""
+
+
+@mcp.prompt()
+def checklist_audit(themes: str) -> str:
+    """
+    Template pour générer une checklist de tests manuels par thèmes.
+
+    Args:
+        themes: Noms ou numéros de thèmes séparés par virgule (ex: "formulaires, navigation" ou "11,12")
+    """
+    return f"""Tu es un expert en accessibilité numérique RGAA 4.2.1.
+
+Génère une checklist d'audit manuel pour les thèmes : {themes}.
+
+Étapes :
+1. Identifie les numéros de thèmes RGAA correspondant à "{themes}" :
+   - Si des noms sont fournis, utilise `rgaa_statistiques` pour obtenir la liste des thèmes et leur numéro.
+   - Si des numéros sont fournis, utilise-les directement.
+2. Utilise `rgaa_checklist` avec la liste de ces numéros pour obtenir les tests détaillés.
+3. Présente la checklist sous forme exploitable pour un audit terrain :
+   - Pour chaque critère : **ID**, **Titre**, procédure de test, outils recommandés
+   - Regroupe par thème
+   - Indique en fin de checklist les outils globaux nécessaires pour l'ensemble de l'audit."""
+
+
+@mcp.prompt()
+def criteres_wcag(niveau_wcag: str = "AA") -> str:
+    """
+    Template pour lister les critères RGAA correspondant à un niveau WCAG.
+
+    Args:
+        niveau_wcag: Niveau WCAG cible : "A", "AA" ou "AAA" (défaut : "AA")
+    """
+    return f"""Tu es un expert en accessibilité numérique RGAA 4.2.1.
+
+Liste tous les critères RGAA qui correspondent au niveau WCAG {niveau_wcag}.
+
+Étapes :
+1. Utilise `rgaa_lister_criteres` avec niveau_wcag="{niveau_wcag}" pour obtenir la liste complète.
+2. Regroupe les critères par thème pour une lecture claire.
+3. Présente un tableau synthétique : **Thème**, **ID**, **Titre**, avec le ou les critères WCAG {niveau_wcag} associés.
+4. Conclus avec le total de critères {niveau_wcag} et la proportion automatisable vs manuelle."""
+
+
+@mcp.prompt()
+def audit_par_type(url: str, type: str = "complet") -> str:
+    """
+    Template pour auditer une page selon un type d'audit RGAA donné.
+
+    Args:
+        url: URL de la page à auditer
+        type: Type d'audit — "complet", "rapide" ou "complementaire"
+    """
+    return f"""Tu es un expert en accessibilité numérique RGAA 4.2.1.
+
+Effectue un audit de type "{type}" de la page {url}.
+
+Étapes :
+1. Utilise `rgaa_types_audit()` pour vérifier les caractéristiques du type "{type}" (notamment si ce type répond à l'obligation légale de conformité).
+2. Utilise `rgaa_criteres_audit` avec type="{type}" pour obtenir la liste exacte des critères à auditer.
+3. Utilise `rgaa_analyser` avec l'URL {url} pour obtenir les violations automatiques détectées.
+4. Pour les critères du type "{type}" ayant des violations ou nécessitant une vérification manuelle, utilise `rgaa_checklist` avec les IDs de ces critères.
+5. Synthétise les résultats dans un rapport structuré :
+   - **Type d'audit** — nom, périmètre, et mention explicite si ce type répond ou non à l'obligation légale de conformité RGAA
+   - **Résumé** — violations détectées parmi les critères du périmètre
+   - **Détail par thème** — violations et recommandations
+   - **Prochaines étapes** — si ce n'est pas un audit complet, indiquer ce qu'il reste à couvrir
+
+Commence par récupérer les informations sur le type d'audit."""
+
+
+@mcp.prompt()
+def audit_rapide(url: str) -> str:
+    """
+    Template pour un audit rapide RGAA (25 critères essentiels niveau A).
+
+    Args:
+        url: URL de la page à auditer
+    """
+    return f"""Tu es un expert en accessibilité numérique RGAA 4.2.1.
+
+Effectue un audit rapide de la page {url}.
+
+⚠️ L'audit rapide couvre 25 critères essentiels de niveau A. Il ne répond pas à l'obligation légale de conformité RGAA — seul l'audit complet (106 critères) y satisfait. Cet audit est un diagnostic de premier niveau.
+
+Étapes :
+1. Utilise `rgaa_criteres_audit` avec type="rapide" pour obtenir la liste des 25 critères.
+2. Utilise `rgaa_analyser` avec l'URL {url} pour détecter les violations automatiques.
+3. Pour les critères de l'audit rapide ayant des violations, utilise `rgaa_checklist` avec leurs IDs pour les tests manuels complémentaires.
+4. Synthétise dans un rapport concis :
+   - **Violations détectées** — critères NC parmi les 25 de l'audit rapide
+   - **Recommandations prioritaires** — corrections à fort impact
+   - **Note sur le périmètre** — rappel que cet audit couvre 25 critères sur 106 et ne suffit pas pour l'obligation légale
+
+Commence par récupérer la liste des critères de l'audit rapide."""
+
+
+@mcp.prompt()
+def audit_complementaire(url: str) -> str:
+    """
+    Template pour un audit complémentaire RGAA (25 critères couvrant images avancées, médias, tableaux, consultation).
+
+    Args:
+        url: URL de la page à auditer
+    """
+    return f"""Tu es un expert en accessibilité numérique RGAA 4.2.1.
+
+Effectue un audit complémentaire de la page {url}.
+
+ℹ️ L'audit complémentaire couvre 25 critères additionnels (images avancées, médias, tableaux complexes, consultation). Il complète l'audit rapide mais ne répond pas seul à l'obligation légale de conformité RGAA.
+
+Étapes :
+1. Utilise `rgaa_criteres_audit` avec type="complementaire" pour obtenir la liste des 25 critères.
+2. Utilise `rgaa_analyser` avec l'URL {url} pour détecter les violations automatiques sur ces critères.
+3. Pour les critères de l'audit complémentaire ayant des violations, utilise `rgaa_checklist` avec leurs IDs.
+4. Synthétise dans un rapport :
+   - **Violations détectées** — critères NC parmi les 25 de l'audit complémentaire
+   - **Recommandations** — corrections par thème
+   - **Note sur le périmètre** — rappel que cet audit complète l'audit rapide, et que l'audit complet (106 critères) est requis pour l'obligation légale
+
+Commence par récupérer la liste des critères de l'audit complémentaire."""
+
+
+# ============================================================================
+# Gestion des tokens
+# ============================================================================
+
+def _load_tokens() -> dict:
+    path = Path(TOKENS_FILE)
+    if path.exists():
+        try:
+            with open(path, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error("Erreur tokens: %s", e)
+    return {}
+
+
+def _save_tokens(tokens: dict) -> None:
+    Path(TOKENS_FILE).parent.mkdir(parents=True, exist_ok=True)
+    with open(TOKENS_FILE, "w", encoding="utf-8") as f:
+        json.dump(tokens, f, ensure_ascii=False, indent=2)
+
+
+def _tokens_for_auth() -> dict:
+    now = time.time()
+    result = {}
+    for token, info in _load_tokens().items():
+        expires_at = info.get("expires_at")
+        if expires_at and expires_at < now:
+            continue
+        entry = {"client_id": info.get("name", token[:8]), "scopes": ["read"]}
+        if expires_at:
+            entry["expires_at"] = int(expires_at)
+        result[token] = entry
+    return result
+
+
+# ============================================================================
+# CLI tokens
+# ============================================================================
+
+def _cmd_generate_token(name: str, expires_days: int = 365) -> None:
+    token = secrets.token_urlsafe(32)
+    expires_at = time.time() + expires_days * 86400
+    tokens = _load_tokens()
+    tokens[token] = {
+        "name": name,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": expires_at,
+    }
+    _save_tokens(tokens)
+    print(f"Token généré pour '{name}' (expire dans {expires_days} jours):")
+    print(f"  {token}")
+
+
+def _cmd_list_tokens() -> None:
+    tokens = _load_tokens()
+    if not tokens:
+        print("Aucun token.")
+        return
+    now = time.time()
+    for token, info in tokens.items():
+        expires_at = info.get("expires_at", 0)
+        statut = "EXPIRÉ" if expires_at and expires_at < now else "actif"
+        print(f"  {token[:16]}...  {info.get('name')}  [{statut}]")
+
+
+def _cmd_revoke_token(token: str) -> None:
+    tokens = _load_tokens()
+    if token in tokens:
+        del tokens[token]
+        _save_tokens(tokens)
+        print(f"Token révoqué.")
+    else:
+        print(f"Token introuvable.")
+
+
+# ============================================================================
+# Ressources MCP
+# ============================================================================
+
+@mcp.resource("rgaa://version")
+async def resource_version() -> str:
+    """Version du serveur MCP et des données RGAA."""
+    cache = charger_cache()
+    meta = cache.get("meta", {})
+    return json.dumps({
+        "server_version": VERSION,
+        "data_version": meta.get("version", "inconnue"),
+        "data_updated_at": meta.get("updated_at", "inconnue"),
+        "nb_criteres": len(cache.get("criteres", {})),
+    }, ensure_ascii=False, indent=2)
+
+
+@mcp.resource("rgaa://criteres/{critere_id}")
+async def resource_critere(critere_id: str) -> str:
+    """Détail complet d'un critère RGAA (même données que rgaa_obtenir_critere)."""
+    cache = charger_cache()
+    critere = cache["criteres"].get(critere_id)
+    if critere is None:
+        return json.dumps({"erreur": f"Critère '{critere_id}' introuvable"}, ensure_ascii=False)
+    return json.dumps(critere, ensure_ascii=False, indent=2)
+
+
+@mcp.resource("rgaa://index")
+async def resource_index() -> str:
+    """Index léger de tous les critères RGAA (id, thème, titre, niveau)."""
+    cache = charger_cache()
+    index = [
+        {
+            "id": c["id"],
+            "theme": c["theme"],
+            "titre": c["titre"],
+            "niveau": c.get("niveau"),
+            "automatisable": c["automatisable"],
+        }
+        for c in cache["criteres"].values()
+    ]
+    return json.dumps(index, ensure_ascii=False, indent=2)
+
+
+@mcp.resource("rgaa://metadata")
+async def resource_metadata() -> str:
+    """Métadonnées du référentiel RGAA (langues, source, statistiques)."""
+    cache = charger_cache()
+    criteres = cache.get("criteres", {})
+    meta = cache.get("meta", {})
+    themes = cache.get("themes", {})
+    nb_auto = sum(1 for c in criteres.values() if c.get("automatisable"))
+    taux = round(nb_auto / len(criteres) * 100, 1) if criteres else 0.0
+    return json.dumps({
+        "languages": ["fr"],
+        "versions": [meta.get("version", "inconnue")],
+        "source": "https://github.com/DISIC/RGAA",
+        "updated_at": meta.get("updated_at", "inconnue"),
+        "nb_criteres": len(criteres),
+        "nb_themes": len(themes),
+        "taux_automatisable": taux,
+    }, ensure_ascii=False, indent=2)
+
+
+
+# ============================================================================
+# Entrypoint
+# ============================================================================
+
+if __name__ == "__main__":
+    args = sys.argv[1:]
+
+    cache = charger_cache()
+    logger.info("Serveur MCP RGAA v%s", VERSION)
+    logger.info("Cache: %d critères", len(cache.get("criteres", {})))
+
+    if "--health" in args:
+        nb = len(cache.get("criteres", {}))
+        if nb > 0:
+            print(f"OK: {nb} critères chargés")
+            sys.exit(0)
+        else:
+            print("ERREUR: Cache vide")
+            sys.exit(1)
+
+    if "--generate-token" in args:
+        try:
+            name = args[args.index("--name") + 1] if "--name" in args else "default"
+            days = int(args[args.index("--expires-days") + 1]) if "--expires-days" in args else 365
+            _cmd_generate_token(name, days)
+        except (IndexError, ValueError) as e:
+            print(f"Erreur d'argument : {e}", file=sys.stderr)
+            sys.exit(1)
+        sys.exit(0)
+
+    if "--list-tokens" in args:
+        _cmd_list_tokens()
+        sys.exit(0)
+
+    if "--revoke-token" in args:
+        try:
+            token = args[args.index("--revoke-token") + 1]
+            _cmd_revoke_token(token)
+        except IndexError as e:
+            print(f"Erreur d'argument : {e}", file=sys.stderr)
+            sys.exit(1)
+        sys.exit(0)
+
+    transport = os.environ.get("MCP_TRANSPORT", "stdio")
+    if transport == "http":
+        host = os.environ.get("MCP_HOST", "0.0.0.0")
+        port = int(os.environ.get("MCP_PORT", "8000"))
+        tokens = _tokens_for_auth()
+        auth_info = f"activée ({len(tokens)} token(s))" if tokens else "désactivée"
+        logger.info("Auth: %s", auth_info)
+        logger.info("HTTP: %s:%d", host, port)
+        mcp.run(transport="streamable-http", host=host, port=port)
+    else:
+        mcp.run(transport="stdio")

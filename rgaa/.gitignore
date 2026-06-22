@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+.venv-py313/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE & Tools
+.claude/
+.mcp.json
+
+# Git
+.worktrees/
+
+# MCP
+.playwright-mcp/
+
+# Secrets & local config
+.env
+tokens/tokens.json
+
+# macOS
+.DS_Store
