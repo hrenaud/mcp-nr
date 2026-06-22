@@ -1,5 +1,7 @@
 # RGAA MCP Server
 
+> Faisant partie du monorepo [mcp-nr](../). Pour builder, utiliser `docker build -f rgaa/Dockerfile .` depuis la racine du monorepo.
+
 Serveur [MCP (Model Context Protocol)](https://modelcontextprotocol.io) donnant accès au référentiel [RGAA 4.2.1](https://accessibilite.numerique.gouv.fr/methode/criteres-et-tests/) (Référentiel Général d'Amélioration de l'Accessibilité) depuis Claude (Desktop, Code, ou tout client MCP).
 
 ## Fonctionnalités
@@ -50,7 +52,7 @@ For containerized deployment:
 
 ```bash
 # 1. Build the Docker image (creates rgaa-mcp image)
-docker build -t rgaa-mcp .
+docker build -f rgaa/Dockerfile -t rgaa-mcp .
 
 # 2. Verify the image was built successfully
 docker images | grep rgaa-mcp
@@ -93,7 +95,7 @@ For testing with Claude Desktop or Claude Code locally:
 
 ```bash
 # 1. Build the image (one-time)
-docker build -t rgaa-mcp .
+docker build -f rgaa/Dockerfile -t rgaa-mcp .
 
 # 2. Start in stdio mode (reads from stdin, writes to stdout)
 docker run --rm -i rgaa-mcp
@@ -172,11 +174,13 @@ docker run --rm -v $(pwd)/tokens:/app/tokens rgaa-mcp \
 En mode HTTP, si `ADMIN_TOKEN` est défini, les endpoints `/admin/tokens` sont disponibles.
 
 **Lister les tokens :**
+
 ```bash
 curl -H "Authorization: Bearer $ADMIN_TOKEN" http://localhost:8001/admin/tokens
 ```
 
 **Créer un token :**
+
 ```bash
 curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
@@ -185,6 +189,7 @@ curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
 ```
 
 **Modifier un token (renommer ou prolonger) :**
+
 ```bash
 curl -X PATCH -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
@@ -193,6 +198,7 @@ curl -X PATCH -H "Authorization: Bearer $ADMIN_TOKEN" \
 ```
 
 **Révoquer un token :**
+
 ```bash
 curl -X DELETE -H "Authorization: Bearer $ADMIN_TOKEN" \
   http://localhost:8001/admin/tokens/<id>
@@ -266,26 +272,26 @@ curl -sSL https://<votre-domaine>/install.sh | bash -s -- --uninstall
 
 **10 outils MCP** pour interroger le référentiel, analyser des pages, générer des checklists et calculer la conformité.
 
-| Outil                  | Description                                                                      | Paramètres                                      |
-| ---------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------- |
-| `rgaa_lister_criteres` | Liste tous les critères RGAA avec filtres optionnels (thème, niveau WCAG)        | `theme?: int`, `niveau_wcag?: "A"\|"AA"\|"AAA"` |
-| `rgaa_obtenir_critere` | Récupère le contenu complet d'un critère (tests, conditions, références WCAG)    | `id: str` (ex: `"1.1"`)                         |
-| `rgaa_chercher`        | Recherche par mot-clé dans les critères et/ou le glossaire RGAA                 | `query: str`, `scope?: ["criteres", "glossaire"]` |
-| `rgaa_glossaire`       | Retourne la définition d'un terme du glossaire avec correspondance approchante   | `terme: str`                                    |
-| `rgaa_statistiques`    | Retourne les statistiques du référentiel (répartition par thème, niveau WCAG)    | —                                               |
-| `rgaa_analyser`        | Analyse statique d'une URL et détecte les violations RGAA (8 thèmes automatisables) | `url: str`, `themes?: list[int]`                |
-| `rgaa_checklist`       | Génère une checklist de tests manuels avec outils recommandés                    | `themes?: list[int]`, `criteres?: list[str]`   |
-| `rgaa_taux_conformite` | Calcule le taux de conformité officiel RGAA (C/(C+NC)×100) à partir d'un audit   | `resultats: dict` {`id: "C"|"NC"|"NA"`}         |
-| `rgaa_types_audit`     | Liste les 3 types d'audit (complet, rapide, complémentaire) et leurs statuts légaux | —                                               |
-| `rgaa_criteres_audit`  | Retourne la liste des critères pour un type d'audit spécifique                   | `type: "complet"|"rapide"|"complementaire"`     |
+| Outil                  | Description                                                                         | Paramètres                                        |
+| ---------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------- | -------- | ----------------- |
+| `rgaa_lister_criteres` | Liste tous les critères RGAA avec filtres optionnels (thème, niveau WCAG)           | `theme?: int`, `niveau_wcag?: "A"\|"AA"\|"AAA"`   |
+| `rgaa_obtenir_critere` | Récupère le contenu complet d'un critère (tests, conditions, références WCAG)       | `id: str` (ex: `"1.1"`)                           |
+| `rgaa_chercher`        | Recherche par mot-clé dans les critères et/ou le glossaire RGAA                     | `query: str`, `scope?: ["criteres", "glossaire"]` |
+| `rgaa_glossaire`       | Retourne la définition d'un terme du glossaire avec correspondance approchante      | `terme: str`                                      |
+| `rgaa_statistiques`    | Retourne les statistiques du référentiel (répartition par thème, niveau WCAG)       | —                                                 |
+| `rgaa_analyser`        | Analyse statique d'une URL et détecte les violations RGAA (8 thèmes automatisables) | `url: str`, `themes?: list[int]`                  |
+| `rgaa_checklist`       | Génère une checklist de tests manuels avec outils recommandés                       | `themes?: list[int]`, `criteres?: list[str]`      |
+| `rgaa_taux_conformite` | Calcule le taux de conformité officiel RGAA (C/(C+NC)×100) à partir d'un audit      | `resultats: dict` {`id: "C"                       | "NC"     | "NA"`}            |
+| `rgaa_types_audit`     | Liste les 3 types d'audit (complet, rapide, complémentaire) et leurs statuts légaux | —                                                 |
+| `rgaa_criteres_audit`  | Retourne la liste des critères pour un type d'audit spécifique                      | `type: "complet"                                  | "rapide" | "complementaire"` |
 
 ## Ressources disponibles
 
-| Ressource                      | Description                                                             |
-| ------------------------------ | ----------------------------------------------------------------------- |
-| `rgaa://version`               | Version du serveur et des données                                       |
-| `rgaa://index`                 | Index léger de tous les critères (id, titre, niveau)                    |
-| `rgaa://criteres/{critere_id}` | Contenu complet d'un critère spécifique                                 |
+| Ressource                      | Description                                                               |
+| ------------------------------ | ------------------------------------------------------------------------- |
+| `rgaa://version`               | Version du serveur et des données                                         |
+| `rgaa://index`                 | Index léger de tous les critères (id, titre, niveau)                      |
+| `rgaa://criteres/{critere_id}` | Contenu complet d'un critère spécifique                                   |
 | `rgaa://metadata`              | Métadonnées du référentiel (langues, source, nb critères, automatisables) |
 
 ## Endpoints HTTP (Phase 4)
@@ -299,6 +305,7 @@ curl http://localhost:8001/
 ```
 
 Retourne une page HTML interactive avec :
+
 - Statut du cache RGAA (nombre de critères chargés)
 - Commande d'installation rapide
 - Lien vers la documentation complète
@@ -307,11 +314,11 @@ Retourne une page HTML interactive avec :
 
 L'endpoint `/guide` supporte la négociation de contenu pour retourner la documentation aux outils en HTML ou JSON :
 
-| Requête | Réponse | Usage |
-| --- | --- | --- |
-| `GET /guide` (défaut) | HTML | Documentation interactive des outils dans le navigateur |
-| `GET /guide` + `Accept: text/html` | HTML | Documentation interactive (explicite) |
-| `GET /guide` + `Accept: application/json` | JSON | Métadonnées des outils pour intégration programmatique |
+| Requête                                   | Réponse | Usage                                                   |
+| ----------------------------------------- | ------- | ------------------------------------------------------- |
+| `GET /guide` (défaut)                     | HTML    | Documentation interactive des outils dans le navigateur |
+| `GET /guide` + `Accept: text/html`        | HTML    | Documentation interactive (explicite)                   |
+| `GET /guide` + `Accept: application/json` | JSON    | Métadonnées des outils pour intégration programmatique  |
 
 **Exemple avec curl :**
 
@@ -443,6 +450,7 @@ tokens/                          # Créé automatiquement au premier --generate-
 ```
 
 **Points clés de Phase 3 :**
+
 - `_helpers.py` : validation centralisée réutilisée par les outils
 - `auth.py` : gestion complète des tokens (CLI + API)
 - `routes.py` : routes HTTP publiques isolées (/, /install.sh, /guide)
@@ -450,6 +458,7 @@ tokens/                          # Créé automatiquement au premier --generate-
 - **Architecture modulaire** : séparation des responsabilités pour meilleure maintenabilité
 
 **Phase 4 complétée :**
+
 - **GET /** : homepage avec statut du serveur et liens rapides
 - **GET /guide** : endpoint de documentation avec négociation de contenu
   - Accept: text/html → retourne une page HTML interactive
@@ -467,7 +476,7 @@ pip install -e ".[dev]"
 python -m pytest tests/ -v
 
 # Via Docker
-docker build -t rgaa-mcp-test .
+docker build -f rgaa/Dockerfile -t rgaa-mcp-test .
 docker run --rm -v "$(pwd)/tests:/app/tests" --entrypoint python rgaa-mcp-test -m pytest tests/ -v
 
 # Vérifier le nombre de tests
@@ -521,7 +530,7 @@ cd files/
 python3 preparer_donnees.py --telecharger
 
 # Rebuilder l'image
-docker build -t rgaa-mcp .
+docker build -f rgaa/Dockerfile -t rgaa-mcp .
 ```
 
 ---

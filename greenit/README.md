@@ -1,5 +1,7 @@
 # GreenIT MCP Server
 
+> Faisant partie du monorepo [mcp-nr](../). Pour builder, utiliser `docker build -f greenit/Dockerfile .` depuis la racine du monorepo.
+
 Serveur [MCP (Model Context Protocol)](https://modelcontextprotocol.io) donnant accès au référentiel des 119 bonnes pratiques d'écoconception web de [GreenIT](https://rweb.greenit.fr/fr/fiches) depuis Claude (Desktop, Code, ou tout client MCP).
 
 ## Fonctionnalités
@@ -54,7 +56,7 @@ For containerized deployment:
 
 ```bash
 # 1. Build the Docker image (creates greenit-mcp image)
-docker build -t greenit-mcp .
+docker build -f greenit/Dockerfile -t greenit-mcp .
 
 # 2. Verify the image was built successfully
 docker images | grep greenit-mcp
@@ -97,7 +99,7 @@ For testing with Claude Desktop or Claude Code locally:
 
 ```bash
 # 1. Build the image (one-time)
-docker build -t greenit-mcp .
+docker build -f greenit/Dockerfile -t greenit-mcp .
 
 # 2. Start in stdio mode (reads from stdin, writes to stdout)
 docker run --rm -i greenit-mcp
@@ -121,14 +123,14 @@ docker compose down -v
 
 ### Variables d'environnement
 
-| Variable | Défaut | Description |
-|----------|--------|-------------|
-| `MCP_TRANSPORT` | `stdio` | Mode de transport : `stdio` ou `http` |
-| `MCP_HOST` | `0.0.0.0` | Adresse d'écoute (mode `http`) |
-| `MCP_PORT` | `8000` | Port d'écoute (mode `http`) |
-| `MCP_BASE_URL` | _(auto)_ | URL publique du serveur, affichée dans la page d'accueil et le script d'installation. À définir dans `.env` si le serveur est derrière un reverse proxy (ex : `https://mcp.example.com`). |
-| `MCP_TOKEN_REQUEST_URL` | _(vide)_ | URL du formulaire de demande de token, affichée sur la page d'accueil. |
-| `ADMIN_TOKEN` | _(vide)_ | Token admin pour l'API de gestion des tokens (HTTP uniquement) |
+| Variable                | Défaut    | Description                                                                                                                                                                               |
+| ----------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MCP_TRANSPORT`         | `stdio`   | Mode de transport : `stdio` ou `http`                                                                                                                                                     |
+| `MCP_HOST`              | `0.0.0.0` | Adresse d'écoute (mode `http`)                                                                                                                                                            |
+| `MCP_PORT`              | `8000`    | Port d'écoute (mode `http`)                                                                                                                                                               |
+| `MCP_BASE_URL`          | _(auto)_  | URL publique du serveur, affichée dans la page d'accueil et le script d'installation. À définir dans `.env` si le serveur est derrière un reverse proxy (ex : `https://mcp.example.com`). |
+| `MCP_TOKEN_REQUEST_URL` | _(vide)_  | URL du formulaire de demande de token, affichée sur la page d'accueil.                                                                                                                    |
+| `ADMIN_TOKEN`           | _(vide)_  | Token admin pour l'API de gestion des tokens (HTTP uniquement)                                                                                                                            |
 
 ### Gestion des tokens
 
@@ -175,13 +177,13 @@ docker run --rm -v $(pwd)/tokens:/app/tokens greenit-mcp \
 
 En mode HTTP, si `ADMIN_TOKEN` est défini, les routes suivantes sont disponibles :
 
-| Méthode | Route | Description |
-|---------|-------|-------------|
-| `GET` | `/admin/tokens` | Lister tous les tokens |
-| `POST` | `/admin/tokens` | Créer un token |
-| `GET` | `/admin/tokens/{id}` | Obtenir un token |
-| `PATCH` | `/admin/tokens/{id}` | Modifier un token |
-| `DELETE` | `/admin/tokens/{id}` | Révoquer un token |
+| Méthode  | Route                | Description            |
+| -------- | -------------------- | ---------------------- |
+| `GET`    | `/admin/tokens`      | Lister tous les tokens |
+| `POST`   | `/admin/tokens`      | Créer un token         |
+| `GET`    | `/admin/tokens/{id}` | Obtenir un token       |
+| `PATCH`  | `/admin/tokens/{id}` | Modifier un token      |
+| `DELETE` | `/admin/tokens/{id}` | Révoquer un token      |
 
 Authentification : `Authorization: Bearer <ADMIN_TOKEN>`.
 
@@ -276,26 +278,26 @@ claude mcp add greenit -- docker run --rm -i greenit-mcp
 
 ## Outils disponibles
 
-| Outil | Description | Paramètres |
-|-------|-------------|------------|
-| `lister_fiches` | Liste toutes les fiches ou filtre par lifecycle, ressource, impact, priorité | `lifecycle?`, `saved_resource?`, `impact_min?`, `priorite_min?` |
-| `fiches_prioritaires` | Fiches triées par score ei+pi décroissant | `impact_min?` (défaut: 4), `priorite_min?` (défaut: 4) |
-| `chercher_fiche` | Recherche par mot-clé avec scoring de pertinence | `terme` |
-| `comparer_fiches` | Compare plusieurs fiches côte à côte | `fiche_ids` (liste d'IDs, ex: `["RWEB_0051","RWEB_0049"]`) |
-| `obtenir_fiche_complete` | Contenu complet d'une fiche (description, validations, principes) | `fiche_id` (ex: `RWEB_0051`) |
-| `obtenir_statistiques` | Stats du référentiel (distributions, top 5) | — |
-| `lister_lifecycles` | Liste les 7 phases du cycle de vie avec leur nombre de fiches | — |
-| `lister_ressources` | Liste les 8 types de ressources sauvegardées avec leur nombre de fiches | — |
-| `calculer_ecoindex` | Calcule le score EcoIndex (0-100) et la note (A-G) à partir des métriques mesurées | `dom_nodes`, `requests`, `size_kb`, `url?` |
+| Outil                    | Description                                                                        | Paramètres                                                      |
+| ------------------------ | ---------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `lister_fiches`          | Liste toutes les fiches ou filtre par lifecycle, ressource, impact, priorité       | `lifecycle?`, `saved_resource?`, `impact_min?`, `priorite_min?` |
+| `fiches_prioritaires`    | Fiches triées par score ei+pi décroissant                                          | `impact_min?` (défaut: 4), `priorite_min?` (défaut: 4)          |
+| `chercher_fiche`         | Recherche par mot-clé avec scoring de pertinence                                   | `terme`                                                         |
+| `comparer_fiches`        | Compare plusieurs fiches côte à côte                                               | `fiche_ids` (liste d'IDs, ex: `["RWEB_0051","RWEB_0049"]`)      |
+| `obtenir_fiche_complete` | Contenu complet d'une fiche (description, validations, principes)                  | `fiche_id` (ex: `RWEB_0051`)                                    |
+| `obtenir_statistiques`   | Stats du référentiel (distributions, top 5)                                        | —                                                               |
+| `lister_lifecycles`      | Liste les 7 phases du cycle de vie avec leur nombre de fiches                      | —                                                               |
+| `lister_ressources`      | Liste les 8 types de ressources sauvegardées avec leur nombre de fiches            | —                                                               |
+| `calculer_ecoindex`      | Calcule le score EcoIndex (0-100) et la note (A-G) à partir des métriques mesurées | `dom_nodes`, `requests`, `size_kb`, `url?`                      |
 
 ## Ressources disponibles
 
-| Ressource | Description |
-|-----------|-------------|
-| `greenit://index` | Liste de toutes les fiches |
-| `greenit://fiche/{fiche_id}` | Contenu d'une fiche spécifique |
-| `greenit://metadata` | Métadonnées du référentiel |
-| `greenit://version` | Version du serveur et des données |
+| Ressource                    | Description                       |
+| ---------------------------- | --------------------------------- |
+| `greenit://index`            | Liste de toutes les fiches        |
+| `greenit://fiche/{fiche_id}` | Contenu d'une fiche spécifique    |
+| `greenit://metadata`         | Métadonnées du référentiel        |
+| `greenit://version`          | Version du serveur et des données |
 
 ## Endpoints HTTP (Phase 4)
 
@@ -308,6 +310,7 @@ curl http://localhost:8000/
 ```
 
 Retourne une page HTML interactive avec :
+
 - Statut du cache GreenIT (nombre de fiches chargées)
 - Commande d'installation rapide
 - Lien vers la documentation complète
@@ -316,11 +319,11 @@ Retourne une page HTML interactive avec :
 
 L'endpoint `/guide` supporte la négociation de contenu pour retourner la documentation aux outils en HTML ou JSON :
 
-| Requête | Réponse | Usage |
-| --- | --- | --- |
-| `GET /guide` (défaut) | HTML | Documentation interactive des outils dans le navigateur |
-| `GET /guide` + `Accept: text/html` | HTML | Documentation interactive (explicite) |
-| `GET /guide` + `Accept: application/json` | JSON | Métadonnées des outils pour intégration programmatique |
+| Requête                                   | Réponse | Usage                                                   |
+| ----------------------------------------- | ------- | ------------------------------------------------------- |
+| `GET /guide` (défaut)                     | HTML    | Documentation interactive des outils dans le navigateur |
+| `GET /guide` + `Accept: text/html`        | HTML    | Documentation interactive (explicite)                   |
+| `GET /guide` + `Accept: application/json` | JSON    | Métadonnées des outils pour intégration programmatique  |
 
 **Exemple avec curl :**
 
@@ -426,9 +429,10 @@ tokens/                          # Créé automatiquement au premier --generate-
   - _Note Phase 3 :_ `ecoindex.py` fusionné dans ce module pour meilleure maintenabilité
 - **auth.py** : Gestion des tokens (génération, listage, révocation, validation)
 - **routes.py** : Gestionnaires des endpoints HTTP (/, /install.sh, /guide)
-- **_helpers.py** : Fonctions partagées de validation (lifecycles, ressources, scores)
+- **\_helpers.py** : Fonctions partagées de validation (lifecycles, ressources, scores)
 
 **Phase 4 complétée :**
+
 - **GET /guide** : endpoint de documentation avec négociation de contenu
   - Accept: text/html → retourne une page HTML interactive
   - Accept: application/json → retourne les métadonnées des outils en JSON
@@ -443,7 +447,7 @@ tokens/                          # Créé automatiquement au premier --generate-
 python -m pytest tests/ -v
 
 # Via Docker
-docker build -t greenit-mcp-test .
+docker build -f greenit/Dockerfile -t greenit-mcp-test .
 docker run --rm -v "$(pwd)/tests:/app/tests" --entrypoint python greenit-mcp-test -m pytest tests/ -v
 
 # Vérifier le nombre de tests
@@ -517,7 +521,7 @@ cd files/
 python3 preparer_donnees.py --telecharger
 
 # Rebuilder l'image
-docker build -t greenit-mcp .
+docker build -f greenit/Dockerfile -t greenit-mcp .
 ```
 
 ---
