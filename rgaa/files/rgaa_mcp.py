@@ -1162,6 +1162,62 @@ Effectue un audit complémentaire de la page {url}.
 Commence par récupérer la liste des critères de l'audit complémentaire."""
 
 
+@mcp.prompt()
+def plan_correction(violations: str) -> str:
+    """
+    Template pour générer un plan de correction priorisé à partir de violations RGAA.
+
+    Args:
+        violations: Liste de critères NC au format JSON ou description textuelle
+    """
+    return f"""Tu es un expert en accessibilité numérique RGAA 4.2.1.
+
+Génère un plan de correction priorisé pour les violations RGAA suivantes :
+
+{violations}
+
+Étapes :
+1. Pour chaque critère NC listé, utilise `rgaa_obtenir_critere` pour récupérer le titre, les tests et les références WCAG.
+2. Classe les violations par niveau d'impact utilisateur :
+   - **Bloquant** — empêche complètement l'accès pour certains profils (non-voyants, moteur…)
+   - **Majeur** — gêne significative et contournement difficile
+   - **Mineur** — gêne mais contournement possible
+3. Pour chaque violation, fournis :
+   - **Critère RGAA** — ID et titre
+   - **Impact** — profils d'utilisateurs affectés
+   - **Correction** — étapes concrètes avec exemple de code HTML/CSS si pertinent
+   - **Effort estimé** — Faible / Modéré / Fort
+4. Présente le plan sous forme de backlog priorisé, du plus impactant au moins impactant.
+5. Conclus avec l'estimation du taux de conformité RGAA une fois toutes les corrections appliquées (utilise `rgaa_taux_conformite` si tu as les données C/NC/NA)."""
+
+
+@mcp.prompt()
+def formuler_exigences(contexte: str) -> str:
+    """
+    Template pour formuler des exigences d'accessibilité pour un projet.
+
+    Args:
+        contexte: Description du projet (ex: "Application mobile bancaire", "Site intranet RH")
+    """
+    return f"""Tu es un expert en accessibilité numérique RGAA 4.2.1.
+
+Formule les exigences d'accessibilité pour le projet suivant : {contexte}
+
+Étapes :
+1. Utilise `rgaa_statistiques()` pour avoir une vue d'ensemble des 106 critères RGAA et leur répartition par thème.
+2. Utilise `rgaa_types_audit()` pour identifier le type d'audit adapté au contexte et l'obligation légale applicable.
+3. Identifie les thèmes RGAA particulièrement critiques pour ce type de projet :
+   - Pour un contexte web : thèmes 1 (Images), 3 (Couleurs), 8 (Obligatoires), 11 (Formulaires), 12 (Navigation)
+   - Adapte selon {contexte}
+4. Pour les thèmes critiques, utilise `rgaa_lister_criteres` pour lister les critères niveau A et AA.
+5. Structure les exigences en 3 catégories :
+   - **Exigences légales** — critères RGAA obligatoires selon le statut de l'organisation
+   - **Exigences de base** — critères niveau A incontournables pour l'accès
+   - **Exigences de qualité** — critères niveau AA recommandés pour une bonne expérience
+
+Format de sortie : document d'exigences Markdown prêt à intégrer dans un cahier des charges."""
+
+
 # ============================================================================
 # Gestion des tokens
 # ============================================================================

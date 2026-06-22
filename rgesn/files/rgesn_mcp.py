@@ -760,6 +760,142 @@ Génère une checklist des critères RGESN Prioritaire{f' pour les thèmes {them
 3. Rappelle en fin de checklist que les critères Prioritaire ont un poids de 1.5 dans le calcul du score RGESN."""
 
 
+@mcp.prompt()
+def rapport_conformite(resultats: str) -> str:
+    """
+    Template pour générer un rapport de conformité RGESN structuré.
+
+    Args:
+        resultats: Résultats d'audit au format dict JSON (ex: '{"1.1": "C", "1.2": "NC"}')
+    """
+    return f"""Tu es un expert en écoconception numérique RGESN 2024.
+
+Génère un rapport de conformité RGESN complet à partir des résultats suivants :
+
+{resultats}
+
+Étapes :
+1. Utilise rgesn_taux_conformite avec les résultats fournis pour calculer le score pondéré officiel.
+2. Pour chaque critère NC, utilise rgesn_obtenir_critere pour récupérer le détail (objectif, mise en œuvre).
+3. Structure le rapport :
+   - **Résumé exécutif** — score global, nombre C/NC/NA/NE, niveau de maturité
+   - **Points de conformité** — critères C remarquables
+   - **Axes d'amélioration** — critères NC classés par priorité et difficulté
+   - **Plan d'action** — top 5 corrections à fort impact sur le score
+   - **Prochaines étapes** — recommandations pour progresser vers le niveau supérieur
+
+Le score RGESN est pondéré : Prioritaire×1.5, Recommandé×1.25, Modéré×1.0."""
+
+
+@mcp.prompt()
+def checklist_par_metier(metier: str = "") -> str:
+    """
+    Template pour générer une checklist RGESN filtrée par profil métier.
+
+    Args:
+        metier: Profil cible (ex: "développeur", "designer", "chef de projet"). Vide = tous.
+    """
+    filtre = f'pour le profil "{metier}"' if metier else "pour tous les métiers"
+    return f"""Tu es un expert en écoconception numérique RGESN 2024.
+
+Génère une checklist RGESN opérationnelle {filtre}.
+
+Étapes :
+1. Utilise rgesn_checklist() pour obtenir la liste complète des 78 critères.
+2. Filtre les critères dont le champ "metiers" contient{f' "{metier}"' if metier else ' le profil visé'}.
+3. Pour les critères retenus, utilise rgesn_obtenir_critere pour enrichir avec la mise en œuvre concrète.
+4. Présente la checklist en deux sections :
+   - **Critères Prioritaire** — à traiter en premier (poids 1.5)
+   - **Critères Recommandé et Modéré** — à planifier ensuite
+5. Pour chaque critère : **ID**, **Question**, **Difficulté**, **Action concrète** adaptée au profil{f' {metier}' if metier else ''}.
+
+Format final : tableau Markdown prêt à copier dans un outil de suivi."""
+
+
+@mcp.prompt()
+def audit_rapide_rgesn(url: str) -> str:
+    """
+    Template pour un audit rapide RGESN sur les 30 critères Prioritaire.
+
+    Args:
+        url: URL ou description du service à auditer
+    """
+    return f"""Tu es un expert en écoconception numérique RGESN 2024.
+
+Réalise un audit rapide du service {url} en te concentrant sur les 30 critères Prioritaire.
+
+Étapes :
+1. Utilise rgesn_checklist(priorites=["Prioritaire"]) pour obtenir les 30 critères à vérifier.
+2. Pour chaque critère, évalue rapidement le statut du service {url} :
+   - **C** (Conforme) : bonne pratique visible ou déclarée
+   - **NC** (Non conforme) : problème identifiable
+   - **NA** (Non applicable) : le critère ne s'applique pas au contexte
+   - **NE** (Non évalué) : impossible à évaluer sans accès complet
+3. Utilise rgesn_taux_conformite avec les statuts C/NC déterminés pour calculer le score préliminaire.
+4. Identifie le top 5 des critères NC les plus impactants sur le score.
+5. Génère un rapport synthétique :
+   - Score RGESN préliminaire (critères Prioritaire uniquement)
+   - Répartition C/NC/NA/NE
+   - Top 5 actions immédiates pour progresser
+
+Durée estimée : 30 minutes d'analyse."""
+
+
+@mcp.prompt()
+def plan_action(service: str) -> str:
+    """
+    Template pour construire un plan d'action d'écoconception RGESN.
+
+    Args:
+        service: Description du service numérique (ex: "Site e-commerce B2B en React")
+    """
+    return f"""Tu es un expert en écoconception numérique RGESN 2024.
+
+Construis un plan d'action d'écoconception pour : {service}
+
+Étapes :
+1. Utilise rgesn_statistiques() pour avoir une vue d'ensemble du référentiel.
+2. Utilise rgesn_lister_criteres(priorite="Prioritaire") pour identifier les 30 critères à fort poids.
+3. Pour chaque thème pertinent, utilise rgesn_lister_criteres(theme=N) pour approfondir.
+4. Structure le plan d'action en 3 horizons :
+   - **Court terme (< 1 mois)** — quick wins, critères Prioritaire à difficulté Faible
+   - **Moyen terme (1-3 mois)** — critères Prioritaire à difficulté Modéré
+   - **Long terme (> 3 mois)** — critères à difficulté Fort, refonte architecture
+5. Pour chaque action : **Critère RGESN**, **Impact sur le score**, **Effort estimé**, **Responsable métier**
+
+Adapte les recommandations au contexte de : {service}"""
+
+
+@mcp.prompt()
+def evaluer_score(criteres_nc: str) -> str:
+    """
+    Template pour estimer l'impact sur le score RGESN de corriger des critères NC.
+
+    Args:
+        criteres_nc: Liste de critères NC au format JSON (ex: '{"1.1": "NC", "2.3": "NC"}')
+    """
+    return f"""Tu es un expert en écoconception numérique RGESN 2024.
+
+Évalue l'impact sur le score RGESN de corriger ces critères non conformes :
+
+{criteres_nc}
+
+Étapes :
+1. Utilise rgesn_taux_conformite avec les critères actuels (tous NC) pour calculer le score de départ.
+2. Pour chaque critère NC, utilise rgesn_obtenir_critere pour connaître sa priorité et son poids.
+3. Simule le score après correction en passant chaque critère de NC → C un par un.
+4. Classe les corrections par gain de score décroissant :
+   - Prioritaire (poids 1.5) → gain maximum
+   - Recommandé (poids 1.25)
+   - Modéré (poids 1.0)
+5. Présente un tableau de ROI :
+
+| Critère | Priorité | Gain score estimé | Difficulté |
+|---------|----------|-------------------|------------|
+
+Recommande l'ordre optimal de correction pour maximiser le score RGESN."""
+
+
 # ============================================================================
 # Gestion des tokens
 # ============================================================================
