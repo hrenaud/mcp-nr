@@ -183,6 +183,44 @@ docker run --rm greenit-mcp --health
 
 Les `docker-compose.yml` individuels incluent déjà un `healthcheck` configuré.
 
+## Mode stdio — usage local sans serveur
+
+Pour un usage individuel sur poste, Claude peut lancer les MCPs directement via Docker sans déploiement serveur. Chaque requête démarre et arrête un conteneur — moins efficace qu'un serveur permanent, mais sans infrastructure à gérer.
+
+**Prérequis :** Docker installé et démarré sur la machine de l'utilisateur, et les images buildées ou disponibles dans un registry.
+
+```bash
+# Build local (depuis la racine du dépôt)
+docker build -f greenit/Dockerfile -t greenit-mcp .
+docker build -f rgaa/Dockerfile    -t rgaa-mcp .
+```
+
+**Configuration Claude Desktop** :
+
+```json
+{
+  "mcpServers": {
+    "greenit": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "greenit-mcp"]
+    },
+    "rgaa": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "rgaa-mcp"]
+    }
+  }
+}
+```
+
+**Claude Code (CLI)** :
+
+```bash
+claude mcp add greenit -- docker run --rm -i greenit-mcp
+claude mcp add rgaa -- docker run --rm -i rgaa-mcp
+```
+
+En mode stdio, aucune authentification n'est requise.
+
 ## Releases et versioning
 
 Les versions des trois MCPs sont synchronisées via le script `release.sh` à la racine :

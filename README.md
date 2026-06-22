@@ -34,53 +34,11 @@ Claude peut :
 
 Accès au [RGESN](https://ecoresponsable.numerique.gouv.fr/publications/referentiel-general-ecoconception/) — en cours d'implémentation.
 
-## Utilisation
+## Connexion à Claude
 
-Les MCPs fonctionnent en deux modes selon votre situation.
+Demandez l'URL et un token d'accès à votre administrateur, puis ajoutez les MCPs à Claude.
 
-### Mode stdio — usage local (sans token)
-
-Idéal pour un usage personnel sur votre poste. Claude lance le conteneur Docker directement, aucun serveur à déployer.
-
-**Prérequis :** Docker installé et démarré.
-
-```bash
-# Construire les images (depuis la racine du dépôt)
-docker build -f greenit/Dockerfile -t greenit-mcp .
-docker build -f rgaa/Dockerfile -t rgaa-mcp .
-```
-
-**Configuration Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`) :
-
-```json
-{
-  "mcpServers": {
-    "greenit": {
-      "command": "docker",
-      "args": ["run", "--rm", "-i", "greenit-mcp"]
-    },
-    "rgaa": {
-      "command": "docker",
-      "args": ["run", "--rm", "-i", "rgaa-mcp"]
-    }
-  }
-}
-```
-
-**Configuration Claude Code (CLI)** :
-
-```bash
-claude mcp add greenit -- docker run --rm -i greenit-mcp
-claude mcp add rgaa -- docker run --rm -i rgaa-mcp
-```
-
-### Mode HTTP — serveur partagé (avec token)
-
-Idéal pour une équipe ou un déploiement sur serveur. Le MCP tourne en permanence et est accessible via une URL.
-
-Demandez un token d'accès à votre administrateur, puis configurez Claude avec l'URL et le token fournis.
-
-**Claude Desktop** :
+**Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`) :
 
 ```json
 {
@@ -112,6 +70,9 @@ claude mcp add rgaa --transport http --url https://mcp.example.com/rgaa \
   --header "Authorization: Bearer <votre-token>"
 ```
 
-## Déploiement
+Redémarrez Claude Desktop ou relancez `claude` pour que les MCPs soient actifs.
 
-Pour déployer les MCPs sur un serveur, générer des tokens et configurer l'environnement, consultez le [guide de déploiement](docs/DEPLOIEMENT.md).
+## Pour aller plus loin
+
+- **Déployer les MCPs sur un serveur** (Docker, tokens, reverse proxy) → [guide de déploiement](docs/DEPLOIEMENT.md)
+- **Lancer les MCPs en local** sans serveur (usage avancé, Docker requis) → voir le guide de déploiement, section _Mode stdio_
