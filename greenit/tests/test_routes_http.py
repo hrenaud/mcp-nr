@@ -264,12 +264,14 @@ class TestHttpHomepage:
         """Homepage displays the server version."""
         request = MagicMock()
 
-        # Set a version before calling
-        routes._VERSION = "1.0.0"
-        response = await routes._http_homepage(request)
-        body = response.body.decode()
-
-        assert "v1.0.0" in body or "1.0.0" in body
+        original_version = routes._VERSION
+        routes._VERSION = "test-version"
+        try:
+            response = await routes._http_homepage(request)
+            body = response.body.decode()
+            assert "test-version" in body
+        finally:
+            routes._VERSION = original_version
 
     @pytest.mark.asyncio
     async def test_homepage_includes_install_instructions(self):
