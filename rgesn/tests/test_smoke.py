@@ -16,4 +16,3 @@ def test_mcp_instance_exists():
     """Test que l'instance MCP existe"""
     import rgesn_mcp
     assert rgesn_mcp.mcp is not None
-    assert rgesn_mcp.mcp is not None
