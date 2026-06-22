@@ -9,7 +9,7 @@ import logging
 from html import escape
 from typing import Any
 
-logger = logging.getLogger("greenit-mcp")
+logger = logging.getLogger("mcp-ref-core")
 
 # Injected by greenit_mcp.py after import: import routes as _routes_mod; _routes_mod._VERSION = VERSION
 _VERSION = ""
