@@ -1,0 +1,6 @@
+files/preparer_donnees_final.py
+files/tester_mcp.py
+files/GUIDE_SETUP.md
+**/__pycache__
+**/*.pyc
+.env*
