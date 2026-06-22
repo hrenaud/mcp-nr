@@ -42,7 +42,7 @@ logger = logging.getLogger("rgaa-mcp")
 _BASE_DIR = Path(__file__).parent
 TOKENS_FILE = str(_BASE_DIR.parent / "tokens" / "tokens.json")
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 _routes_mod._VERSION = VERSION
 _routes_mod._MCP_NAME = "RGAA MCP"
 _routes_mod._MCP_ID = "rgaa"
