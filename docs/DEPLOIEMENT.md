@@ -1,0 +1,196 @@
+# Guide de déploiement — MCP Numérique Responsable
+
+Ce guide s'adresse aux développeurs, architectes et DevOps qui déploient les MCPs sur un serveur partagé.
+
+## Architecture
+
+Trois services Docker indépendants, chacun exposant un serveur MCP en mode HTTP :
+
+| Service | Port externe | Référentiel                  |
+| ------- | ------------ | ---------------------------- |
+| greenit | 8000         | GreenIT 115 bonnes pratiques |
+| rgaa    | 8001         | RGAA 4.2.1 — 106 critères    |
+| rgesn   | 8002         | RGESN (scaffold)             |
+
+Chaque service gère ses propres tokens dans un volume Docker dédié.
+
+## Déploiement
+
+### Prérequis
+
+- Docker Engine 24+ et Docker Compose v2
+- Ports 8000, 8001, 8002 disponibles (ou adapter dans les docker-compose.yml)
+- Cloner ce dépôt sur le serveur
+
+### Construire et lancer les services
+
+Les Dockerfiles se buildent **depuis la racine du monorepo** :
+
+```bash
+# Build des trois images
+docker build -f greenit/Dockerfile -t greenit-mcp .
+docker build -f rgaa/Dockerfile    -t rgaa-mcp .
+docker build -f rgesn/Dockerfile   -t rgesn-mcp .
+
+# Lancer chaque service (chacun a son propre docker-compose.yml)
+docker compose -f greenit/docker-compose.yml up -d
+docker compose -f rgaa/docker-compose.yml    up -d
+docker compose -f rgesn/docker-compose.yml   up -d
+```
+
+Pour lancer les trois en une commande, créez un `docker-compose.override.yml` à la racine ou utilisez un orchestrateur.
+
+### Vérification
+
+```bash
+curl http://localhost:8000/   # greenit — page d'accueil
+curl http://localhost:8001/   # rgaa
+curl http://localhost:8002/   # rgesn
+```
+
+## Variables d'environnement
+
+À configurer dans le `docker-compose.yml` de chaque service ou via un fichier `.env` :
+
+| Variable                | Défaut    | Description                                                                 |
+| ----------------------- | --------- | --------------------------------------------------------------------------- |
+| `MCP_TRANSPORT`         | `stdio`   | `http` pour le mode serveur                                                 |
+| `MCP_HOST`              | `0.0.0.0` | Adresse d'écoute interne                                                    |
+| `MCP_PORT`              | `8000`    | Port interne (doit correspondre au mapping Docker)                          |
+| `MCP_BASE_URL`          | auto      | URL publique si derrière un reverse proxy — critique pour les liens générés |
+| `MCP_TOKEN_REQUEST_URL` | vide      | URL du formulaire de demande de token (affiché sur la page d'accueil)       |
+| `ADMIN_TOKEN`           | vide      | Token admin pour l'API de gestion des tokens (voir ci-dessous)              |
+
+**Exemple** pour rgaa derrière un reverse proxy :
+
+```yaml
+environment:
+  MCP_TRANSPORT: http
+  MCP_BASE_URL: https://mcp.example.com/rgaa
+  MCP_TOKEN_REQUEST_URL: https://forms.example.com/demande-acces
+  ADMIN_TOKEN: un-secret-tres-long-a-generer
+```
+
+## Gestion des tokens
+
+L'authentification repose sur des Bearer tokens. Les tokens sont stockés dans le volume Docker de chaque service (`tokens/tokens.json`), jamais dans l'image.
+
+### Générer un token initial (CLI)
+
+```bash
+# Pour greenit
+docker run --rm -v greenit_tokens:/app/tokens greenit-mcp \
+  --generate-token --name "alice"
+
+# Pour rgaa
+docker run --rm -v rgaa_tokens:/app/tokens rgaa-mcp \
+  --generate-token --name "alice"
+```
+
+La commande affiche le token à transmettre à l'utilisateur. Il ne peut pas être récupéré ensuite.
+
+### API admin (mode HTTP uniquement)
+
+Si `ADMIN_TOKEN` est défini, une API REST de gestion des tokens est disponible.
+
+**Lister les tokens actifs :**
+
+```bash
+curl -H "Authorization: Bearer $ADMIN_TOKEN" http://localhost:8001/admin/tokens
+```
+
+**Créer un token :**
+
+```bash
+curl -X POST http://localhost:8001/admin/tokens \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "alice", "expires_days": 365}'
+```
+
+Réponse :
+
+```json
+{
+  "id": "abc123...",
+  "token": "le-token-a-transmettre-a-lutilisateur",
+  "name": "alice",
+  "expires_at": "2027-06-22T..."
+}
+```
+
+**Révoquer un token :**
+
+```bash
+curl -X DELETE http://localhost:8001/admin/tokens/<id> \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+**Endpoints disponibles :**
+
+| Méthode  | Endpoint             | Action                     |
+| -------- | -------------------- | -------------------------- |
+| `GET`    | `/admin/tokens`      | Lister tous les tokens     |
+| `POST`   | `/admin/tokens`      | Créer un token             |
+| `GET`    | `/admin/tokens/<id>` | Détail d'un token          |
+| `PATCH`  | `/admin/tokens/<id>` | Modifier (nom, expiration) |
+| `DELETE` | `/admin/tokens/<id>` | Révoquer                   |
+
+L'API renvoie 503 si `ADMIN_TOKEN` n'est pas défini, 401 si le token admin est incorrect.
+
+## Reverse proxy (HTTPS)
+
+Exemple de configuration nginx pour exposer les trois MCPs sous un même domaine :
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name mcp.example.com;
+
+    location /greenit {
+        proxy_pass http://localhost:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /rgaa {
+        proxy_pass http://localhost:8001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /rgesn {
+        proxy_pass http://localhost:8002;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Définir `MCP_BASE_URL` en conséquence (`https://mcp.example.com/greenit` etc.) pour que les URLs générées par le serveur soient correctes.
+
+## Health checks
+
+Chaque service expose un health check via le flag `--health` :
+
+```bash
+docker run --rm greenit-mcp --health
+# {"status": "ok", "version": "2.5.1"}
+```
+
+Les `docker-compose.yml` individuels incluent déjà un `healthcheck` configuré.
+
+## Releases et versioning
+
+Les versions des trois MCPs sont synchronisées via le script `release.sh` à la racine :
+
+```bash
+# Vérifier les CHANGELOGs de chaque MCP, puis :
+./release.sh 1.0.0
+git push && git push origin v1.0.0
+```
+
+Le script bumpe `VERSION` dans les trois `*_mcp.py` et `pyproject.toml`, crée un commit et un tag unifié `v<version>`. Le workflow CI se déclenche automatiquement sur le tag pour builder et publier les images Docker.
