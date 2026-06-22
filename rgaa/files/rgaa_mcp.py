@@ -180,6 +180,18 @@ def _rgaa_tool_definitions() -> list[dict[str, Any]]:
     return tool_defs
 
 
+def _rgaa_guide_extra_sections() -> str:
+    return """
+    <h2>5. Exemples de prompts</h2>
+    <div class="note">Quels critères RGAA s'appliquent aux images décoratives ?</div>
+    <div class="note">Explique le critère 1.1 du RGAA et ses tests associés</div>
+    <div class="note">Génère une checklist d'audit pour un composant navigation</div>
+    <div class="note">Quels critères WCAG AA concernent les formulaires ?</div>
+    <div class="note">Compare les critères 9.1 et 9.2 du RGAA</div>
+    <div class="note">Quels sont les critères de niveau A les plus souvent non conformes ?</div>
+    <div class="note">Donne-moi les statistiques du référentiel RGAA</div>"""
+
+
 def _create_mcp() -> FastMCP:
     from mcp_ref_core.auth import DynamicTokenVerifier
     from mcp_ref_core import routes as _routes_mod
@@ -188,6 +200,7 @@ def _create_mcp() -> FastMCP:
     verifier = DynamicTokenVerifier(token_path)
     _routes_mod._token_verifier = verifier
     _routes_mod._get_tool_definitions = _rgaa_tool_definitions
+    _routes_mod._guide_extra_sections = _rgaa_guide_extra_sections
 
     if verifier.tokens:
         mcp_instance = FastMCP("RGAA MCP", auth=verifier)

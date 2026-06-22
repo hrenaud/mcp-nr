@@ -1,7 +1,8 @@
 """
-HTTP route handlers for GreenIT MCP server.
+HTTP route handlers shared across MCP servers.
 
-These routes are injected with VERSION by greenit_mcp.py after import.
+Module-level variables (_VERSION, _MCP_NAME, _MCP_ID, _token_verifier,
+_get_tool_definitions) are injected by each MCP after import.
 """
 
 import os
@@ -11,10 +12,10 @@ from typing import Any
 
 logger = logging.getLogger("mcp-ref-core")
 
-# Injected by greenit_mcp.py after import: import routes as _routes_mod; _routes_mod._VERSION = VERSION
+# Injected by each MCP after import: _routes_mod._VERSION = VERSION
 _VERSION = ""
 
-# Injected by greenit_mcp.py: _routes_mod._token_verifier = verifier
+# Injected by each MCP after import: _routes_mod._token_verifier = verifier
 _token_verifier = None
 
 # Injected by MCPs to customize MCP name in homepage and install script
@@ -331,7 +332,7 @@ try:
 except (FileNotFoundError, json.JSONDecodeError):
     exit(0)
 allow = data.get('permissions', {}).get('allow', [])
-filtered = [p for p in allow if not p.startswith('mcp__greenit__')]
+filtered = [p for p in allow if not p.startswith('mcp____MCP_ID____')]
 if filtered != allow:
     data['permissions']['allow'] = filtered
     with open(path, 'w') as f:
@@ -453,8 +454,8 @@ except (FileNotFoundError, json.JSONDecodeError):
     data = {}
 perms = data.setdefault('permissions', {})
 allow = perms.setdefault('allow', [])
-if 'mcp__greenit__*' not in allow:
-    allow.append('mcp__greenit__*')
+if 'mcp____MCP_ID____*' not in allow:
+    allow.append('mcp____MCP_ID____*')
 with open(path, 'w') as f:
     json.dump(data, f, indent=2)
     f.write('\n')
@@ -499,7 +500,7 @@ async def _http_homepage(request) -> "Response":
     fiches_count = len(cache)
     base_url = escape(_get_base_url())
     status_html = (
-        f'<span class="badge ok">{fiches_count} fiches chargées</span>'
+        f'<span class="badge ok">{fiches_count} entrées chargées</span>'
         if fiches_count else
         '<span class="badge warn">Cache vide</span>'
     )
@@ -509,7 +510,7 @@ async def _http_homepage(request) -> "Response":
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>GreenIT MCP</title>
+  <title>{_MCP_NAME}</title>
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
     body {{
@@ -783,9 +784,70 @@ def _greenit_tool_definitions() -> list[dict[str, Any]]:
     return tool_defs
 
 
-# Injected by MCPs (greenit_mcp.py, rgaa_mcp.py) after import: import routes as _routes_mod; _routes_mod._get_tool_definitions = custom_tool_definitions
-# Defaults to greenit's tool definitions for backward compatibility
+# Injected by MCPs after import: _routes_mod._get_tool_definitions = custom_tool_definitions
 _get_tool_definitions = _greenit_tool_definitions
+
+
+def _greenit_guide_extra_sections() -> str:
+    return f"""
+    <h2>5. Ressources disponibles</h2>
+    <p>Les ressources MCP exposent les données brutes du référentiel, accessibles directement dans Claude :</p>
+    <table>
+      <thead><tr><th>Ressource</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>{_MCP_ID}://version</code></td><td>Version du serveur et des données</td></tr>
+        <tr><td><code>{_MCP_ID}://index</code></td><td>Index de toutes les fiches (id, titre, lifecycle, impact, priorité)</td></tr>
+        <tr><td><code>{_MCP_ID}://fiche/{'{'}fiche_id{'}'}</code></td><td>Contenu complet d'une fiche spécifique (ex : <code>RWEB_0051</code>)</td></tr>
+        <tr><td><code>{_MCP_ID}://metadata</code></td><td>Métadonnées du référentiel (source, nb fiches, nb lifecycles)</td></tr>
+      </tbody>
+    </table>
+
+    <h2>6. Exemples de prompts</h2>
+    <div class="note">Quelles fiches GreenIT sont prioritaires pour un site React ?</div>
+    <div class="note">Quelles bonnes pratiques pour réduire les requêtes réseau ?</div>
+    <div class="note">Quelles bonnes pratiques GreenIT s'appliquent à la phase de développement ?</div>
+    <div class="note">Compare les fiches RWEB_0049 et RWEB_0051</div>
+    <div class="note">Compare les fiches RWEB_0042 et RWEB_0050 : laquelle prioriser pour un site e-commerce ?</div>
+    <div class="note">Donne-moi les statistiques du référentiel GreenIT</div>
+    <div class="note">Donne-moi les bonnes pratiques GreenIT à appliquer en priorité pour réduire l'impact écologique de mon site (ex : https://example.com) — utilise Playwright avec Chromium pour mesurer les métriques DOM, requêtes et poids de page</div>
+    <div class="note">J'ai mesuré avec Playwright : 450 nœuds DOM, 38 requêtes, 280 Ko — quel est l'EcoIndex de ma page ?</div>
+    <div class="note">Calcule l'EcoIndex de https://example.com en utilisant Playwright pour mesurer les métriques réelles de la page</div>
+
+    <h2>7. Calculer l'EcoIndex</h2>
+    <p>L'EcoIndex est calculé à partir de 3 métriques mesurées avec Playwright :</p>
+    <div class="note">Le serveur MCP pilote automatiquement Playwright en appliquant le protocole de mesure officiel EcoIndex. Il vous suffit de fournir une URL — Claude se charge du reste.</div>
+    <table>
+      <thead><tr><th>Paramètre</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>dom_nodes</code></td><td>Nombre de nœuds dans le DOM</td></tr>
+        <tr><td><code>requests</code></td><td>Nombre de requêtes HTTP</td></tr>
+        <tr><td><code>size_kb</code></td><td>Taille totale transférée en Ko</td></tr>
+      </tbody>
+    </table>
+    <p>Protocole de mesure recommandé avec Playwright :</p>
+    <pre><code>1. Ouvrir un contexte Playwright avec viewport 1920×1080 (spec EcoIndex officielle)
+2. Naviguer vers la page
+3. Attendre 3 secondes
+4. Faire défiler jusqu'en bas progressivement
+5. Attendre 3 secondes
+6. Mesurer DOM, requêtes, taille
+7. Appeler calculer_ecoindex(dom_nodes, requests, size_kb)</code></pre>
+    <table>
+      <thead><tr><th>Grade</th><th>Score</th></tr></thead>
+      <tbody>
+        <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#349A47;vertical-align:middle;margin-right:6px"></span>A</td><td>&gt; 80</td></tr>
+        <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#51B84B;vertical-align:middle;margin-right:6px"></span>B</td><td>70 – 80</td></tr>
+        <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#CADB2A;vertical-align:middle;margin-right:6px"></span>C</td><td>55 – 70</td></tr>
+        <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#F6EB15;vertical-align:middle;margin-right:6px"></span>D</td><td>40 – 55</td></tr>
+        <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#FECD06;vertical-align:middle;margin-right:6px"></span>E</td><td>25 – 40</td></tr>
+        <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#F99839;vertical-align:middle;margin-right:6px"></span>F</td><td>10 – 25</td></tr>
+        <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#ED2124;vertical-align:middle;margin-right:6px"></span>G</td><td>0 – 10</td></tr>
+      </tbody>
+    </table>"""
+
+
+# Injected by MCPs after import: _routes_mod._guide_extra_sections = custom_guide_extra_sections
+_guide_extra_sections = _greenit_guide_extra_sections
 
 
 async def _http_guide(request) -> "Response":
@@ -859,8 +921,8 @@ async def _http_guide(request) -> "Response":
 <body>
   <div class="wrap">
     <a class="back" href="/">← {_MCP_NAME}</a>
-    <h1>🌱 Guide d'installation</h1>
-    <p class="subtitle">Connectez Claude aux bonnes pratiques d'éco-conception web GreenIT</p>
+    <h1>Guide d'installation — {_MCP_NAME}</h1>
+    <p class="subtitle">Connectez Claude à {_MCP_NAME}</p>
 
     <h2>1. Demander un accès</h2>
     {token_section}
@@ -907,60 +969,7 @@ curl -sSL {base_url}/install.sh | bash -s -- --uninstall</code></pre>
       <tbody>{tools_rows}</tbody>
     </table>
 
-    <h2>5. Ressources disponibles</h2>
-    <p>Les ressources MCP exposent les données brutes du référentiel, accessibles directement dans Claude :</p>
-    <table>
-      <thead><tr><th>Ressource</th><th>Description</th></tr></thead>
-      <tbody>
-        <tr><td><code>{_MCP_ID}://version</code></td><td>Version du serveur et des données</td></tr>
-        <tr><td><code>{_MCP_ID}://index</code></td><td>Index de toutes les fiches (id, titre, lifecycle, impact, priorité)</td></tr>
-        <tr><td><code>{_MCP_ID}://fiche/{'{'}fiche_id{'}'}</code></td><td>Contenu complet d'une fiche spécifique (ex : <code>RWEB_0051</code>)</td></tr>
-        <tr><td><code>{_MCP_ID}://metadata</code></td><td>Métadonnées du référentiel (source, nb fiches, nb lifecycles)</td></tr>
-      </tbody>
-    </table>
-
-    <h2>6. Exemples de prompts</h2>
-    <div class="note">Quelles fiches GreenIT sont prioritaires pour un site React ?</div>
-    <div class="note">Quelles bonnes pratiques pour réduire les requêtes réseau ?</div>
-    <div class="note">Quelles bonnes pratiques GreenIT s'appliquent à la phase de développement ?</div>
-    <div class="note">Compare les fiches RWEB_0049 et RWEB_0051</div>
-    <div class="note">Compare les fiches RWEB_0042 et RWEB_0050 : laquelle prioriser pour un site e-commerce ?</div>
-    <div class="note">Donne-moi les statistiques du référentiel GreenIT</div>
-    <div class="note">Donne-moi les bonnes pratiques GreenIT à appliquer en priorité pour réduire l'impact écologique de mon site (ex : https://example.com) — utilise Playwright avec Chromium pour mesurer les métriques DOM, requêtes et poids de page</div>
-    <div class="note">J'ai mesuré avec Playwright : 450 nœuds DOM, 38 requêtes, 280 Ko — quel est l'EcoIndex de ma page ?</div>
-    <div class="note">Calcule l'EcoIndex de https://example.com en utilisant Playwright pour mesurer les métriques réelles de la page</div>
-
-    <h2>7. Calculer l'EcoIndex</h2>
-    <p>L'EcoIndex est calculé à partir de 3 métriques mesurées avec Playwright :</p>
-    <div class="note">Le serveur MCP pilote automatiquement Playwright en appliquant le protocole de mesure officiel EcoIndex. Il vous suffit de fournir une URL — Claude se charge du reste.</div>
-    <table>
-      <thead><tr><th>Paramètre</th><th>Description</th></tr></thead>
-      <tbody>
-        <tr><td><code>dom_nodes</code></td><td>Nombre de nœuds dans le DOM</td></tr>
-        <tr><td><code>requests</code></td><td>Nombre de requêtes HTTP</td></tr>
-        <tr><td><code>size_kb</code></td><td>Taille totale transférée en Ko</td></tr>
-      </tbody>
-    </table>
-    <p>Protocole de mesure recommandé avec Playwright :</p>
-    <pre><code>1. Ouvrir un contexte Playwright avec viewport 1920×1080 (spec EcoIndex officielle)
-2. Naviguer vers la page
-3. Attendre 3 secondes
-4. Faire défiler jusqu'en bas progressivement
-5. Attendre 3 secondes
-6. Mesurer DOM, requêtes, taille
-7. Appeler calculer_ecoindex(dom_nodes, requests, size_kb)</code></pre>
-    <table>
-      <thead><tr><th>Grade</th><th>Score</th></tr></thead>
-      <tbody>
-        <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#349A47;vertical-align:middle;margin-right:6px"></span>A</td><td>&gt; 80</td></tr>
-        <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#51B84B;vertical-align:middle;margin-right:6px"></span>B</td><td>70 – 80</td></tr>
-        <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#CADB2A;vertical-align:middle;margin-right:6px"></span>C</td><td>55 – 70</td></tr>
-        <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#F6EB15;vertical-align:middle;margin-right:6px"></span>D</td><td>40 – 55</td></tr>
-        <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#FECD06;vertical-align:middle;margin-right:6px"></span>E</td><td>25 – 40</td></tr>
-        <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#F99839;vertical-align:middle;margin-right:6px"></span>F</td><td>10 – 25</td></tr>
-        <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#ED2124;vertical-align:middle;margin-right:6px"></span>G</td><td>0 – 10</td></tr>
-      </tbody>
-    </table>
+    {_guide_extra_sections()}
   </div>
 </body>
 </html>"""
