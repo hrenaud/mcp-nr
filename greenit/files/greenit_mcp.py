@@ -174,6 +174,7 @@ def _create_mcp() -> FastMCP:
     token_path = Path(TOKENS_FILE)
     verifier = DynamicTokenVerifier(token_path)
     _routes_mod._token_verifier = verifier
+    _routes_mod._get_tool_definitions = _routes_mod._greenit_tool_definitions
 
     if verifier.tokens:
         mcp_instance = FastMCP("GreenIT-Referentiel", auth=verifier)

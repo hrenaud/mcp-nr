@@ -661,7 +661,7 @@ async def _http_install_script(request) -> "Response":
     return PlainTextResponse(script, media_type="text/plain; charset=utf-8")
 
 
-def _get_tool_definitions() -> list[dict[str, Any]]:
+def _greenit_tool_definitions() -> list[dict[str, Any]]:
     """Build tool definitions from tools descriptions and parameter schemas.
 
     Returns:
@@ -773,6 +773,11 @@ def _get_tool_definitions() -> list[dict[str, Any]]:
         assert "inputSchema" in tool, f"Tool missing 'inputSchema': {tool}"
 
     return tool_defs
+
+
+# Injected by MCPs (greenit_mcp.py, rgaa_mcp.py) after import: import routes as _routes_mod; _routes_mod._get_tool_definitions = custom_tool_definitions
+# Defaults to greenit's tool definitions for backward compatibility
+_get_tool_definitions = _greenit_tool_definitions
 
 
 async def _http_guide(request) -> "Response":
