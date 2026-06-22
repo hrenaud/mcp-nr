@@ -294,7 +294,7 @@ class TestHttpHomepage:
 
     @pytest.mark.asyncio
     async def test_homepage_cache_status_ok(self):
-        """Homepage shows 'fiches chargées' when cache is populated."""
+        """Homepage shows 'entrées chargées' when cache is populated."""
         request = MagicMock()
 
         # Patch the charger_cache function where it's imported in routes
@@ -302,7 +302,7 @@ class TestHttpHomepage:
             response = await routes._http_homepage(request)
             body = response.body.decode()
 
-            assert "fiches chargées" in body
+            assert "entrées chargées" in body
             assert "badge ok" in body
 
     @pytest.mark.asyncio
