@@ -327,6 +327,19 @@ class TestHttpHomepage:
             elif "MCP_BASE_URL" in os.environ:
                 del os.environ["MCP_BASE_URL"]
 
+    @pytest.mark.asyncio
+    async def test_homepage_displays_referentiel_version(self):
+        """Homepage displays referentiel version when set."""
+        request = MagicMock()
+        original = routes._REFERENTIEL_VERSION
+        routes._REFERENTIEL_VERSION = "4.2.1"
+        try:
+            response = await routes._http_homepage(request)
+            body = response.body.decode()
+            assert "4.2.1" in body
+        finally:
+            routes._REFERENTIEL_VERSION = original
+
 
 class TestHttpGuideErrorPaths:
     """Test error and edge cases in _http_guide() handler."""

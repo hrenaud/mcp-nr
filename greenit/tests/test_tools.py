@@ -15,8 +15,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "files"))
 
 import pytest
 import json
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "core"))
+
 import greenit_mcp as mcp_module
 from fastmcp.exceptions import ToolError
+from mcp_ref_core import factory, routes as routes_mod
 
 
 # ============================================================================
@@ -66,33 +69,32 @@ class TestEnvHelpers:
 @pytest.fixture(scope="session", autouse=True)
 def _load_cache_once():
     """Ensure cache is loaded at session start - autouse ensures it runs for all tests"""
-    from data import charger_cache, _cache
     import data as data_module
 
-    # Force reload by resetting global and loading fresh
     data_module._cache = None
-    cache_data = charger_cache()
-    if not cache_data:
-        pytest.skip("Cache vide — lancez: python files/preparer_donnees_final.py --telecharger")
-    return cache_data
+    cache_data = data_module.charger_cache()
+    fiches = cache_data.get("fiches", {})
+    if not fiches:
+        pytest.skip("Cache vide — lancez: python files/preparer_donnees.py --telecharger")
+    return fiches
 
 
 @pytest.fixture(scope="function")
 def cache():
-    """Provide cache for individual tests - function scope ensures freshness"""
+    """Provide fiches dict for individual tests"""
     from data import charger_cache
-    data = charger_cache()
-    if not data:
-        pytest.skip("Cache vide — lancez: python files/preparer_donnees_final.py --telecharger")
-    return data
+    fiches = charger_cache().get("fiches", {})
+    if not fiches:
+        pytest.skip("Cache vide — lancez: python files/preparer_donnees.py --telecharger")
+    return fiches
 
 
 @pytest.fixture(scope="session")
 def premier_id():
-    """Get first ID from cache"""
+    """Get first fiche ID from cache"""
     from data import charger_cache
-    data = charger_cache()
-    return next(iter(data))
+    fiches = charger_cache().get("fiches", {})
+    return next(iter(fiches))
 
 
 # ============================================================================
@@ -280,6 +282,11 @@ class TestObtenirStatistiques:
         stats = mcp_module.obtenir_statistiques()
         assert len(stats["top_5_score_combine"]) <= 5
 
+    def test_statistiques_includes_referentiel_version(self):
+        stats = mcp_module.obtenir_statistiques()
+        assert "referentiel_version" in stats
+        assert stats["referentiel_version"] != ""
+
 
 # ============================================================================
 # HTTP Routes
@@ -398,16 +405,14 @@ class TestHttpRoutes:
 class TestCreateMcp:
     def test_stdio_mode_no_routes(self, monkeypatch):
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        mcp = mcp_module._create_mcp()
+        mcp = factory.create_mcp("GreenIT-Referentiel", mcp_module.TOKENS_FILE, routes_mod._greenit_tool_definitions)
         assert mcp.name == "GreenIT-Referentiel"
-        # In stdio mode, no custom routes should be registered
         assert len(mcp._additional_http_routes) == 0
 
     def test_http_mode_registers_routes(self, monkeypatch):
         monkeypatch.setenv("MCP_TRANSPORT", "http")
-        mcp = mcp_module._create_mcp()
+        mcp = factory.create_mcp("GreenIT-Referentiel", mcp_module.TOKENS_FILE, routes_mod._greenit_tool_definitions)
         assert mcp.name == "GreenIT-Referentiel"
-        # In HTTP mode, 8 routes should be registered (3 public + 5 admin)
         assert len(mcp._additional_http_routes) == 8
         paths = [r.path for r in mcp._additional_http_routes]
         assert "/" in paths
@@ -1582,13 +1587,11 @@ class TestResourceHandling:
         assert result["fiches"] == []
 
     def test_obtenir_metadata_handles_empty_metadata(self, monkeypatch):
-        """Test metadata endpoint handles empty or missing metadata gracefully."""
+        """Test metadata endpoint handles empty cache gracefully."""
         import asyncio
-        # Mock charger_metadata to return empty dict
-        monkeypatch.setattr(mcp_module, "charger_metadata", lambda: {})
+        monkeypatch.setattr(mcp_module, "charger_cache", lambda: {})
         result_json = asyncio.run(mcp_module.obtenir_metadata())
         result = json.loads(result_json)
-        # Should not raise, should return valid JSON
         assert isinstance(result, dict)
 
     def test_obtenir_fiche_resource_empty_cache(self, monkeypatch):
@@ -1626,8 +1629,7 @@ class TestResourceHandling:
     def test_index_fiches_with_criteria_field(self, monkeypatch):
         """Test index_fiches extracts categories from criteria field (backward compat)."""
         import asyncio
-        # Create a cache with criteria field instead of saved_resources
-        mock_cache = {
+        mock_cache = {"fiches": {
             "TEST_001": {
                 "num": "1.0",
                 "title": "Test Fiche",
@@ -1636,7 +1638,7 @@ class TestResourceHandling:
                     {"criterium": "criterion2"}
                 ]
             }
-        }
+        }}
         monkeypatch.setattr(mcp_module, "charger_cache", lambda: mock_cache)
         result_json = asyncio.run(mcp_module.index_fiches())
         result = json.loads(result_json)
@@ -1658,7 +1660,7 @@ class TestHomepageEmptyCache:
         monkeypatch.setattr("data.charger_cache", lambda: {})
 
         app = Starlette(routes=[
-            Route("/", mcp_module._http_homepage, methods=["GET"]),
+            Route("/", routes_mod._http_homepage, methods=["GET"]),
         ])
         client = TestClient(app)
         r = client.get("/")
@@ -1683,29 +1685,23 @@ class TestAuthTokenHandling:
     """Test authentication token verification in _create_mcp."""
 
     def test_create_mcp_with_tokens(self, monkeypatch, tmp_path):
-        """Test _create_mcp creates auth verifier when tokens present."""
-        # Create a temporary tokens file with valid tokens
+        """Test factory.create_mcp creates auth verifier when tokens present."""
+        import time as _time
         tokens_file = tmp_path / "tokens.json"
-        tokens_file.write_text('{"token123": {"name": "test", "created_at": "2025-01-01", "active": true}}')
-
-        # Mock TOKENS_FILE location
-        monkeypatch.setattr(mcp_module, "TOKENS_FILE", str(tokens_file))
-        monkeypatch.setattr(mcp_module, "tokens_pour_auth", lambda path: {"token123": "test"})
-
-        mcp = mcp_module._create_mcp()
+        tokens_file.write_text(json.dumps({
+            "tok_test": {"name": "test", "created_at": "2025-01-01T00:00:00+00:00", "expires_at": _time.time() + 86400}
+        }))
+        monkeypatch.setenv("MCP_TRANSPORT", "stdio")
+        mcp = factory.create_mcp("GreenIT-Referentiel", str(tokens_file), routes_mod._greenit_tool_definitions)
         assert mcp.name == "GreenIT-Referentiel"
-        # When tokens are present, auth should be configured
-        # (Note: We can't directly test the auth attribute, but the MCP instance should be created)
-        assert mcp is not None
+        assert mcp._auth is not None
 
-    def test_create_mcp_without_tokens(self, monkeypatch):
-        """Test _create_mcp creates instance without auth when no tokens."""
-        # Mock tokens_pour_auth to return empty dict
-        monkeypatch.setattr(mcp_module, "tokens_pour_auth", lambda path: {})
-
-        mcp = mcp_module._create_mcp()
+    def test_create_mcp_without_tokens(self, monkeypatch, tmp_path):
+        """Test factory.create_mcp creates instance without auth when no tokens."""
+        monkeypatch.setenv("MCP_TRANSPORT", "stdio")
+        mcp = factory.create_mcp("GreenIT-Referentiel", str(tmp_path / "empty.json"), routes_mod._greenit_tool_definitions)
         assert mcp.name == "GreenIT-Referentiel"
-        assert mcp is not None
+        assert mcp._auth is None
 
 
 class TestParameterEdgeCases:
@@ -1878,22 +1874,21 @@ class TestCalculerEcoindexErrorHandling:
 class TestResourceMethodsErrorHandling:
     """Test resource methods for proper error handling."""
 
-    @pytest.mark.asyncio
-    async def test_version_serveur_returns_json_structure(self):
-        """Test version_serveur resource returns proper JSON structure."""
-        result = await mcp_module.version_serveur()
-        data = json.loads(result)
+    def test_version_resource_returns_unified_structure(self):
+        """Test greenit://version resource returns unified JSON structure."""
+        import asyncio
+        result = asyncio.run(mcp_module.mcp.read_resource("greenit://version"))
+        data = json.loads(result.contents[0].content)
         assert "server_version" in data
-        assert "data_version" in data
-        assert "fiches" in data
+        assert "referentiel_version" in data
+        assert "updated_at" in data
+        assert "nb_items" in data
 
     @pytest.mark.asyncio
     async def test_obtenir_metadata_returns_json_structure(self):
         """Test obtenir_metadata resource returns proper JSON structure."""
         result = await mcp_module.obtenir_metadata()
         data = json.loads(result)
-        assert "languages" in data
-        assert "versions" in data
         assert "updated_at" in data
         assert "nb_fiches" in data
 

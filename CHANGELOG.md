@@ -6,6 +6,17 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 ## [Unreleased]
 
+### Ajouté
+
+- **Version du référentiel** : chaque MCP expose désormais la version du référentiel qu'il contient (RGAA 4.2.1, RGESN 2024, GreenIT 5.0.0) via l'outil `*_statistiques` et la page d'accueil `/`
+- **Homepage** : affichage de la version du référentiel sous la version MCP sur la page `/` des 3 serveurs
+- **`core/mcp_ref_core/factory.py`** : nouvelles fonctions `create_mcp()` et `run_main()` qui centralisent l'initialisation du serveur MCP (auth, transport, routes HTTP) — élimine ~150 lignes dupliquées entre les 3 MCPs
+
+### Modifié
+
+- **Refactorisation majeure** : les 3 MCPs utilisent désormais `factory.create_mcp()` et `factory.run_main()` — suppression de `_create_mcp()` local, des fonctions de gestion de tokens locales (`_load_tokens`, `_save_tokens`, `_tokens_for_auth`, `_cmd_*`)
+- **Tests mis à jour** : `test_tools.py`, `test_admin_api.py` et `test_architecture_parity.py` des 3 MCPs adaptés à la nouvelle architecture factory
+
 ---
 
 ## [1.1.0] — 2026-06-22

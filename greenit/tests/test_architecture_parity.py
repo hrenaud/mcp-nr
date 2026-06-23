@@ -31,7 +31,6 @@ from fastmcp.exceptions import ToolError
 import greenit_mcp as mcp_module
 from data import (
     charger_cache,
-    charger_metadata,
     compter_fiches,
     compter_lifecycles,
     compter_ressources,
@@ -83,23 +82,13 @@ class TestModuleStructure:
         files_dir = Path(__file__).parent.parent / "files"
         assert (files_dir / "greenit_cache.json").exists(), "greenit_cache.json missing"
 
-    def test_greenit_metadata_json_exists(self):
-        """Module structure: greenit_metadata.json must exist."""
-        files_dir = Path(__file__).parent.parent / "files"
-        assert (
-            files_dir / "greenit_metadata.json"
-        ).exists(), "greenit_metadata.json missing"
-
     def test_all_required_files_present(self):
         """Module structure: After migration, shared files are in core/, local files in files/."""
         files_dir = Path(__file__).parent.parent / "files"
-        # After Task 2 migration: auth.py, routes.py, _helpers.py are in core/mcp_ref_core/
-        # Only greenit-specific files remain in greenit/files/
         required_local = {
             "greenit_mcp.py",
             "data.py",
             "greenit_cache.json",
-            "greenit_metadata.json",
         }
         actual = {f.name for f in files_dir.glob("*") if f.is_file() and not f.name.startswith("__")}
         missing = required_local - actual
@@ -117,9 +106,7 @@ class TestComputedMetadataResources:
 
     def test_metadata_computes_fiches_count(self):
         """Computed metadata: greenit://metadata computes fiches_count from cache."""
-        metadata = charger_metadata()
         fiches_count = compter_fiches()
-        # The resource should compute this dynamically, not store static value
         assert isinstance(fiches_count, int), "fiches_count must be integer"
         assert fiches_count >= 0, "fiches_count must be non-negative"
 
@@ -152,10 +139,9 @@ class TestComputedMetadataResources:
 
     def test_metadata_reflects_cache_changes(self):
         """Computed metadata: Metadata reflects current cache state."""
-        # Metadata values should be based on current cache, not stored
         cache = charger_cache()
         fiches_count = compter_fiches()
-        assert fiches_count == len(cache), "fiches_count must match actual cache size"
+        assert fiches_count == len(cache.get("fiches", {})), "fiches_count must match fiches in cache"
 
 
 # ============================================================================
@@ -192,12 +178,9 @@ class TestHTTPRouteEndpoints:
 
     def test_routes_module_has_http_handlers(self):
         """HTTP routes: routes module contains HTTP route handler functions."""
-        # Check for route handler functions
-        assert hasattr(mcp_module, "_http_homepage"), "_http_homepage missing"
-        assert hasattr(
-            mcp_module, "_http_install_script"
-        ), "_http_install_script missing"
-        assert hasattr(mcp_module, "_http_guide"), "_http_guide missing"
+        assert hasattr(routes, "_http_homepage"), "_http_homepage missing"
+        assert hasattr(routes, "_http_install_script"), "_http_install_script missing"
+        assert hasattr(routes, "_http_guide"), "_http_guide missing"
 
 
 # ============================================================================
@@ -327,11 +310,9 @@ class TestSuiteIntegrity:
         """Test suite: data module imports without errors."""
         from data import (
             charger_cache,
-            charger_metadata,
             compter_fiches,
         )
         assert callable(charger_cache)
-        assert callable(charger_metadata)
         assert callable(compter_fiches)
 
     def test_auth_module_imports_successfully(self):
@@ -371,11 +352,6 @@ class TestSuiteIntegrity:
         """Test suite: greenit_cache.json is valid JSON."""
         cache = charger_cache()
         assert isinstance(cache, dict), "Cache must be dict"
-
-    def test_metadata_file_is_valid_json(self):
-        """Test suite: greenit_metadata.json is valid JSON."""
-        metadata = charger_metadata()
-        assert isinstance(metadata, dict), "Metadata must be dict"
 
 
 # ============================================================================
@@ -483,9 +459,13 @@ class TestToolAnnotations:
         assert hasattr(
             mcp_module, "obtenir_metadata"
         ), "obtenir_metadata resource missing"
-        assert hasattr(
-            mcp_module, "version_serveur"
-        ), "version_serveur resource missing"
+
+    def test_version_resource_registered_on_mcp(self):
+        """Version resource is registered centrally on the MCP instance."""
+        import asyncio
+        resources = asyncio.run(mcp_module.mcp.list_resources())
+        uris = [str(r.uri) for r in resources]
+        assert any("greenit://version" in u for u in uris), f"greenit://version not found in {uris}"
 
 
 # ============================================================================
@@ -507,18 +487,13 @@ class TestArchitectureIntegration:
         assert callable(construire_verifier)
         assert callable(validate_themes)
 
-    def test_data_and_metadata_consistency(self):
-        """Architecture: Cache and metadata files consistent."""
+    def test_cache_structure_consistency(self):
+        """Architecture: Cache has expected meta + fiches structure."""
         cache = charger_cache()
-        metadata = charger_metadata()
-
-        # Both should be dictionaries
         assert isinstance(cache, dict), "Cache must be dict"
-        assert isinstance(metadata, dict), "Metadata must be dict"
-
-        # Metadata should have expected keys
-        assert "languages" in metadata
-        assert "versions" in metadata
+        assert "meta" in cache, "Cache must have 'meta' key"
+        assert "fiches" in cache, "Cache must have 'fiches' key"
+        assert isinstance(cache["fiches"], dict), "cache['fiches'] must be dict"
 
     def test_error_handling_consistency(self):
         """Architecture: All validation uses ToolError with French messages."""

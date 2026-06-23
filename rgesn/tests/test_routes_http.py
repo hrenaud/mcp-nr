@@ -144,6 +144,18 @@ class TestHttpHomepage:
         body = response.body.decode()
         assert "critères" in body or "entrées" in body or "Cache" in body
 
+    @pytest.mark.asyncio
+    async def test_homepage_displays_referentiel_version(self):
+        request = MagicMock()
+        original = routes._REFERENTIEL_VERSION
+        routes._REFERENTIEL_VERSION = "2024"
+        try:
+            response = await routes._http_homepage(request)
+            body = response.body.decode()
+            assert "2024" in body
+        finally:
+            routes._REFERENTIEL_VERSION = original
+
 
 class TestToolDefinitionsConsistency:
     def test_tool_definitions_stable_across_calls(self):

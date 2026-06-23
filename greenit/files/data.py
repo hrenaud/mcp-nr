@@ -7,10 +7,8 @@ logger = logging.getLogger("greenit-mcp")
 
 _BASE_DIR = Path(__file__).parent
 CACHE_FILE = str(_BASE_DIR / "greenit_cache.json")
-METADATA_FILE = str(_BASE_DIR / "greenit_metadata.json")
 
 _cache: Optional[dict] = None
-_metadata: Optional[dict] = None
 
 
 def charger_cache() -> dict:
@@ -28,21 +26,6 @@ def charger_cache() -> dict:
     return _cache
 
 
-def charger_metadata() -> dict:
-    global _metadata
-    if _metadata is None:
-        if Path(METADATA_FILE).exists():
-            try:
-                with open(METADATA_FILE, "r", encoding="utf-8") as f:
-                    _metadata = json.load(f)
-            except Exception as e:
-                logger.error("Erreur lors du chargement des métadonnées: %s", e)
-                _metadata = {"languages": ["fr"], "versions": ["latest"]}
-        else:
-            _metadata = {"languages": ["fr"], "versions": ["latest"]}
-    return _metadata
-
-
 def sauvegarder_cache(data: dict) -> bool:
     try:
         with open(CACHE_FILE, "w", encoding="utf-8") as f:
@@ -50,16 +33,6 @@ def sauvegarder_cache(data: dict) -> bool:
         return True
     except Exception as e:
         logger.error("Erreur lors de la sauvegarde du cache: %s", e)
-        return False
-
-
-def sauvegarder_metadata(data: dict) -> bool:
-    try:
-        with open(METADATA_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        return True
-    except Exception as e:
-        logger.error("Erreur lors de la sauvegarde des métadonnées: %s", e)
         return False
 
 
@@ -110,24 +83,17 @@ def calculer_ecoindex(dom: int, requests: int, size_kb: float) -> dict:
     return {"score": round(score, 2), "grade": grade}
 
 
-def compter_fiches() -> int:
-    """Count total number of fiches in greenit_cache.json.
+def _fiches() -> dict:
+    return charger_cache().get("fiches", {})
 
-    Returns the length of the fiches dictionary. Returns 0 if cache is empty.
-    """
-    cache = charger_cache()
-    return len(cache)
+
+def compter_fiches() -> int:
+    return len(_fiches())
 
 
 def compter_lifecycles() -> int:
-    """Count total number of unique lifecycle phases.
-
-    Iterates through all fiches and collects unique 'lifecycle' values.
-    Returns 0 if no fiches exist.
-    """
-    cache = charger_cache()
     lifecycles = set()
-    for fiche in cache.values():
+    for fiche in _fiches().values():
         lc = fiche.get("lifecycle")
         if lc:
             lifecycles.add(lc)
@@ -135,28 +101,16 @@ def compter_lifecycles() -> int:
 
 
 def compter_ressources() -> int:
-    """Count total number of unique saved resource types.
-
-    Iterates through all fiches and collects unique values from 'saved_resources' field.
-    Returns 0 if no fiches exist.
-    """
-    cache = charger_cache()
     ressources = set()
-    for fiche in cache.values():
+    for fiche in _fiches().values():
         for r in fiche.get("saved_resources", []):
             ressources.add(r)
     return len(ressources)
 
 
 def calculer_taux_ecoindex_moyen() -> float:
-    """Calculate average environmental impact score from all fiches.
-
-    Computes the mean of 'environmental_impact' (1-5 scale) across all fiches in cache.
-    This represents the average impact level of the recommendations.
-    Returns 0.0 if no fiches exist.
-    """
-    cache = charger_cache()
-    if not cache:
+    fiches = _fiches()
+    if not fiches:
         return 0.0
-    total_impact = sum(f.get("environmental_impact", 0.0) for f in cache.values() if isinstance(f, dict))
-    return round(total_impact / len(cache), 2)
+    total_impact = sum(f.get("environmental_impact", 0.0) for f in fiches.values())
+    return round(total_impact / len(fiches), 2)

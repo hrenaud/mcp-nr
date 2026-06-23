@@ -2,10 +2,10 @@
 Script pour télécharger les données GreenIT et les mettre en cache
 
 Usage:
-    python preparer_donnees_final.py --telecharger    # Télécharge depuis l'API rweb.greenit.fr
-    python preparer_donnees_final.py --github          # Charge depuis github.com/cnumr/best-practices
-    python preparer_donnees_final.py --example         # Charge les exemples
-    python preparer_donnees_final.py --check          # Vérifie le cache
+    python preparer_donnees.py --telecharger    # Télécharge depuis l'API rweb.greenit.fr
+    python preparer_donnees.py --github          # Charge depuis github.com/cnumr/best-practices
+    python preparer_donnees.py --example         # Charge les exemples
+    python preparer_donnees.py --check          # Vérifie le cache
 """
 
 import httpx
@@ -15,14 +15,13 @@ import base64
 import re
 import subprocess
 from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Optional, Dict
 import sys
 from datetime import datetime, timezone
 
 # Configuration
 GREENIT_API_URL = "https://rweb.greenit.fr/api"
 CACHE_FILE = "greenit_cache.json"
-METADATA_FILE = "greenit_metadata.json"
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -34,109 +33,94 @@ HEADERS = {
 async def telecharger_api(lang: str = "fr", version: str = "latest") -> Optional[Dict]:
     """
     Télécharge les fiches depuis l'API GreenIT.
-    
+
     Args:
         lang: Langue (par défaut "fr")
         version: Version (par défaut "latest")
-    
+
     Returns:
         Dictionnaire avec les fiches, ou None en cas d'erreur
     """
     print(f"📥 Téléchargement depuis l'API GreenIT...")
     print(f"   URL: {GREENIT_API_URL}/fiches?lang={lang}&version={version}")
-    
+
     try:
         async with httpx.AsyncClient(headers=HEADERS, timeout=30.0) as client:
-            # Télécharger la liste des fiches
             url = f"{GREENIT_API_URL}/fiches?lang={lang}&version={version}"
             response = await client.get(url)
-            
+
             if response.status_code != 200:
                 print(f"   ❌ Erreur API: {response.status_code}")
                 print(f"   Contenu: {response.text[:200]}")
                 return None
-            
+
             fiches_list = response.json()
-            
+
             if not isinstance(fiches_list, list):
                 print(f"   ❌ Format inattendu: {type(fiches_list)}")
                 return None
-            
+
             print(f"   ✅ {len(fiches_list)} fiches trouvées")
-            
-            # Télécharger le contenu complet de chaque fiche
+
             fiches_dict = {}
-            
+
             for i, fiche_data in enumerate(fiches_list):
                 fiche_num = fiche_data.get("num")
-                
+
                 if not fiche_num:
                     print(f"   ⚠️  Fiche {i} sans numéro, ignorée")
                     continue
-                
+
                 print(f"   📄 Chargement fiche {i+1}/{len(fiches_list)}: {fiche_num}...", end=" ")
-                
+
                 try:
                     fiche_url = f"{GREENIT_API_URL}/fiches/{fiche_num}?lang={lang}&version={version}"
                     fiche_response = await client.get(fiche_url)
-                    
+
                     if fiche_response.status_code == 200:
                         fiche_content = fiche_response.json()
                         fiches_dict[str(fiche_num)] = fiche_content
                         print("✅")
                     else:
                         print(f"❌ (Status {fiche_response.status_code})")
-                        
+
                 except Exception as e:
                     print(f"❌ ({str(e)[:30]})")
-            
+
             return fiches_dict
-            
+
     except Exception as e:
         print(f"   ❌ Erreur de connexion: {e}")
         return None
 
-async def telecharger_metadata(lang: str = "fr") -> Dict:
-    """Télécharge les métadonnées (langues et versions)."""
-    print(f"📥 Récupération des métadonnées...")
+async def telecharger_metadata(source: str = "api") -> Dict:
+    """Récupère la version courante depuis l'API rweb.greenit.fr/api/versions."""
+    print(f"📥 Récupération de la version...")
 
     now = datetime.now(timezone.utc).isoformat()
-    metadata = {
-        "languages": [],
-        "versions": [],
-        "source": "api",
+    meta = {
+        "source": source,
         "data_version": "latest",
-        "updated_at": now
+        "updated_at": now,
+        "version": "",
     }
 
     try:
         async with httpx.AsyncClient(headers=HEADERS, timeout=10.0) as client:
-            # Langues
-            try:
-                print("   Langues...", end=" ")
-                response = await client.get(f"{GREENIT_API_URL}/languages")
-                if response.status_code == 200:
-                    metadata["languages"] = response.json()
-                    print(f"✅ ({', '.join(metadata['languages'])})")
-            except Exception as e:
-                print(f"⚠️  ({str(e)[:20]})")
-                metadata["languages"] = ["fr"]
-
-            # Versions
-            try:
-                print("   Versions...", end=" ")
-                response = await client.get(f"{GREENIT_API_URL}/versions")
-                if response.status_code == 200:
-                    metadata["versions"] = response.json()
-                    print(f"✅ ({', '.join(metadata['versions'])})")
-            except Exception as e:
-                print(f"⚠️  ({str(e)[:20]})")
-                metadata["versions"] = ["latest"]
-
+            print("   Versions...", end=" ")
+            response = await client.get(f"{GREENIT_API_URL}/versions")
+            if response.status_code == 200:
+                data = response.json()
+                versions = data["data"] if isinstance(data, dict) else data
+                numeric = [v for v in versions if v.replace(".", "").isdigit()]
+                meta["version"] = max(numeric, key=lambda v: [int(x) for x in v.split(".")]) if numeric else ""
+                print(f"✅ → v{meta['version']}")
+            else:
+                print(f"⚠️  (Status {response.status_code})")
     except Exception as e:
-        print(f"   ❌ Erreur: {e}")
+        print(f"⚠️  ({str(e)[:40]})")
 
-    return metadata
+    return meta
 
 def parser_mdx(contenu: str) -> Dict:
     """Parse un fichier MDX et retourne les données structurées."""
@@ -150,10 +134,9 @@ def parser_mdx(contenu: str) -> Dict:
     frontmatter = {}
     current_key = None
     current_list = None
-    current_dict = None  # tracks the current dict object within a list
+    current_dict = None
 
     for line in frontmatter_raw.splitlines():
-        # Clé: valeur simple
         kv = re.match(r'^(\w+):\s*(.+)$', line)
         if kv:
             current_list = None
@@ -167,7 +150,6 @@ def parser_mdx(contenu: str) -> Dict:
             current_key = key
             continue
 
-        # Clé sans valeur (début de liste)
         key_only = re.match(r'^(\w+):\s*$', line)
         if key_only:
             current_key = key_only.group(1)
@@ -176,13 +158,11 @@ def parser_mdx(contenu: str) -> Dict:
             current_dict = None
             continue
 
-        # Élément de liste (2-space indent: "  - ...")
         list_item = re.match(r'^  - (.+)$', line)
         if list_item and current_list is not None:
             content = list_item.group(1).strip()
             nested_kv = re.match(r'^(\w+):\s*(.*)$', content)
             if nested_kv:
-                # List item is itself a key-value → start a dict
                 k, v = nested_kv.group(1), nested_kv.group(2).strip().strip("'\"")
                 current_dict = {k: v}
                 current_list.append(current_dict)
@@ -191,14 +171,12 @@ def parser_mdx(contenu: str) -> Dict:
                 current_list.append(content.strip("'\""))
             continue
 
-        # Propriété d'un objet de liste (4-space indent: "    key: value")
         nested_item = re.match(r'^    (\w+):\s*(.*)$', line)
         if nested_item and current_dict is not None:
             k, v = nested_item.group(1), nested_item.group(2).strip().strip("'\"")
             current_dict[k] = v
             continue
 
-    # Extraire la description courte (première phrase du body)
     description_match = re.search(r'## Description\s*\n\n(.+?)(?:\n\n|\Z)', body, re.DOTALL)
     short_desc = ""
     if description_match:
@@ -235,7 +213,6 @@ def telecharger_github() -> Optional[Dict]:
 
     print(f"📥 Chargement depuis GitHub ({GITHUB_REPO})...")
 
-    # Lister les fichiers
     try:
         result = subprocess.run(
             ["gh", "api", f"repos/{GITHUB_REPO}/contents/{GITHUB_PATH}", "--jq", ".[].name"],
@@ -260,7 +237,6 @@ def telecharger_github() -> Optional[Dict]:
                 ["gh", "api", f"repos/{GITHUB_REPO}/contents/{GITHUB_PATH}/{nom_fichier}", "--jq", ".content"],
                 capture_output=True, text=True, check=True
             )
-            # Le contenu est en base64 avec des sauts de ligne
             contenu_b64 = result.stdout.strip().replace("\\n", "").replace('"', '')
             contenu = base64.b64decode(contenu_b64).decode("utf-8")
 
@@ -283,7 +259,7 @@ def telecharger_github() -> Optional[Dict]:
 def charger_exemples() -> Dict:
     """Retourne un jeu de données d'exemple pour les tests."""
     print("📋 Chargement des données d'exemple...")
-    
+
     return {
         "1.01": {
             "num": "1.01",
@@ -331,28 +307,23 @@ def charger_exemples() -> Dict:
 def verifier_cache() -> None:
     """Vérifie et affiche les informations du cache."""
     print("🔍 Vérification du cache...")
-    
+
     if not Path(CACHE_FILE).exists():
         print(f"   ❌ {CACHE_FILE} n'existe pas")
         return
-    
+
     try:
         with open(CACHE_FILE, 'r', encoding='utf-8') as f:
             cache = json.load(f)
-        
+
+        meta = cache.get("meta", {})
+        fiches = cache.get("fiches", {})
+
         print(f"   ✅ Cache valide")
-        print(f"   📊 Fiches: {len(cache)}")
-        
-        if cache:
-            categories = set()
-            for fiche in cache.values():
-                for criterion in fiche.get("criteria", []):
-                    if "criterium" in criterion:
-                        categories.add(criterion["criterium"])
-            
-            print(f"   📁 Catégories: {', '.join(sorted(categories))}")
-            print(f"   📄 Premiers numéros: {', '.join(sorted(cache.keys())[:5])}")
-            
+        print(f"   📊 Fiches: {len(fiches)}")
+        print(f"   🏷️  Version: {meta.get('version', 'inconnue')}")
+        print(f"   📅 Mis à jour: {meta.get('updated_at', 'inconnu')}")
+
     except Exception as e:
         print(f"   ❌ Erreur: {e}")
 
@@ -361,24 +332,11 @@ def sauvegarder_cache(data: Dict) -> bool:
     try:
         with open(CACHE_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-        
+
         print(f"\n✅ Cache sauvegardé: {Path(CACHE_FILE).absolute()}")
         return True
     except Exception as e:
         print(f"\n❌ Erreur de sauvegarde: {e}")
-        return False
-
-def sauvegarder_metadata(data: Dict) -> bool:
-    """Sauvegarde les métadonnées."""
-    try:
-        data["timestamp"] = datetime.now().isoformat()
-        with open(METADATA_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        
-        print(f"✅ Métadonnées sauvegardées: {Path(METADATA_FILE).absolute()}")
-        return True
-    except Exception as e:
-        print(f"❌ Erreur de sauvegarde: {e}")
         return False
 
 async def main():
@@ -386,44 +344,36 @@ async def main():
     print("\n" + "=" * 70)
     print("🌱 PRÉPARATION DES DONNÉES GREENIT")
     print("=" * 70 + "\n")
-    
+
     if len(sys.argv) > 1:
         action = sys.argv[1]
     else:
         action = "--example"
-    
+
     fiches = None
-    metadata = None
-    
+    meta = None
+
     if action == "--telecharger":
         print("📡 Mode: Téléchargement depuis l'API\n")
         fiches = await telecharger_api()
-        metadata = await telecharger_metadata()
+        meta = await telecharger_metadata(source="api")
 
     elif action == "--github":
         print("📡 Mode: Chargement depuis GitHub (cnumr/best-practices)\n")
         fiches = telecharger_github()
-        now = datetime.now(timezone.utc).isoformat()
-        metadata = {
-            "languages": ["fr"],
-            "versions": ["latest"],
-            "source": "github",
-            "data_version": "latest",
-            "updated_at": now
-        }
+        meta = await telecharger_metadata(source="github")
 
     elif action == "--example":
         print("📖 Mode: Données d'exemple\n")
         fiches = charger_exemples()
         now = datetime.now(timezone.utc).isoformat()
-        metadata = {
-            "languages": ["fr"],
-            "versions": ["latest"],
+        meta = {
             "source": "example",
             "data_version": "latest",
-            "updated_at": now
+            "updated_at": now,
+            "version": "",
         }
-        
+
     elif action == "--check":
         print("🔍 Mode: Vérification\n")
         verifier_cache()
@@ -431,27 +381,22 @@ async def main():
     else:
         print(f"❌ Action inconnue: {action}")
         print("\nUsage:")
-        print("  python preparer_donnees_final.py --telecharger  # Depuis l'API rweb.greenit.fr")
-        print("  python preparer_donnees_final.py --github        # Depuis GitHub cnumr/best-practices")
-        print("  python preparer_donnees_final.py --example       # Données exemple")
-        print("  python preparer_donnees_final.py --check         # Vérifier cache")
+        print("  python preparer_donnees.py --telecharger  # Depuis l'API rweb.greenit.fr")
+        print("  python preparer_donnees.py --github        # Depuis GitHub cnumr/best-practices")
+        print("  python preparer_donnees.py --example       # Données exemple")
+        print("  python preparer_donnees.py --check         # Vérifier cache")
         return
-    
-    # Sauvegarder
-    if fiches:
-        if sauvegarder_cache(fiches):
-            print(f"   📊 {len(fiches)} fiches sauvegardées")
-    
-    if metadata:
-        sauvegarder_metadata(metadata)
-    
-    # Résumé
+
+    if fiches and meta:
+        sauvegarder_cache({"meta": meta, "fiches": fiches})
+        print(f"   📊 {len(fiches)} fiches sauvegardées (v{meta.get('version', '?')})")
+
     print("\n" + "=" * 70)
     print("✅ PRÉPARATION TERMINÉE")
     print("=" * 70)
     print("\n📌 Prochaines étapes:")
     print(f"   1. Vérifiez {CACHE_FILE}")
-    print(f"   2. Lancez: python greenit_mcp_final.py")
+    print(f"   2. Lancez: python greenit_mcp.py")
     print(f"   3. Configurez Claude Desktop avec le serveur MCP")
     print()
 

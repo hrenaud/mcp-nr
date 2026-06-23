@@ -300,7 +300,7 @@ class TestHttpHomepage:
         request = MagicMock()
 
         # Patch the charger_cache function where it's imported in routes
-        with patch("data.charger_cache", return_value={"some": "data"}):
+        with patch("data.charger_cache", return_value={"fiches": {"a": 1, "b": 2}}):
             response = await routes._http_homepage(request)
             body = response.body.decode()
 
@@ -331,6 +331,19 @@ class TestHttpHomepage:
 
             # Should contain the URL (properly escaped if needed)
             assert "localhost:8000" in body
+
+    @pytest.mark.asyncio
+    async def test_homepage_displays_referentiel_version(self):
+        """Homepage displays referentiel version when set."""
+        request = MagicMock()
+        original = routes._REFERENTIEL_VERSION
+        routes._REFERENTIEL_VERSION = "2026-04-10"
+        try:
+            response = await routes._http_homepage(request)
+            body = response.body.decode()
+            assert "2026-04-10" in body
+        finally:
+            routes._REFERENTIEL_VERSION = original
 
 
 class TestHttpInstallScript:

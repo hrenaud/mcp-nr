@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "files"))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "core"))
 
 
 class TestDynamicTokenVerifier:
@@ -165,7 +166,7 @@ class TestGreenitMcpWiring:
     def test_create_mcp_uses_dynamic_verifier_with_tokens(self, monkeypatch, tmp_path):
         import json as _json
         import time as _time
-        import greenit_mcp as mod
+        from mcp_ref_core import factory, routes as _routes
         from mcp_ref_core.auth import DynamicTokenVerifier
 
         path = tmp_path / "tokens.json"
@@ -181,23 +182,20 @@ class TestGreenitMcpWiring:
             }
         }))
         monkeypatch.setenv("MCP_TRANSPORT", "http")
-        monkeypatch.setattr(mod, "TOKENS_FILE", str(path))
-        mcp_instance = mod._create_mcp()
+        mcp_instance = factory.create_mcp("GreenIT-Referentiel", str(path), _routes._greenit_tool_definitions)
         assert isinstance(mcp_instance._auth, DynamicTokenVerifier)
 
     def test_create_mcp_no_auth_when_no_tokens(self, monkeypatch, tmp_path):
-        import greenit_mcp as mod
+        from mcp_ref_core import factory, routes as _routes
         path = tmp_path / "tokens.json"
         monkeypatch.setenv("MCP_TRANSPORT", "http")
-        monkeypatch.setattr(mod, "TOKENS_FILE", str(path))
-        mcp_instance = mod._create_mcp()
+        mcp_instance = factory.create_mcp("GreenIT-Referentiel", str(path), _routes._greenit_tool_definitions)
         assert mcp_instance._auth is None
 
     def test_verifier_injected_in_routes(self, monkeypatch, tmp_path):
         import json as _json
         import time as _time
-        import greenit_mcp as mod
-        from mcp_ref_core import routes
+        from mcp_ref_core import factory, routes
         from mcp_ref_core.auth import DynamicTokenVerifier
 
         path = tmp_path / "tokens.json"
@@ -213,8 +211,7 @@ class TestGreenitMcpWiring:
             }
         }))
         monkeypatch.setenv("MCP_TRANSPORT", "http")
-        monkeypatch.setattr(mod, "TOKENS_FILE", str(path))
-        mod._create_mcp()
+        factory.create_mcp("GreenIT-Referentiel", str(path), routes._greenit_tool_definitions)
         assert isinstance(routes._token_verifier, DynamicTokenVerifier)
 
 

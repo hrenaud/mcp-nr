@@ -60,8 +60,8 @@ class TestHTTPRouteEndpoints:
         assert hasattr(routes, "_http_guide")
 
     def test_http_install_script_exists(self):
-        import rgesn_mcp
-        assert hasattr(rgesn_mcp, "_http_install_script")
+        from mcp_ref_core import routes
+        assert hasattr(routes, "_http_install_script")
 
     def test_route_functions_are_async(self):
         from mcp_ref_core import routes

@@ -10,7 +10,6 @@ COPY core/mcp_ref_core/ ./mcp_ref_core/
 COPY greenit/files/greenit_mcp.py .
 COPY greenit/files/data.py .
 COPY greenit/files/greenit_cache.json .
-COPY greenit/files/greenit_metadata.json .
 
 ENV PYTHONUNBUFFERED=1
 ENV MCP_TRANSPORT=http

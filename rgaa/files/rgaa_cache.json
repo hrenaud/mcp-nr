@@ -3,7 +3,8 @@
     "source": "DISIC/accessibilite.numerique.gouv.fr",
     "genere_le": "2026-04-17T16:59:45.336997+00:00",
     "nb_criteres": 106,
-    "nb_termes": 119
+    "nb_termes": 119,
+    "version": "4.2.1"
   },
   "themes": {
     "1": "Images",

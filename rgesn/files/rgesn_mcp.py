@@ -13,17 +13,13 @@ Gestion des tokens :
   python rgesn_mcp.py --revoke-token <token>
 """
 
-from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from data import charger_cache
-from mcp_ref_core import routes as _routes_mod
+from mcp_ref_core import routes as _routes_mod, factory
 import json
 import logging
 import os
-import secrets
 import sys
-import time
-from datetime import datetime, timezone
 from pathlib import Path
 from difflib import get_close_matches
 from typing import Optional, Any
@@ -41,8 +37,10 @@ TOKENS_FILE = str(_BASE_DIR.parent / "tokens" / "tokens.json")
 
 VERSION = "1.1.1"
 _routes_mod._VERSION = VERSION
+_routes_mod._REFERENTIEL_VERSION = charger_cache().get("meta", {}).get("version", "")
 _routes_mod._MCP_NAME = "RGESN MCP"
 _routes_mod._MCP_ID = "rgesn"
+_routes_mod._ITEMS_KEY = "criteres"
 _routes_mod._LOGO = "💡"
 _routes_mod._ACCENT = "#f59e0b"
 _routes_mod._ACCENT_DARK = "#92400e"
@@ -50,13 +48,8 @@ _routes_mod._ACCENT_LIGHT = "#fde68a"
 _routes_mod._ACCENT_BTN_TEXT = "#000"
 _routes_mod._TAGLINE = "Écoconception des services numériques"
 
-from mcp_ref_core.routes import (
-    _get_base_url,
-    _get_token_request_url,
-    _http_homepage,
-    _http_install_script,
-    _http_guide,
-)
+_get_base_url = _routes_mod._get_base_url
+_get_token_request_url = _routes_mod._get_token_request_url
 
 _VALID_PRIORITES = {"Prioritaire", "Recommandé", "Modéré"}
 _VALID_DIFFICULTES = {"Faible", "Moyen", "Fort"}
@@ -178,36 +171,7 @@ def _rgesn_guide_extra_sections() -> str:
     <div class="note">Donne-moi les statistiques du référentiel RGESN</div>"""
 
 
-def _create_mcp() -> FastMCP:
-    from mcp_ref_core.auth import DynamicTokenVerifier
-
-    token_path = Path(TOKENS_FILE)
-    verifier = DynamicTokenVerifier(token_path)
-    _routes_mod._token_verifier = verifier
-    _routes_mod._get_tool_definitions = _rgesn_tool_definitions
-    _routes_mod._guide_extra_sections = _rgesn_guide_extra_sections
-
-    if verifier.tokens:
-        mcp_instance = FastMCP("RGESN MCP", auth=verifier)
-        mcp_instance._auth = verifier
-    else:
-        mcp_instance = FastMCP("RGESN MCP")
-        mcp_instance._auth = None
-
-    transport = os.environ.get("MCP_TRANSPORT", "stdio")
-    if transport == "http":
-        mcp_instance.custom_route("/", methods=["GET"])(_http_homepage)
-        mcp_instance.custom_route("/install.sh", methods=["GET"])(_http_install_script)
-        mcp_instance.custom_route("/guide", methods=["GET"])(_http_guide)
-        mcp_instance.custom_route("/admin/tokens", methods=["GET"])(_routes_mod._http_admin_list_tokens)
-        mcp_instance.custom_route("/admin/tokens", methods=["POST"])(_routes_mod._http_admin_create_token)
-        mcp_instance.custom_route("/admin/tokens/{id}", methods=["GET"])(_routes_mod._http_admin_get_token)
-        mcp_instance.custom_route("/admin/tokens/{id}", methods=["PATCH"])(_routes_mod._http_admin_update_token)
-        mcp_instance.custom_route("/admin/tokens/{id}", methods=["DELETE"])(_routes_mod._http_admin_delete_token)
-    return mcp_instance
-
-
-mcp = _create_mcp()
+mcp = factory.create_mcp("RGESN MCP", TOKENS_FILE, _rgesn_tool_definitions, _rgesn_guide_extra_sections)
 
 
 # ============================================================================
@@ -424,6 +388,7 @@ def rgesn_chercher(query: str, theme: Optional[int] = None) -> dict:
     output_schema={
         "type": "object",
         "properties": {
+            "referentiel_version": {"type": "string"},
             "total_criteres": {"type": "integer"},
             "par_priorite": {
                 "type": "object",
@@ -445,7 +410,7 @@ def rgesn_chercher(query: str, theme: Optional[int] = None) -> dict:
                 "additionalProperties": {"type": "integer"}
             }
         },
-        "required": ["total_criteres", "par_priorite", "par_theme", "par_difficulte"]
+        "required": ["referentiel_version", "total_criteres", "par_priorite", "par_theme", "par_difficulte"]
     },
     annotations={
         "readOnlyHint": True,
@@ -459,7 +424,7 @@ def rgesn_statistiques() -> dict:
     Retourne les statistiques du référentiel RGESN.
 
     Returns:
-        Total de critères, répartition par priorité, par thème et par difficulté
+        Version du référentiel, total de critères, répartition par priorité, par thème et par difficulté
     """
     cache = charger_cache()
     criteres = list(cache["criteres"].values())
@@ -482,6 +447,7 @@ def rgesn_statistiques() -> dict:
         par_difficulte[d] = sum(1 for c in criteres if c["difficulte"] == d)
 
     return {
+        "referentiel_version": charger_cache().get("meta", {}).get("version", ""),
         "total_criteres": len(criteres),
         "par_priorite": par_priorite,
         "par_theme": par_theme,
@@ -665,16 +631,7 @@ def rgesn_checklist(
 # RESSOURCES MCP
 # ============================================================================
 
-@mcp.resource("rgesn://version")
-async def resource_version() -> str:
-    """Version du serveur MCP et des données RGESN."""
-    cache = charger_cache()
-    meta = cache.get("meta", {})
-    return json.dumps({
-        "server_version": VERSION,
-        "data_version": meta.get("version", "inconnue"),
-        "nb_criteres": len(cache.get("criteres", {})),
-    }, ensure_ascii=False, indent=2)
+_routes_mod.register_version_resource(mcp, charger_cache)
 
 
 @mcp.resource("rgesn://criteres/{critere_id}")
@@ -913,127 +870,8 @@ Recommande l'ordre optimal de correction pour maximiser le score RGESN."""
 
 
 # ============================================================================
-# Gestion des tokens
-# ============================================================================
-
-def _load_tokens() -> dict:
-    path = Path(TOKENS_FILE)
-    if path.exists():
-        try:
-            with open(path, encoding="utf-8") as f:
-                return json.load(f)
-        except Exception as e:
-            logger.error("Erreur tokens: %s", e)
-    return {}
-
-
-def _save_tokens(tokens: dict) -> None:
-    Path(TOKENS_FILE).parent.mkdir(parents=True, exist_ok=True)
-    with open(TOKENS_FILE, "w", encoding="utf-8") as f:
-        json.dump(tokens, f, ensure_ascii=False, indent=2)
-
-
-def _tokens_for_auth() -> dict:
-    now = time.time()
-    result = {}
-    for token, info in _load_tokens().items():
-        expires_at = info.get("expires_at")
-        if expires_at and expires_at < now:
-            continue
-        entry = {"client_id": info.get("name", token[:8]), "scopes": ["read"]}
-        if expires_at:
-            entry["expires_at"] = int(expires_at)
-        result[token] = entry
-    return result
-
-
-def _cmd_generate_token(name: str, expires_days: int = 365) -> None:
-    token = secrets.token_urlsafe(32)
-    expires_at = time.time() + expires_days * 86400
-    tokens = _load_tokens()
-    tokens[token] = {
-        "name": name,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "expires_at": expires_at,
-    }
-    _save_tokens(tokens)
-    print(f"Token généré pour '{name}' (expire dans {expires_days} jours):")
-    print(f"  {token}")
-
-
-def _cmd_list_tokens() -> None:
-    tokens = _load_tokens()
-    if not tokens:
-        print("Aucun token.")
-        return
-    now = time.time()
-    for token, info in tokens.items():
-        expires_at = info.get("expires_at", 0)
-        statut = "EXPIRÉ" if expires_at and expires_at < now else "actif"
-        print(f"  {token[:16]}...  {info.get('name')}  [{statut}]")
-
-
-def _cmd_revoke_token(token: str) -> None:
-    tokens = _load_tokens()
-    if token in tokens:
-        del tokens[token]
-        _save_tokens(tokens)
-        print("Token révoqué.")
-    else:
-        print("Token introuvable.")
-
-
-# ============================================================================
 # Entrypoint
 # ============================================================================
 
 if __name__ == "__main__":
-    args = sys.argv[1:]
-
-    cache = charger_cache()
-    logger.info("Serveur MCP RGESN v%s", VERSION)
-    logger.info("Cache: %d critères", len(cache.get("criteres", {})))
-
-    if "--health" in args:
-        nb = len(cache.get("criteres", {}))
-        if nb > 0:
-            print(f"OK: {nb} critères chargés")
-            sys.exit(0)
-        else:
-            print("ERREUR: Cache vide")
-            sys.exit(1)
-
-    if "--generate-token" in args:
-        try:
-            name = args[args.index("--name") + 1] if "--name" in args else "default"
-            days = int(args[args.index("--expires-days") + 1]) if "--expires-days" in args else 365
-            _cmd_generate_token(name, days)
-        except (IndexError, ValueError) as e:
-            print(f"Erreur d'argument : {e}", file=sys.stderr)
-            sys.exit(1)
-        sys.exit(0)
-
-    if "--list-tokens" in args:
-        _cmd_list_tokens()
-        sys.exit(0)
-
-    if "--revoke-token" in args:
-        try:
-            token = args[args.index("--revoke-token") + 1]
-            _cmd_revoke_token(token)
-        except IndexError as e:
-            print(f"Erreur d'argument : {e}", file=sys.stderr)
-            sys.exit(1)
-        sys.exit(0)
-
-    transport = os.environ.get("MCP_TRANSPORT", "stdio")
-    if transport == "http":
-        host = os.environ.get("MCP_HOST", "0.0.0.0")
-        port = int(os.environ.get("MCP_PORT", "8000"))
-        tokens = _tokens_for_auth()
-        auth_info = f"activée ({len(tokens)} token(s))" if tokens else "désactivée"
-        logger.info("Auth: %s", auth_info)
-        logger.info("HTTP: %s:%d", host, port)
-        mcp.run(transport="streamable-http", host=host, port=port)
-    else:
-        mcp.run(transport="stdio")
+    factory.run_main(mcp, VERSION, "RGESN MCP", charger_cache, "criteres", TOKENS_FILE)

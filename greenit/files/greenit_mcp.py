@@ -19,7 +19,6 @@ Gestion des tokens (fichier tokens.json):
   --revoke-token <token>                               Révoquer un token
 """
 
-from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 import json
@@ -31,17 +30,19 @@ from typing import Optional, List
 
 # Modules extraits
 from data import (
-    charger_cache, charger_metadata, sauvegarder_cache, sauvegarder_metadata,
-    CACHE_FILE, METADATA_FILE, calculer_ecoindex as _calculer_ecoindex_impl,
+    charger_cache, sauvegarder_cache,
+    CACHE_FILE, calculer_ecoindex as _calculer_ecoindex_impl,
     compter_fiches, compter_lifecycles, compter_ressources, calculer_taux_ecoindex_moyen
 )
-from mcp_ref_core.auth import construire_verifier, tokens_pour_auth, cmd_generate_token, cmd_list_tokens, cmd_revoke_token
 from mcp_ref_core._helpers import validate_themes, validate_score_range, validate_nonnegative
-from mcp_ref_core import routes
+from mcp_ref_core import routes, factory
 
 # Re-export helper functions from routes for backward compatibility with tests
 _get_base_url = routes._get_base_url
 _get_token_request_url = routes._get_token_request_url
+_http_homepage = routes._http_homepage
+_http_install_script = routes._http_install_script
+_http_guide = routes._http_guide
 
 logging.basicConfig(
     level=logging.INFO,
@@ -57,79 +58,19 @@ _BASE_DIR = Path(__file__).parent
 TOKENS_FILE = str(_BASE_DIR / "tokens" / "tokens.json")
 GREENIT_API_URL = "https://rweb.greenit.fr/api"
 
-# Helper to inject VERSION and theme into routes module
-def _setup_routes():
-    routes._VERSION = VERSION
-    routes._MCP_NAME = "GreenIT MCP"
-    routes._MCP_ID = "greenit"
-    routes._LOGO = "🌱"
-    routes._ACCENT = "#22c55e"
-    routes._ACCENT_DARK = "#14532d"
-    routes._ACCENT_LIGHT = "#4ade80"
-    routes._ACCENT_BTN_TEXT = "#000"
-    routes._TAGLINE = "Bonnes pratiques d'écoconception web"
+routes._VERSION = VERSION
+routes._REFERENTIEL_VERSION = charger_cache().get("meta", {}).get("version", "")
+routes._MCP_NAME = "GreenIT MCP"
+routes._MCP_ID = "greenit"
+routes._ITEMS_KEY = "fiches"
+routes._LOGO = "🌱"
+routes._ACCENT = "#22c55e"
+routes._ACCENT_DARK = "#14532d"
+routes._ACCENT_LIGHT = "#4ade80"
+routes._ACCENT_BTN_TEXT = "#000"
+routes._TAGLINE = "Bonnes pratiques d'écoconception web"
 
-
-from mcp_ref_core.routes import _http_homepage, _http_guide  # noqa: E402
-
-
-# ============================================================================
-# HTTP ROUTES (public endpoints — no auth)
-# ============================================================================
-
-async def _http_install_script(request) -> "Response":
-    from starlette.responses import PlainTextResponse
-    base_url = _get_base_url()
-    mcp_url = f"{base_url}/mcp"
-    token_request_url = _get_token_request_url()
-    script = (
-        routes._INSTALL_SCRIPT_TEMPLATE
-        .replace("__BASE_URL__", base_url)
-        .replace("__MCP_URL__", mcp_url)
-        .replace("__TOKEN_REQUEST_URL__", token_request_url)
-        .replace("__MCP_NAME__", routes._MCP_NAME)
-        .replace("__MCP_ID__", routes._MCP_ID)
-    )
-    return PlainTextResponse(script, media_type="text/plain; charset=utf-8")
-
-
-# ============================================================================
-# MCP INITIALIZATION
-# ============================================================================
-
-def _create_mcp() -> FastMCP:
-    """Crée et configure l'instance FastMCP avec auth et routes HTTP."""
-    from mcp_ref_core.auth import DynamicTokenVerifier
-    from mcp_ref_core import routes as _routes_mod
-
-    token_path = Path(TOKENS_FILE)
-    verifier = DynamicTokenVerifier(token_path)
-    _routes_mod._token_verifier = verifier
-    _routes_mod._get_tool_definitions = _routes_mod._greenit_tool_definitions
-
-    if verifier.tokens:
-        mcp_instance = FastMCP("GreenIT-Referentiel", auth=verifier)
-        mcp_instance._auth = verifier
-    else:
-        mcp_instance = FastMCP("GreenIT-Referentiel")
-        mcp_instance._auth = None
-
-    transport = os.environ.get("MCP_TRANSPORT", "stdio")
-    if transport == "http":
-        mcp_instance.custom_route("/", methods=["GET"])(_http_homepage)
-        mcp_instance.custom_route("/install.sh", methods=["GET"])(_http_install_script)
-        mcp_instance.custom_route("/guide", methods=["GET"])(_http_guide)
-        mcp_instance.custom_route("/admin/tokens", methods=["GET"])(_routes_mod._http_admin_list_tokens)
-        mcp_instance.custom_route("/admin/tokens", methods=["POST"])(_routes_mod._http_admin_create_token)
-        mcp_instance.custom_route("/admin/tokens/{id}", methods=["GET"])(_routes_mod._http_admin_get_token)
-        mcp_instance.custom_route("/admin/tokens/{id}", methods=["PATCH"])(_routes_mod._http_admin_update_token)
-        mcp_instance.custom_route("/admin/tokens/{id}", methods=["DELETE"])(_routes_mod._http_admin_delete_token)
-    return mcp_instance
-
-
-# Create MCP instance
-mcp = _create_mcp()
-_setup_routes()
+mcp = factory.create_mcp("GreenIT-Referentiel", TOKENS_FILE, routes._greenit_tool_definitions)
 
 
 # ============================================================================
@@ -139,11 +80,10 @@ _setup_routes()
 @mcp.resource("greenit://fiche/{fiche_id}")
 async def obtenir_fiche(fiche_id: str) -> str:
     """Récupère une fiche spécifique."""
-    cache = charger_cache()
+    fiches = charger_cache().get("fiches", {})
 
-    if fiche_id in cache:
-        fiche = cache[fiche_id]
-        return json.dumps(fiche, ensure_ascii=False, indent=2)
+    if fiche_id in fiches:
+        return json.dumps(fiches[fiche_id], ensure_ascii=False, indent=2)
 
     return json.dumps({"erreur": f"Fiche '{fiche_id}' non trouvée"}, ensure_ascii=False)
 
@@ -151,22 +91,20 @@ async def obtenir_fiche(fiche_id: str) -> str:
 @mcp.resource("greenit://index")
 async def index_fiches() -> str:
     """Liste toutes les fiches disponibles."""
-    cache = charger_cache()
+    fiches = charger_cache().get("fiches", {})
 
     categories = set()
-    for fiche in cache.values():
-        # Format GitHub: saved_resources + lifecycle
+    for fiche in fiches.values():
         for r in fiche.get("saved_resources", []):
             categories.add(r)
         if fiche.get("lifecycle"):
             categories.add(fiche["lifecycle"])
-        # Format API: criteria (rétrocompatibilité)
         for criterion in fiche.get("criteria", []):
             if "criterium" in criterion:
                 categories.add(criterion["criterium"])
 
     index = {
-        "total": len(cache),
+        "total": len(fiches),
         "fiches": [
             {
                 "id": fiche_id,
@@ -174,7 +112,7 @@ async def index_fiches() -> str:
                 "title": fiche.get("title"),
                 "description": fiche.get("shortDescription", "")[:200]
             }
-            for fiche_id, fiche in sorted(cache.items())
+            for fiche_id, fiche in sorted(fiches.items())
         ],
         "categories": sorted(list(categories))
     }
@@ -184,12 +122,10 @@ async def index_fiches() -> str:
 @mcp.resource("greenit://metadata")
 async def obtenir_metadata() -> str:
     """Récupère les métadonnées du référentiel avec statistiques calculées."""
-    metadata = charger_metadata()
+    meta = charger_cache().get("meta", {})
     return json.dumps({
-        "languages": metadata.get("languages", ["fr"]),
-        "versions": metadata.get("versions", ["latest"]),
         "source": "https://github.com/greenit-apps/greenit-data",
-        "updated_at": metadata.get("updated_at", "inconnue"),
+        "updated_at": meta.get("updated_at", "inconnue"),
         "nb_fiches": compter_fiches(),
         "nb_lifecycles": compter_lifecycles(),
         "nb_ressources": compter_ressources(),
@@ -197,16 +133,7 @@ async def obtenir_metadata() -> str:
     }, ensure_ascii=False, indent=2)
 
 
-@mcp.resource("greenit://version")
-async def version_serveur() -> str:
-    """Retourne la version du serveur MCP et des données."""
-    metadata = charger_metadata()
-    return json.dumps({
-        "server_version": VERSION,
-        "data_version": metadata.get("data_version", "inconnue"),
-        "data_updated_at": metadata.get("updated_at", "inconnue"),
-        "fiches": len(charger_cache()),
-    }, ensure_ascii=False, indent=2)
+routes.register_version_resource(mcp, charger_cache)
 
 
 # ============================================================================
@@ -264,10 +191,10 @@ def lister_fiches(
         if priorite_min is not None:
             validate_score_range(priorite_min, 1, 5, "priorite_min")
 
-        cache = charger_cache()
+        fiches = charger_cache().get("fiches", {})
         resultats = []
 
-        for fiche_id, fiche in cache.items():
+        for fiche_id, fiche in fiches.items():
             if lifecycle and fiche.get("lifecycle") != lifecycle:
                 continue
             if saved_resource and saved_resource not in fiche.get("saved_resources", []):
@@ -342,10 +269,10 @@ def fiches_prioritaires(
         # Validate priorite_min parameter
         validate_score_range(priorite_min, 1, 5, "priorite_min")
 
-        cache = charger_cache()
+        fiches = charger_cache().get("fiches", {})
         resultats = []
 
-        for fiche_id, fiche in cache.items():
+        for fiche_id, fiche in fiches.items():
             ei = fiche.get("environmental_impact", 0)
             pi = fiche.get("priority_implementation", 0)
             if ei >= impact_min and pi >= priorite_min:
@@ -409,11 +336,11 @@ def chercher_fiche(terme: str) -> dict:
         if not terme or not terme.strip():
             raise ToolError("Les paramètres fournis sont invalides. `terme` ne peut pas être vide. Fournissez un terme de recherche valide.")
 
-        cache = charger_cache()
+        fiches = charger_cache().get("fiches", {})
         resultats = []
         terme_lower = terme.lower()
 
-        for fiche_id, fiche in cache.items():
+        for fiche_id, fiche in fiches.items():
             titre = fiche.get("title", "").lower()
             short_desc = fiche.get("shortDescription", "").lower()
             long_desc = fiche.get("description", "").lower()
@@ -505,15 +432,15 @@ def comparer_fiches(fiche_ids: List[str]) -> dict:
         if not fiche_ids or len(fiche_ids) == 0:
             raise ToolError("Les paramètres fournis sont invalides. `fiche_ids` ne peut pas être vide. Fournissez au moins une fiche à comparer.")
 
-        cache = charger_cache()
+        all_fiches = charger_cache().get("fiches", {})
         fiches = []
         invalid_ids = []
 
         for fiche_id in fiche_ids:
-            if fiche_id not in cache:
+            if fiche_id not in all_fiches:
                 invalid_ids.append(fiche_id)
             else:
-                f = cache[fiche_id]
+                f = all_fiches[fiche_id]
                 fiches.append({
                     "id": fiche_id,
                     "num": f.get("num"),
@@ -578,12 +505,12 @@ def obtenir_fiche_complete(fiche_id: str) -> dict:
         Contenu complet de la fiche
     """
     try:
-        cache = charger_cache()
+        fiches = charger_cache().get("fiches", {})
 
-        if fiche_id not in cache:
+        if fiche_id not in fiches:
             raise ToolError(f"Erreur lors de la récupération de la fiche. La fiche `{fiche_id}` n'a pas été trouvée. Vérifiez l'identifiant fourni.")
 
-        fiche = dict(cache[fiche_id])
+        fiche = dict(fiches[fiche_id])
 
         validations = fiche.get("validations") or []
         fiche["principes_de_validation"] = [
@@ -609,6 +536,7 @@ def obtenir_fiche_complete(fiche_id: str) -> dict:
     output_schema={
         "type": "object",
         "properties": {
+            "referentiel_version": {"type": "string"},
             "total_fiches": {"type": "integer"},
             "data_version": {"type": "string"},
             "updated_at": {"type": "string"},
@@ -635,12 +563,13 @@ def obtenir_statistiques() -> dict:
     Retourne les statistiques avancées du référentiel.
 
     Returns:
-        Total, distribution par lifecycle, par score, top fiches
+        Version du référentiel, total, distribution par lifecycle, par score, top fiches
     """
     try:
         cache = charger_cache()
+        fiches = cache.get("fiches", {})
 
-        if not cache:
+        if not fiches:
             return {"statut": "Cache vide", "fiches": 0}
 
         from collections import Counter
@@ -650,7 +579,7 @@ def obtenir_statistiques() -> dict:
         ei_dist = Counter()
         pi_dist = Counter()
 
-        for fiche in cache.values():
+        for fiche in fiches.values():
             lc = fiche.get("lifecycle")
             if lc:
                 lifecycles[lc] += 1
@@ -665,16 +594,17 @@ def obtenir_statistiques() -> dict:
 
         top_impact = sorted(
             [{"id": k, "titre": v.get("title"), "score": (v.get("environmental_impact") or 0) + (v.get("priority_implementation") or 0)}
-             for k, v in cache.items()],
+             for k, v in fiches.items()],
             key=lambda x: x["score"], reverse=True
         )[:5]
 
-        metadata = charger_metadata()
+        meta = cache.get("meta", {})
 
         return {
-            "total_fiches": len(cache),
-            "data_version": metadata.get("data_version"),
-            "updated_at": metadata.get("updated_at"),
+            "referentiel_version": meta.get("version", ""),
+            "total_fiches": len(fiches),
+            "data_version": meta.get("data_version"),
+            "updated_at": meta.get("updated_at"),
             "distribution_lifecycle": dict(lifecycles.most_common()),
             "distribution_ressources": dict(resources.most_common()),
             "distribution_impact_environnemental": dict(sorted(ei_dist.items())),
@@ -733,9 +663,9 @@ def lister_lifecycles() -> dict:
         JSON : liste de 7 entrées {id, label, count}, ordonnées par préfixe numérique.
     """
     try:
-        cache = charger_cache()
+        fiches = charger_cache().get("fiches", {})
         counts: dict[str, int] = {lc: 0 for lc in _LIFECYCLE_LABELS}
-        for fiche in cache.values():
+        for fiche in fiches.values():
             lc = fiche.get("lifecycle")
             if lc in counts:
                 counts[lc] += 1
@@ -794,9 +724,9 @@ def lister_ressources() -> dict:
         JSON : liste de 8 entrées {id, label, count}, triées par count décroissant.
     """
     try:
-        cache = charger_cache()
+        fiches = charger_cache().get("fiches", {})
         counts: dict[str, int] = {r: 0 for r in _RESSOURCE_LABELS}
-        for fiche in cache.values():
+        for fiche in fiches.values():
             for r in fiche.get("saved_resources", []):
                 if r in counts:
                     counts[r] += 1
@@ -1090,77 +1020,4 @@ Résultat: Plan d'action spécifique pour économiser {ressource} dans le budget
 # ============================================================================
 
 if __name__ == "__main__":
-    args = sys.argv[1:]
-
-    # --generate-token --name <nom> [--expires-days <N>]
-    if "--generate-token" in args:
-        name = None
-        expires_days = 365
-        if "--name" in args:
-            idx = args.index("--name")
-            if idx + 1 < len(args):
-                name = args[idx + 1]
-        if "--expires-days" in args:
-            idx = args.index("--expires-days")
-            if idx + 1 < len(args):
-                expires_days = int(args[idx + 1])
-
-        cmd_generate_token(Path(TOKENS_FILE), name, expires_days)
-        sys.exit(0)
-
-    # --list-tokens
-    if "--list-tokens" in args:
-        cmd_list_tokens(Path(TOKENS_FILE))
-        sys.exit(0)
-
-    # --revoke-token <token>
-    if "--revoke-token" in args:
-        idx = args.index("--revoke-token")
-        if idx + 1 >= len(args):
-            print("Usage: --revoke-token <token>", file=sys.stderr)
-            sys.exit(1)
-        target = args[idx + 1]
-        try:
-            cmd_revoke_token(Path(TOKENS_FILE), target)
-            sys.exit(0)
-        except ValueError as e:
-            print(f"Erreur: {e}", file=sys.stderr)
-            sys.exit(1)
-
-    # --health
-    if "--health" in args:
-        cache = charger_cache()
-        if cache:
-            print(f"OK: {len(cache)} fiches chargées")
-            sys.exit(0)
-        else:
-            print("ERREUR: Cache vide")
-            sys.exit(1)
-
-    # Démarrage serveur
-    transport = os.environ.get("MCP_TRANSPORT", "stdio")
-    host = os.environ.get("MCP_HOST", "0.0.0.0")
-    port = int(os.environ.get("MCP_PORT", "8000"))
-
-    cache = charger_cache()
-    meta = charger_metadata()
-
-    logger.info("Serveur MCP GreenIT v%s en démarrage...", VERSION)
-    logger.info("Cache: %s (%d fiches)", CACHE_FILE, len(cache))
-    logger.info("Langues: %s", ", ".join(meta.get("languages", [])))
-
-    if not cache:
-        logger.warning("Cache vide — exécutez: python preparer_donnees.py --telecharger")
-
-    if transport == "http":
-        tokens = tokens_pour_auth(Path(TOKENS_FILE))
-        auth_info = f"activée ({len(tokens)} token(s))" if tokens else "désactivée"
-        logger.info("Auth: %s", auth_info)
-        logger.info("HTTP: %s:%d", host, port)
-
-    logger.info("Serveur prêt")
-
-    if transport == "http":
-        mcp.run(transport="streamable-http", host=host, port=port)
-    else:
-        mcp.run()
+    factory.run_main(mcp, VERSION, "GreenIT MCP", charger_cache, "fiches", TOKENS_FILE)

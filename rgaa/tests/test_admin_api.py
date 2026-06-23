@@ -5,6 +5,7 @@ import pytest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "files"))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "core"))
 
 
 class TestDynamicTokenVerifier:
@@ -162,6 +163,7 @@ class TestRgaaMcpWiring:
         import json as _json
         import time as _time
         import rgaa_mcp as mod
+        from mcp_ref_core import factory
         from mcp_ref_core.auth import DynamicTokenVerifier
 
         path = tmp_path / "tokens.json"
@@ -175,23 +177,22 @@ class TestRgaaMcpWiring:
             }
         }))
         monkeypatch.setenv("MCP_TRANSPORT", "http")
-        monkeypatch.setattr(mod, "TOKENS_FILE", str(path))
-        mcp_instance = mod._create_mcp()
+        mcp_instance = factory.create_mcp("RGAA MCP", str(path), mod._rgaa_tool_definitions, mod._rgaa_guide_extra_sections)
         assert isinstance(mcp_instance._auth, DynamicTokenVerifier)
 
     def test_create_mcp_no_auth_when_no_tokens(self, monkeypatch, tmp_path):
         import rgaa_mcp as mod
+        from mcp_ref_core import factory
         path = tmp_path / "tokens.json"
         monkeypatch.setenv("MCP_TRANSPORT", "http")
-        monkeypatch.setattr(mod, "TOKENS_FILE", str(path))
-        mcp_instance = mod._create_mcp()
+        mcp_instance = factory.create_mcp("RGAA MCP", str(path), mod._rgaa_tool_definitions, mod._rgaa_guide_extra_sections)
         assert mcp_instance._auth is None
 
     def test_verifier_injected_in_routes(self, monkeypatch, tmp_path):
         import json as _json
         import time as _time
         import rgaa_mcp as mod
-        from mcp_ref_core import routes
+        from mcp_ref_core import factory, routes
         from mcp_ref_core.auth import DynamicTokenVerifier
 
         path = tmp_path / "tokens.json"
@@ -205,8 +206,7 @@ class TestRgaaMcpWiring:
             }
         }))
         monkeypatch.setenv("MCP_TRANSPORT", "http")
-        monkeypatch.setattr(mod, "TOKENS_FILE", str(path))
-        mod._create_mcp()
+        factory.create_mcp("RGAA MCP", str(path), mod._rgaa_tool_definitions, mod._rgaa_guide_extra_sections)
         assert isinstance(routes._token_verifier, DynamicTokenVerifier)
 
 

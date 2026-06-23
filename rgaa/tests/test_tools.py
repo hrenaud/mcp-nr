@@ -16,6 +16,8 @@ import pytest
 import json
 import rgaa_mcp as mcp_module
 from fastmcp.exceptions import ToolError
+from mcp_ref_core import factory, routes as routes_mod
+from mcp_ref_core.auth import charger_tokens, sauvegarder_tokens, tokens_pour_auth, cmd_generate_token, cmd_list_tokens, cmd_revoke_token
 
 
 # ============================================================================
@@ -69,19 +71,19 @@ class TestEnvHelpers:
 
 
 # ============================================================================
-# _create_mcp()
+# factory.create_mcp()
 # ============================================================================
 
 class TestCreateMcp:
     def test_stdio_mode_no_routes(self, monkeypatch):
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        mcp = mcp_module._create_mcp()
+        mcp = factory.create_mcp("RGAA MCP", mcp_module.TOKENS_FILE, mcp_module._rgaa_tool_definitions, mcp_module._rgaa_guide_extra_sections)
         assert mcp.name == "RGAA MCP"
         assert len(mcp._additional_http_routes) == 0
 
     def test_http_mode_registers_routes(self, monkeypatch):
         monkeypatch.setenv("MCP_TRANSPORT", "http")
-        mcp = mcp_module._create_mcp()
+        mcp = factory.create_mcp("RGAA MCP", mcp_module.TOKENS_FILE, mcp_module._rgaa_tool_definitions, mcp_module._rgaa_guide_extra_sections)
         assert mcp.name == "RGAA MCP"
         assert len(mcp._additional_http_routes) == 8
         paths = [r.path for r in mcp._additional_http_routes]
@@ -90,9 +92,8 @@ class TestCreateMcp:
         assert "/guide" in paths
 
     def test_no_tokens_no_auth(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(mcp_module, "TOKENS_FILE", str(tmp_path / "tokens.json"))
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        mcp = mcp_module._create_mcp()
+        mcp = factory.create_mcp("RGAA MCP", str(tmp_path / "tokens.json"), mcp_module._rgaa_tool_definitions)
         assert mcp._auth is None
 
     def test_with_tokens_auth_applied(self, monkeypatch, tmp_path):
@@ -106,9 +107,8 @@ class TestCreateMcp:
                 "expires_at": time_mod.time() + 86400,
             }
         }))
-        monkeypatch.setattr(mcp_module, "TOKENS_FILE", str(tokens_file))
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        mcp = mcp_module._create_mcp()
+        mcp = factory.create_mcp("RGAA MCP", str(tokens_file), mcp_module._rgaa_tool_definitions)
         assert mcp._auth is not None
 
 
@@ -125,9 +125,9 @@ class TestHttpRoutes:
     @pytest.fixture(scope="class")
     def client(self):
         app = Starlette(routes=[
-            Route("/", mcp_module._http_homepage, methods=["GET"]),
-            Route("/install.sh", mcp_module._http_install_script, methods=["GET"]),
-            Route("/guide", mcp_module._http_guide, methods=["GET"]),
+            Route("/", routes_mod._http_homepage, methods=["GET"]),
+            Route("/install.sh", routes_mod._http_install_script, methods=["GET"]),
+            Route("/guide", routes_mod._http_guide, methods=["GET"]),
         ])
         return TestClient(app, raise_server_exceptions=True)
 
@@ -362,9 +362,12 @@ class TestMcpResources:
         assert any("rgaa://index" in u for u in uris), f"rgaa://index missing. Got: {uris}"
 
     def test_resource_version_content(self):
-        resources = asyncio.run(mcp_module.mcp.list_resources())
-        uris = [str(r.uri) for r in resources]
-        assert any("rgaa://version" in u for u in uris)
+        result = asyncio.run(mcp_module.mcp.read_resource("rgaa://version"))
+        data = json.loads(result.contents[0].content)
+        assert "server_version" in data
+        assert "referentiel_version" in data
+        assert "updated_at" in data
+        assert "nb_items" in data
 
     def test_resource_index_structure(self):
         result = asyncio.run(mcp_module.mcp.read_resource("rgaa://index"))
@@ -1368,6 +1371,12 @@ class TestRgaaStatistiquesStructure:
         total_auto = sum(theme["automatisables"] for theme in result["par_theme"].values())
         assert result["automatisables"] == total_auto
 
+    def test_statistiques_includes_referentiel_version(self):
+        """Verify statistiques returns referentiel_version field."""
+        result = mcp_module.rgaa_statistiques()
+        assert "referentiel_version" in result
+        assert result["referentiel_version"] != ""
+
 
 class TestMcpResourcesStructure:
     """Test MCP resource response structure."""
@@ -1477,121 +1486,86 @@ class TestPromptFunctions:
 # ============================================================================
 
 class TestTokenManagementErrors:
-    """Test error handling in token management functions."""
+    """Test error handling in token management functions (core/auth.py)."""
 
     def test_load_tokens_missing_file(self, tmp_path):
-        """Test _load_tokens with missing tokens file."""
         missing_file = tmp_path / "nonexistent" / "tokens.json"
-        mcp_module.TOKENS_FILE = str(missing_file)
-        result = mcp_module._load_tokens()
+        result = charger_tokens(missing_file)
         assert result == {}
 
     def test_load_tokens_invalid_json(self, tmp_path):
-        """Test _load_tokens with invalid JSON file."""
         tokens_file = tmp_path / "tokens.json"
         tokens_file.write_text("not valid json {{{")
-        mcp_module.TOKENS_FILE = str(tokens_file)
-        result = mcp_module._load_tokens()
+        result = charger_tokens(tokens_file)
         assert result == {}
 
     def test_save_tokens_creates_directories(self, tmp_path):
-        """Test _save_tokens creates missing parent directories."""
         tokens_file = tmp_path / "new_dir" / "subdir" / "tokens.json"
-        mcp_module.TOKENS_FILE = str(tokens_file)
         tokens = {"token1": {"name": "test"}}
-        mcp_module._save_tokens(tokens)
+        sauvegarder_tokens(tokens_file, tokens)
         assert tokens_file.exists()
         assert json.loads(tokens_file.read_text()) == tokens
 
     def test_tokens_for_auth_filters_expired(self, tmp_path):
-        """Test _tokens_for_auth filters out expired tokens."""
         import time
         tokens_file = tmp_path / "tokens.json"
         now = time.time()
         tokens_file.write_text(json.dumps({
-            "valid_token": {
-                "name": "valid",
-                "expires_at": now + 86400  # Tomorrow
-            },
-            "expired_token": {
-                "name": "expired",
-                "expires_at": now - 86400  # Yesterday
-            }
+            "valid_token": {"name": "valid", "expires_at": now + 86400},
+            "expired_token": {"name": "expired", "expires_at": now - 86400},
         }))
-        mcp_module.TOKENS_FILE = str(tokens_file)
-        result = mcp_module._tokens_for_auth()
+        result = tokens_pour_auth(tokens_file)
         assert "valid_token" in result
         assert "expired_token" not in result
 
     def test_tokens_for_auth_no_expiry(self, tmp_path):
-        """Test _tokens_for_auth handles tokens without expiry."""
         tokens_file = tmp_path / "tokens.json"
-        tokens_file.write_text(json.dumps({
-            "no_expiry_token": {"name": "permanent"}
-        }))
-        mcp_module.TOKENS_FILE = str(tokens_file)
-        result = mcp_module._tokens_for_auth()
+        tokens_file.write_text(json.dumps({"no_expiry_token": {"name": "permanent"}}))
+        result = tokens_pour_auth(tokens_file)
         assert "no_expiry_token" in result
         assert "expires_at" not in result["no_expiry_token"]
 
     def test_cmd_generate_token_stores_data(self, tmp_path, capsys):
-        """Test _cmd_generate_token creates token with correct data."""
-        mcp_module.TOKENS_FILE = str(tmp_path / "tokens.json")
-        mcp_module._cmd_generate_token("testuser", expires_days=30)
+        tokens_file = tmp_path / "tokens.json"
+        cmd_generate_token(tokens_file, "testuser", expires_days=30)
         captured = capsys.readouterr()
-        assert "Token généré pour 'testuser'" in captured.out
-        assert "expire dans 30 jours" in captured.out
-        tokens = json.loads((tmp_path / "tokens.json").read_text())
+        token_printed = captured.out.strip()
+        assert token_printed  # token is printed to stdout
+        tokens = json.loads(tokens_file.read_text())
         assert len(tokens) == 1
         token_data = list(tokens.values())[0]
         assert token_data["name"] == "testuser"
 
     def test_cmd_list_tokens_empty(self, tmp_path, capsys):
-        """Test _cmd_list_tokens with no tokens."""
-        mcp_module.TOKENS_FILE = str(tmp_path / "tokens.json")
-        mcp_module._cmd_list_tokens()
+        cmd_list_tokens(tmp_path / "tokens.json")
         captured = capsys.readouterr()
         assert "Aucun token" in captured.out
 
     def test_cmd_list_tokens_shows_status(self, tmp_path, capsys):
-        """Test _cmd_list_tokens shows active/expired status."""
         import time
         tokens_file = tmp_path / "tokens.json"
         now = time.time()
         tokens_file.write_text(json.dumps({
-            "active_token": {
-                "name": "active",
-                "expires_at": now + 86400
-            },
-            "expired_token": {
-                "name": "expired",
-                "expires_at": now - 86400
-            }
+            "active_token": {"name": "active", "expires_at": now + 86400},
+            "expired_token": {"name": "expired", "expires_at": now - 86400},
         }))
-        mcp_module.TOKENS_FILE = str(tokens_file)
-        mcp_module._cmd_list_tokens()
+        cmd_list_tokens(tokens_file)
         captured = capsys.readouterr()
         assert "EXPIRÉ" in captured.out
         assert "actif" in captured.out
 
     def test_cmd_revoke_token_success(self, tmp_path, capsys):
-        """Test _cmd_revoke_token removes token."""
         tokens_file = tmp_path / "tokens.json"
-        token_data = {"test_token_xyz": {"name": "test"}}
-        tokens_file.write_text(json.dumps(token_data))
-        mcp_module.TOKENS_FILE = str(tokens_file)
-        mcp_module._cmd_revoke_token("test_token_xyz")
+        tokens_file.write_text(json.dumps({"test_token_xyz": {"name": "test"}}))
+        cmd_revoke_token(tokens_file, "test_token_xyz")
         captured = capsys.readouterr()
         assert "révoqué" in captured.out
         tokens = json.loads(tokens_file.read_text())
         assert "test_token_xyz" not in tokens
 
-    def test_cmd_revoke_token_not_found(self, tmp_path, capsys):
-        """Test _cmd_revoke_token with nonexistent token."""
-        mcp_module.TOKENS_FILE = str(tmp_path / "tokens.json")
-        mcp_module._cmd_revoke_token("nonexistent")
-        captured = capsys.readouterr()
-        assert "introuvable" in captured.out
+    def test_cmd_revoke_token_not_found(self, tmp_path):
+        with pytest.raises(ValueError, match="non trouvé"):
+            cmd_revoke_token(tmp_path / "tokens.json", "nonexistent")
 
 
 # ============================================================================
@@ -1602,12 +1576,13 @@ class TestResourceEdgeCases:
     """Test MCP resource functions with edge cases."""
 
     def test_resource_version_has_required_fields(self):
-        """Test resource_version returns required fields."""
-        result = asyncio.run(mcp_module.resource_version())
-        data = json.loads(result)
+        """Test rgaa://version resource returns unified fields."""
+        result = asyncio.run(mcp_module.mcp.read_resource("rgaa://version"))
+        data = json.loads(result.contents[0].content)
         assert "server_version" in data
-        assert "data_version" in data
-        assert "nb_criteres" in data
+        assert "referentiel_version" in data
+        assert "updated_at" in data
+        assert "nb_items" in data
 
     def test_resource_critere_not_found(self):
         """Test resource_critere with invalid ID."""
@@ -1642,17 +1617,14 @@ class TestResourceEdgeCases:
 # ============================================================================
 
 class TestConfigureMcp:
-    """Test _create_mcp function."""
+    """Test factory.create_mcp function."""
 
     def test_configure_mcp_without_tokens(self, monkeypatch, tmp_path):
-        """Test _create_mcp with no tokens."""
-        monkeypatch.setattr(mcp_module, "TOKENS_FILE", str(tmp_path / "tokens.json"))
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        test_mcp = mcp_module._create_mcp()
+        test_mcp = factory.create_mcp("RGAA MCP", str(tmp_path / "tokens.json"), mcp_module._rgaa_tool_definitions)
         assert test_mcp._auth is None
 
     def test_configure_mcp_with_tokens_stdio(self, monkeypatch, tmp_path):
-        """Test _create_mcp with tokens in stdio mode."""
         import time as time_mod
         tokens_file = tmp_path / "tokens.json"
         tokens_file.write_text(json.dumps({
@@ -1661,16 +1633,13 @@ class TestConfigureMcp:
                 "expires_at": time_mod.time() + 86400
             }
         }))
-        monkeypatch.setattr(mcp_module, "TOKENS_FILE", str(tokens_file))
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        test_mcp = mcp_module._create_mcp()
+        test_mcp = factory.create_mcp("RGAA MCP", str(tokens_file), mcp_module._rgaa_tool_definitions)
         assert test_mcp._auth is not None
 
     def test_configure_mcp_http_mode_routes(self, monkeypatch, tmp_path):
-        """Test _create_mcp registers routes in HTTP mode."""
-        monkeypatch.setattr(mcp_module, "TOKENS_FILE", str(tmp_path / "tokens.json"))
         monkeypatch.setenv("MCP_TRANSPORT", "http")
-        test_mcp = mcp_module._create_mcp()
+        test_mcp = factory.create_mcp("RGAA MCP", str(tmp_path / "tokens.json"), mcp_module._rgaa_tool_definitions)
         paths = [r.path for r in test_mcp._additional_http_routes]
         assert "/" in paths
         assert "/install.sh" in paths

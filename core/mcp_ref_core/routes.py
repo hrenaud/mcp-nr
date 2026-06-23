@@ -5,6 +5,7 @@ Module-level variables (_VERSION, _MCP_NAME, _MCP_ID, _token_verifier,
 _get_tool_definitions) are injected by each MCP after import.
 """
 
+import json
 import os
 import logging
 from html import escape
@@ -14,6 +15,9 @@ logger = logging.getLogger("mcp-ref-core")
 
 # Injected by each MCP after import: _routes_mod._VERSION = VERSION
 _VERSION = ""
+
+# Injected by each MCP after import: _routes_mod._REFERENTIEL_VERSION = "4.2.1"
+_REFERENTIEL_VERSION = ""
 
 # Injected by each MCP after import: _routes_mod._token_verifier = verifier
 _token_verifier = None
@@ -31,6 +35,29 @@ _ACCENT_DARK = "#14532d"
 _ACCENT_LIGHT = "#4ade80"
 _ACCENT_BTN_TEXT = "#000"
 _TAGLINE = ""
+
+# Injected by MCPs: key in cache dict that holds the referential items (fiches/criteres)
+_ITEMS_KEY = "fiches"
+
+
+def register_version_resource(mcp, charger_cache_fn) -> None:
+    """Register a {mcp_id}://version resource on the given FastMCP instance.
+
+    Must be called after _MCP_ID and _ITEMS_KEY are injected.
+    """
+    mcp_id = _MCP_ID
+    items_key = _ITEMS_KEY
+
+    @mcp.resource(f"{mcp_id}://version")
+    async def resource_version() -> str:
+        cache = charger_cache_fn()
+        meta = cache.get("meta", {})
+        return json.dumps({
+            "server_version": _VERSION,
+            "referentiel_version": meta.get("version", "inconnue"),
+            "updated_at": meta.get("updated_at", "inconnue"),
+            "nb_items": len(cache.get(items_key, {})),
+        }, ensure_ascii=False, indent=2)
 
 
 def _get_base_url() -> str:
@@ -505,7 +532,7 @@ async def _http_homepage(request) -> "Response":
     from starlette.responses import HTMLResponse
     from data import charger_cache
     cache = charger_cache()
-    fiches_count = len(cache)
+    fiches_count = len(cache.get(_ITEMS_KEY, {}))
     base_url = escape(_get_base_url())
     status_html = (
         f'<span class="badge ok">{fiches_count} entrées chargées</span>'
@@ -513,6 +540,7 @@ async def _http_homepage(request) -> "Response":
         '<span class="badge warn">Cache vide</span>'
     )
     tagline_html = f'<p class="tagline">{escape(_TAGLINE)}</p>' if _TAGLINE else ''
+    ref_version_html = f'<div class="ref-version">Référentiel {escape(_REFERENTIEL_VERSION)}</div>' if _REFERENTIEL_VERSION else ''
 
     html = f"""<!DOCTYPE html>
 <html lang="fr">
@@ -541,7 +569,8 @@ async def _http_homepage(request) -> "Response":
     }}
     .logo {{ font-size: 48px; margin-bottom: 16px; }}
     h1 {{ font-size: 32px; font-weight: 700; color: #fff; margin-bottom: 6px; }}
-    .version {{ font-size: 13px; color: #475569; margin-bottom: 6px; }}
+    .version {{ font-size: 13px; color: #cbd5e1; margin-bottom: 4px; }}
+    .ref-version {{ font-size: 12px; color: #94a3b8; margin-bottom: 6px; }}
     .tagline {{ font-size: 14px; color: #64748b; margin-bottom: 20px; }}
     .badge {{ display: inline-block; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: 500; }}
     .badge.ok {{ background: var(--accent-dark); color: var(--accent-light); }}
@@ -554,7 +583,7 @@ async def _http_homepage(request) -> "Response":
     a.btn:hover {{ opacity: .8; }}
     a.btn.primary {{ background: var(--accent); color: var(--accent-btn-text); }}
     a.btn.secondary {{ background: #1e293b; color: #94a3b8; border: 1px solid #334155; }}
-    .footer {{ margin-top: 32px; font-size: 12px; color: #334155; }}
+    .footer {{ margin-top: 32px; font-size: 12px; color: #94a3b8; }}
     .install-block {{
       margin-top: 28px; background: #0f1117; border: 1px solid #2d3147;
       border-radius: 8px; padding: 14px 16px; text-align: left;
@@ -574,6 +603,7 @@ async def _http_homepage(request) -> "Response":
     <div class="logo">{_LOGO}</div>
     <h1>{_MCP_NAME}</h1>
     <div class="version">v{_VERSION}</div>
+    {ref_version_html}
     {tagline_html}
     {status_html}
     <div class="install-block">

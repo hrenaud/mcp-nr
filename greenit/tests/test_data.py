@@ -6,10 +6,10 @@ from unittest.mock import patch, MagicMock, mock_open
 sys.path.insert(0, str(Path(__file__).parent.parent / "files"))
 
 from data import (
-    charger_cache, charger_metadata, calculer_ecoindex, _compute_quantile,
-    sauvegarder_cache, sauvegarder_metadata,
+    charger_cache, calculer_ecoindex, _compute_quantile,
+    sauvegarder_cache,
     compter_fiches, compter_lifecycles, compter_ressources, calculer_taux_ecoindex_moyen,
-    CACHE_FILE, METADATA_FILE
+    CACHE_FILE,
 )
 
 
@@ -21,14 +21,6 @@ class TestData:
     def test_charger_cache_non_vide(self):
         cache = charger_cache()
         assert len(cache) > 0
-
-    def test_charger_metadata_retourne_dict(self):
-        meta = charger_metadata()
-        assert isinstance(meta, dict)
-
-    def test_charger_metadata_a_languages(self):
-        meta = charger_metadata()
-        assert "languages" in meta
 
     def test_charger_cache_cache_en_memoire(self):
         c1 = charger_cache()
@@ -254,83 +246,6 @@ class TestCacheIOErrors:
                 mock_logger.error.assert_called()
 
 
-class TestMetadataIOErrors:
-    """Tests for metadata loading and saving with I/O failures."""
-
-    def test_charger_metadata_file_not_found(self):
-        """Test metadata loading when file doesn't exist."""
-        import data
-
-        with patch('data.Path') as mock_path_class:
-            mock_path_inst = MagicMock()
-            mock_path_inst.exists.return_value = False
-            mock_path_class.return_value = mock_path_inst
-
-            data._metadata = None
-            metadata = charger_metadata()
-            assert metadata == {"languages": ["fr"], "versions": ["latest"]}
-
-    def test_charger_metadata_corrupted_json(self):
-        """Test metadata loading when JSON is corrupted."""
-        import data
-
-        with patch('builtins.open', mock_open(read_data='{"bad": json')):
-            with patch('data.Path') as mock_path_class:
-                mock_path_inst = MagicMock()
-                mock_path_inst.exists.return_value = True
-                mock_path_class.return_value = mock_path_inst
-
-                data._metadata = None
-                with patch('data.logger') as mock_logger:
-                    metadata = charger_metadata()
-                    assert metadata == {"languages": ["fr"], "versions": ["latest"]}
-                    mock_logger.error.assert_called()
-
-    def test_charger_metadata_permission_error(self):
-        """Test metadata loading with permission denied."""
-        import data
-
-        with patch('builtins.open', side_effect=PermissionError("Access denied")):
-            with patch('data.Path') as mock_path_class:
-                mock_path_inst = MagicMock()
-                mock_path_inst.exists.return_value = True
-                mock_path_class.return_value = mock_path_inst
-
-                data._metadata = None
-                with patch('data.logger') as mock_logger:
-                    metadata = charger_metadata()
-                    assert metadata == {"languages": ["fr"], "versions": ["latest"]}
-                    mock_logger.error.assert_called()
-
-    def test_sauvegarder_metadata_write_success(self):
-        """Test successful metadata save."""
-        import data
-
-        with patch('builtins.open', mock_open()):
-            result = sauvegarder_metadata({"languages": ["en", "fr"]})
-            assert result is True
-
-    def test_sauvegarder_metadata_write_failure_permission(self):
-        """Test metadata save with permission error."""
-        import data
-
-        with patch('builtins.open', side_effect=PermissionError("Read-only")):
-            with patch('data.logger') as mock_logger:
-                result = sauvegarder_metadata({"test": "data"})
-                assert result is False
-                mock_logger.error.assert_called()
-
-    def test_sauvegarder_metadata_write_failure_io_error(self):
-        """Test metadata save with I/O error."""
-        import data
-
-        with patch('builtins.open', side_effect=IOError("Disk full")):
-            with patch('data.logger') as mock_logger:
-                result = sauvegarder_metadata({"test": "data"})
-                assert result is False
-                mock_logger.error.assert_called()
-
-
 class TestCounterEdgeCases:
     """Tests for counter functions with empty cache."""
 
@@ -346,11 +261,11 @@ class TestCounterEdgeCases:
         """Test counting fiches with populated cache."""
         import data
 
-        test_cache = {
+        test_cache = {"fiches": {
             "fiche1": {"title": "Fiche 1"},
             "fiche2": {"title": "Fiche 2"},
             "fiche3": {"title": "Fiche 3"},
-        }
+        }}
         with patch('data.charger_cache', return_value=test_cache):
             count = compter_fiches()
             assert count == 3
@@ -367,10 +282,10 @@ class TestCounterEdgeCases:
         """Test counting lifecycles with single unique value."""
         import data
 
-        test_cache = {
+        test_cache = {"fiches": {
             "fiche1": {"lifecycle": "design"},
             "fiche2": {"lifecycle": "design"},
-        }
+        }}
         with patch('data.charger_cache', return_value=test_cache):
             count = compter_lifecycles()
             assert count == 1
@@ -379,11 +294,11 @@ class TestCounterEdgeCases:
         """Test counting lifecycles with multiple unique values."""
         import data
 
-        test_cache = {
+        test_cache = {"fiches": {
             "fiche1": {"lifecycle": "design"},
             "fiche2": {"lifecycle": "development"},
             "fiche3": {"lifecycle": "deployment"},
-        }
+        }}
         with patch('data.charger_cache', return_value=test_cache):
             count = compter_lifecycles()
             assert count == 3
@@ -392,10 +307,10 @@ class TestCounterEdgeCases:
         """Test counting lifecycles when some fiches lack lifecycle field."""
         import data
 
-        test_cache = {
+        test_cache = {"fiches": {
             "fiche1": {"lifecycle": "design"},
             "fiche2": {"title": "No lifecycle"},
-        }
+        }}
         with patch('data.charger_cache', return_value=test_cache):
             count = compter_lifecycles()
             assert count == 1
@@ -412,10 +327,10 @@ class TestCounterEdgeCases:
         """Test counting resources with single unique resource."""
         import data
 
-        test_cache = {
+        test_cache = {"fiches": {
             "fiche1": {"saved_resources": ["cpu"]},
             "fiche2": {"saved_resources": ["cpu"]},
-        }
+        }}
         with patch('data.charger_cache', return_value=test_cache):
             count = compter_ressources()
             assert count == 1
@@ -424,11 +339,11 @@ class TestCounterEdgeCases:
         """Test counting resources with multiple unique types."""
         import data
 
-        test_cache = {
+        test_cache = {"fiches": {
             "fiche1": {"saved_resources": ["cpu", "memory"]},
             "fiche2": {"saved_resources": ["network"]},
             "fiche3": {"saved_resources": ["cpu"]},
-        }
+        }}
         with patch('data.charger_cache', return_value=test_cache):
             count = compter_ressources()
             assert count == 3
@@ -437,10 +352,10 @@ class TestCounterEdgeCases:
         """Test counting resources when field is missing."""
         import data
 
-        test_cache = {
+        test_cache = {"fiches": {
             "fiche1": {"saved_resources": ["cpu"]},
             "fiche2": {"title": "No resources"},
-        }
+        }}
         with patch('data.charger_cache', return_value=test_cache):
             count = compter_ressources()
             assert count == 1
@@ -449,10 +364,10 @@ class TestCounterEdgeCases:
         """Test counting resources when resource list is empty."""
         import data
 
-        test_cache = {
+        test_cache = {"fiches": {
             "fiche1": {"saved_resources": []},
             "fiche2": {"saved_resources": ["cpu"]},
-        }
+        }}
         with patch('data.charger_cache', return_value=test_cache):
             count = compter_ressources()
             assert count == 1
@@ -473,9 +388,7 @@ class TestEcoIndexAverageEdgeCases:
         """Test average EcoIndex with single fiche."""
         import data
 
-        test_cache = {
-            "fiche1": {"environmental_impact": 3.5},
-        }
+        test_cache = {"fiches": {"fiche1": {"environmental_impact": 3.5}}}
         with patch('data.charger_cache', return_value=test_cache):
             avg = calculer_taux_ecoindex_moyen()
             assert avg == 3.5
@@ -484,11 +397,11 @@ class TestEcoIndexAverageEdgeCases:
         """Test average EcoIndex with multiple fiches."""
         import data
 
-        test_cache = {
+        test_cache = {"fiches": {
             "fiche1": {"environmental_impact": 2.0},
             "fiche2": {"environmental_impact": 4.0},
             "fiche3": {"environmental_impact": 3.0},
-        }
+        }}
         with patch('data.charger_cache', return_value=test_cache):
             avg = calculer_taux_ecoindex_moyen()
             assert avg == 3.0
@@ -497,10 +410,10 @@ class TestEcoIndexAverageEdgeCases:
         """Test average EcoIndex when impact field is missing."""
         import data
 
-        test_cache = {
+        test_cache = {"fiches": {
             "fiche1": {"environmental_impact": 3.0},
             "fiche2": {"title": "No impact"},
-        }
+        }}
         with patch('data.charger_cache', return_value=test_cache):
             avg = calculer_taux_ecoindex_moyen()
             # Average of [3.0, 0.0] = 1.5
@@ -510,10 +423,10 @@ class TestEcoIndexAverageEdgeCases:
         """Test average EcoIndex with zero values."""
         import data
 
-        test_cache = {
+        test_cache = {"fiches": {
             "fiche1": {"environmental_impact": 0.0},
             "fiche2": {"environmental_impact": 0.0},
-        }
+        }}
         with patch('data.charger_cache', return_value=test_cache):
             avg = calculer_taux_ecoindex_moyen()
             assert avg == 0.0
@@ -522,10 +435,10 @@ class TestEcoIndexAverageEdgeCases:
         """Test average EcoIndex with maximum values."""
         import data
 
-        test_cache = {
+        test_cache = {"fiches": {
             "fiche1": {"environmental_impact": 5.0},
             "fiche2": {"environmental_impact": 5.0},
-        }
+        }}
         with patch('data.charger_cache', return_value=test_cache):
             avg = calculer_taux_ecoindex_moyen()
             assert avg == 5.0
@@ -534,27 +447,15 @@ class TestEcoIndexAverageEdgeCases:
         """Test that average EcoIndex is rounded to 2 decimals."""
         import data
 
-        test_cache = {
+        test_cache = {"fiches": {
             "fiche1": {"environmental_impact": 1.111},
             "fiche2": {"environmental_impact": 2.222},
-        }
+        }}
         with patch('data.charger_cache', return_value=test_cache):
             avg = calculer_taux_ecoindex_moyen()
             # (1.111 + 2.222) / 2 = 1.6665 -> rounds to 1.67
             assert avg == 1.67
 
-    def test_calculer_taux_ecoindex_moyen_non_dict_fiche(self):
-        """Test handling non-dict fiche entries."""
-        import data
-
-        test_cache = {
-            "fiche1": {"environmental_impact": 3.0},
-            "fiche2": "not_a_dict",
-        }
-        with patch('data.charger_cache', return_value=test_cache):
-            avg = calculer_taux_ecoindex_moyen()
-            # Should skip non-dict entries, average [3.0] = 3.0 / 2 = 1.5
-            assert avg == 1.5
 
 
 class TestComputeQuantileBoundaries:

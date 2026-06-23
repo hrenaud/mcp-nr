@@ -16,6 +16,7 @@ import pytest
 import json
 import rgesn_mcp as mcp_module
 from fastmcp.exceptions import ToolError
+from mcp_ref_core import factory, routes as routes_mod
 
 
 # ============================================================================
@@ -53,19 +54,19 @@ class TestEnvHelpers:
 
 
 # ============================================================================
-# _create_mcp()
+# factory.create_mcp()
 # ============================================================================
 
 class TestCreateMcp:
     def test_stdio_mode_no_routes(self, monkeypatch):
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        mcp = mcp_module._create_mcp()
+        mcp = factory.create_mcp("RGESN MCP", mcp_module.TOKENS_FILE, mcp_module._rgesn_tool_definitions, mcp_module._rgesn_guide_extra_sections)
         assert mcp.name == "RGESN MCP"
         assert len(mcp._additional_http_routes) == 0
 
     def test_http_mode_registers_routes(self, monkeypatch):
         monkeypatch.setenv("MCP_TRANSPORT", "http")
-        mcp = mcp_module._create_mcp()
+        mcp = factory.create_mcp("RGESN MCP", mcp_module.TOKENS_FILE, mcp_module._rgesn_tool_definitions, mcp_module._rgesn_guide_extra_sections)
         assert mcp.name == "RGESN MCP"
         assert len(mcp._additional_http_routes) == 8
         paths = [r.path for r in mcp._additional_http_routes]
@@ -74,9 +75,8 @@ class TestCreateMcp:
         assert "/guide" in paths
 
     def test_no_tokens_no_auth(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(mcp_module, "TOKENS_FILE", str(tmp_path / "tokens.json"))
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        mcp = mcp_module._create_mcp()
+        mcp = factory.create_mcp("RGESN MCP", str(tmp_path / "tokens.json"), mcp_module._rgesn_tool_definitions)
         assert mcp._auth is None
 
     def test_with_tokens_auth_applied(self, monkeypatch, tmp_path):
@@ -90,9 +90,8 @@ class TestCreateMcp:
                 "expires_at": time_mod.time() + 86400,
             }
         }))
-        monkeypatch.setattr(mcp_module, "TOKENS_FILE", str(tokens_file))
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        mcp = mcp_module._create_mcp()
+        mcp = factory.create_mcp("RGESN MCP", str(tokens_file), mcp_module._rgesn_tool_definitions)
         assert mcp._auth is not None
 
 
@@ -109,9 +108,9 @@ class TestHttpRoutes:
     @pytest.fixture(scope="class")
     def client(self):
         app = Starlette(routes=[
-            Route("/", mcp_module._http_homepage, methods=["GET"]),
-            Route("/install.sh", mcp_module._http_install_script, methods=["GET"]),
-            Route("/guide", mcp_module._http_guide, methods=["GET"]),
+            Route("/", routes_mod._http_homepage, methods=["GET"]),
+            Route("/install.sh", routes_mod._http_install_script, methods=["GET"]),
+            Route("/guide", routes_mod._http_guide, methods=["GET"]),
         ])
         return TestClient(app, raise_server_exceptions=True)
 
@@ -300,3 +299,27 @@ class TestToolDefinitions:
         defs = mcp_module._rgesn_tool_definitions()
         for d in defs:
             assert len(d["description"]) > 10, f"{d['name']} has short description"
+
+
+class TestMcpResources:
+    def test_version_resource_registered(self):
+        import asyncio
+        resources = asyncio.run(mcp_module.mcp.list_resources())
+        uris = [str(r.uri) for r in resources]
+        assert any("rgesn://version" in u for u in uris), f"rgesn://version missing. Got: {uris}"
+
+    def test_version_resource_unified_structure(self):
+        import asyncio
+        result = asyncio.run(mcp_module.mcp.read_resource("rgesn://version"))
+        data = json.loads(result.contents[0].content)
+        assert "server_version" in data
+        assert "referentiel_version" in data
+        assert "updated_at" in data
+        assert "nb_items" in data
+
+
+class TestRgesnStatistiquesStructure:
+    def test_statistiques_includes_referentiel_version(self):
+        result = mcp_module.rgesn_statistiques()
+        assert "referentiel_version" in result
+        assert result["referentiel_version"] != ""
