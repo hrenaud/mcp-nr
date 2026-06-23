@@ -1,5 +1,15 @@
 # Changelog — RGESN MCP
 
+## [Unreleased]
+
+### Ajouté
+
+- **Version du référentiel** : `rgesn_statistiques` retourne désormais `referentiel_version` ("2024", lue depuis `rgesn_cache.json`)
+- **Homepage** : version du référentiel affichée sur la page `/`
+- **`rgesn_cache.json` complet** : les 68 critères des thèmes 2 à 9 disposent maintenant de `objectif`, `mise_en_oeuvre` et `moyen_de_controle` extraits du PDF officiel RGESN 2024 (ARCEP)
+
+---
+
 ## [1.1.0] — 2026-06-22
 
 ### Modifié
