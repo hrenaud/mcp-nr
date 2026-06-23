@@ -35,7 +35,7 @@ logger = logging.getLogger("rgesn-mcp")
 _BASE_DIR = Path(__file__).parent
 TOKENS_FILE = str(_BASE_DIR.parent / "tokens" / "tokens.json")
 
-VERSION = "1.1.1"
+VERSION = "1.2.0"
 _routes_mod._VERSION = VERSION
 _routes_mod._REFERENTIEL_VERSION = charger_cache().get("meta", {}).get("version", "")
 _routes_mod._MCP_NAME = "RGESN MCP"
