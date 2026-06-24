@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mcp-greenit"
-version = "2.0.0"
+version = "2.0.1"
 requires-python = ">=3.11"
 dependencies = [
     "fastmcp>=2.0",
