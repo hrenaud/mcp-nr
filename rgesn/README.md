@@ -81,6 +81,15 @@ rgesn/
     └── .gitkeep              # Volume Docker (tokens.json non embarqué)
 ```
 
+## Ressources
+
+| Ressource                       | Description                                 |
+| ------------------------------- | ------------------------------------------- |
+| `rgesn://version`               | Version du serveur et des données           |
+| `rgesn://metadata`              | Statistiques du référentiel et pondérations |
+| `rgesn://index`                 | Index de tous les critères                  |
+| `rgesn://criteres/{critere_id}` | Contenu complet d'un critère (ex : `1.1`)   |
+
 ## Tests
 
 ```bash

@@ -8,6 +8,21 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 ---
 
+## [2.1.0] — 2026-06-24
+
+### Ajouté
+
+- **`rgesn://metadata`** (RGESN) : ressource MCP exposant les statistiques du référentiel et les pondérations
+- **Skill `mcp-nr-add-tool`** : checklist pour ajouter un outil ou un prompt avec TDD, mise à jour docs, CHANGELOG
+- **Skill `mcp-nr-release`** : checklist complète de release (docs, changelogs, tests, tag git)
+
+### Modifié
+
+- **`GUIDE_DEVELOPPEMENT.md`** (greenit, rgaa, rgesn) : réécriture en documentation mainteneur (architecture, tests, ajout d'outil, ressources)
+- **`CLAUDE.md`** : références aux skills locaux, règles simplifiées
+
+---
+
 ## [2.0.2] — 2026-06-24
 
 ### Modifié

@@ -4,6 +4,15 @@
 
 ---
 
+## [2.1.0] — 2026-06-24
+
+### Ajouté
+
+- **`rgesn://metadata`** : nouvelle ressource MCP exposant les statistiques du référentiel (nb critères, nb thèmes, nb prioritaires, pondérations)
+- **`GUIDE_DEVELOPPEMENT.md`** : guide complet pour les mainteneurs (structure, tests, mise à jour des données, ajout d'outil, injection routes)
+
+---
+
 ## [2.0.2] — 2026-06-24
 
 ### Modifié
