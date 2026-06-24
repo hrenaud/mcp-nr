@@ -201,7 +201,19 @@ def _rgaa_guide_extra_sections() -> str:
       </tbody>
     </table>
 
-    <h2>6. Exemples de questions</h2>
+    <h2>6. Ressources disponibles</h2>
+    <p>Les ressources MCP exposent les données brutes du référentiel :</p>
+    <table>
+      <thead><tr><th>Ressource</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>rgaa://version</code></td><td>Version du serveur et des données</td></tr>
+        <tr><td><code>rgaa://metadata</code></td><td>Statistiques du référentiel (nb critères, thèmes, taux automatisable)</td></tr>
+        <tr><td><code>rgaa://index</code></td><td>Index de tous les critères (id, titre, thème, niveau)</td></tr>
+        <tr><td><code>rgaa://criteres/{critere_id}</code></td><td>Contenu complet d'un critère (ex : <code>1.1</code>)</td></tr>
+      </tbody>
+    </table>
+
+    <h2>7. Exemples de questions</h2>
     <div class="note">Quels critères RGAA s'appliquent aux images décoratives ?</div>
     <div class="note">Explique le critère 1.1 du RGAA et ses tests associés</div>
     <div class="note">Génère une checklist d'audit pour un composant navigation</div>

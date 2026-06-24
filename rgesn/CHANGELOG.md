@@ -4,6 +4,14 @@
 
 ---
 
+## [2.1.1] — 2026-06-24
+
+### Corrigé
+
+- **Route `/guide`** : ajout section Ressources et prompt `criteres_prioritaires_rgesn` manquant dans la table des prompts
+
+---
+
 ## [2.1.0] — 2026-06-24
 
 ### Ajouté

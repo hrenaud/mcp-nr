@@ -8,6 +8,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 ---
 
+## [2.1.1] — 2026-06-24
+
+### Corrigé
+
+- **Route `/guide` RGESN** : ajout section Ressources (`rgesn://version`, `rgesn://metadata`, `rgesn://index`, `rgesn://criteres/{id}`) et prompt `criteres_prioritaires_rgesn` manquant
+- **Route `/guide` RGAA** : ajout section Ressources (`rgaa://version`, `rgaa://metadata`, `rgaa://index`, `rgaa://criteres/{id}`)
+- **Skill `mcp-nr-release`** : ajout vérification explicite des routes `/guide` (outils, prompts, ressources)
+
+---
+
 ## [2.1.0] — 2026-06-24
 
 ### Ajouté

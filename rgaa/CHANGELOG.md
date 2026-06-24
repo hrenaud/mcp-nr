@@ -4,6 +4,14 @@
 
 ---
 
+## [2.1.1] — 2026-06-24
+
+### Corrigé
+
+- **Route `/guide`** : ajout section Ressources (`rgaa://version`, `rgaa://metadata`, `rgaa://index`, `rgaa://criteres/{id}`)
+
+---
+
 ## [2.0.2] — 2026-06-24
 
 ### Modifié

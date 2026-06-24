@@ -167,10 +167,23 @@ def _rgesn_guide_extra_sections() -> str:
         <tr><td><code>audit_rapide_rgesn</code></td><td><code>url</code></td><td>Audit express sur les 30 critères Prioritaire (~30 min)</td></tr>
         <tr><td><code>plan_action</code></td><td><code>service</code></td><td>Plan d'action écoconception en 3 horizons (court / moyen / long terme)</td></tr>
         <tr><td><code>evaluer_score</code></td><td><code>criteres_nc</code></td><td>Simule le gain de score RGESN en corrigeant des critères NC</td></tr>
+        <tr><td><code>criteres_prioritaires_rgesn</code></td><td>_(aucun)_</td><td>Guide pour explorer et agir sur les 30 critères Prioritaire</td></tr>
       </tbody>
     </table>
 
-    <h2>6. Exemples de questions</h2>
+    <h2>6. Ressources disponibles</h2>
+    <p>Les ressources MCP exposent les données brutes du référentiel :</p>
+    <table>
+      <thead><tr><th>Ressource</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>rgesn://version</code></td><td>Version du serveur et des données</td></tr>
+        <tr><td><code>rgesn://metadata</code></td><td>Statistiques du référentiel et pondérations</td></tr>
+        <tr><td><code>rgesn://index</code></td><td>Index de tous les critères (id, thème, question, priorité)</td></tr>
+        <tr><td><code>rgesn://criteres/{critere_id}</code></td><td>Contenu complet d'un critère (ex : <code>1.1</code>)</td></tr>
+      </tbody>
+    </table>
+
+    <h2>7. Exemples de questions</h2>
     <div class="note">Quels critères RGESN s'appliquent à l'hébergement ?</div>
     <div class="note">Explique le critère 1.1 du RGESN et comment le mettre en œuvre</div>
     <div class="note">Génère une checklist pour les critères Prioritaire du thème 4</div>
