@@ -2,17 +2,16 @@
 
 Monorepo de serveurs MCP pour les référentiels du numérique responsable (greenit, rgaa, rgesn).
 
+## Skills
+
+- **mcp-nr-release** (`.claude/skills/mcp-nr-release/SKILL.md`) — checklist complète de release. Lire et suivre ce fichier quand l'utilisateur demande une release, un bump de version ou un tag git.
+- **git-commit** — toujours utiliser ce skill pour les commits git dans ce projet.
+
 ## Règles non-évidentes
 
 - Supprimer des fichiers avec `trash`, jamais `rm`
 - Docker build depuis la racine : `docker build -f greenit/Dockerfile .`
 - Tests depuis `<mcp>/files/` : `cd greenit/files && pytest ../tests/ -v`
-- Release : avant `./release.sh <version>`, déplacer les entrées `[Unreleased]` vers la nouvelle version datée dans **chaque** CHANGELOG concerné (root + MCPs impactés + `rgaa/CHANGELOG.md` si besoin), puis pousser avec `git push && git push origin v<version>`
-- Toute modification ou évolution (renommage d'outil, ajout de fonctionnalité, changement de comportement) doit être répercutée **proactivement** dans tous les fichiers liés — ne pas attendre qu'on le signale :
-  - Noms d'outils → `<mcp>/README.md`, `OUTILS.md`, `<mcp>/docs/GUIDE_DEVELOPPEMENT.md`, `_get_tool_definitions()` dans `*_mcp.py`, `_*_guide_extra_sections()` dans `*_mcp.py` ou `core/mcp_ref_core/routes.py`
-  - Nouveaux outils/prompts → idem + `README.md` racine section capacités
-  - Chiffres (nb fiches, nb critères) → `README.md` racine, `<mcp>/README.md`, `docs/DEPLOIEMENT.md`
-  - Nouvelles fonctionnalités → `CHANGELOG.md` racine + `<mcp>/CHANGELOG.md`
 
 ## Architecture
 

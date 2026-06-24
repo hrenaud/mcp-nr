@@ -1,0 +1,116 @@
+---
+name: mcp-nr-release
+description: Use when preparing or executing a release in the mcp-nr monorepo — publishing a version, bumping version numbers, running release.sh, pushing tags
+---
+
+# Release mcp-nr
+
+Checklist complète pour une release cohérente du monorepo. À suivre dans l'ordre.
+
+---
+
+## 1. Identifier le périmètre
+
+Déterminer quels MCPs sont impactés par cette release (greenit / rgaa / rgesn / core / tous).
+
+---
+
+## 2. Synchroniser la documentation
+
+Pour chaque MCP impacté, vérifier la cohérence entre tous les fichiers. **Ne pas attendre qu'on le signale.**
+
+### Outils modifiés / ajoutés / renommés
+
+| Fichier                                                                      | Ce qui doit être à jour                      |
+| ---------------------------------------------------------------------------- | -------------------------------------------- |
+| `<mcp>/README.md`                                                            | Nom, description, paramètres de l'outil      |
+| `OUTILS.md` (racine)                                                         | Ligne dans le tableau récapitulatif          |
+| `<mcp>/docs/GUIDE_DEVELOPPEMENT.md`                                          | Section "Ajouter un outil" si pattern changé |
+| `_get_tool_definitions()` dans `<mcp>/files/*_mcp.py`                        | Nom + description pour la route `/guide`     |
+| `_*_guide_extra_sections()` dans `*_mcp.py` ou `core/mcp_ref_core/routes.py` | HTML de la page `/guide`                     |
+| `README.md` racine                                                           | Section "Claude peut :" si capacité nouvelle |
+
+### Chiffres (nb fiches, nb critères)
+
+| Fichier               | Chiffre concerné                                          |
+| --------------------- | --------------------------------------------------------- |
+| `README.md` racine    | nb bonnes pratiques / critères dans la description du MCP |
+| `<mcp>/README.md`     | titre ou intro                                            |
+| `docs/DEPLOIEMENT.md` | nb fiches/critères dans le tableau des MCPs               |
+
+---
+
+## 3. Mettre à jour les CHANGELOGs
+
+Déplacer les entrées `[Unreleased]` vers la nouvelle version datée dans :
+
+- `CHANGELOG.md` (racine) — si changement monorepo ou multi-MCPs
+- `<mcp>/CHANGELOG.md` — pour chaque MCP impacté
+
+Format :
+
+```markdown
+## [X.Y.Z] — YYYY-MM-DD
+
+### Ajouté
+
+- ...
+
+### Modifié
+
+- ...
+
+### Corrigé
+
+- ...
+```
+
+---
+
+## 4. Lancer les tests
+
+Pour chaque MCP impacté :
+
+```bash
+cd greenit/files && pytest ../tests/ -v
+cd rgaa/files   && pytest ../tests/ -v
+cd rgesn/files  && pytest ../tests/ -v
+```
+
+Tous les tests doivent passer avant de continuer.
+
+---
+
+## 5. Exécuter la release
+
+Depuis la racine du monorepo :
+
+```bash
+./release.sh <version>   # bump VERSION dans les 3 *_mcp.py + pyproject.toml
+```
+
+---
+
+## 6. Commit et push
+
+```bash
+git add -p                               # stager les changements docs + changelogs
+git commit -m "chore(release): bump version to <version>"
+git push && git push origin v<version>
+```
+
+---
+
+## 7. Vérification post-release
+
+```bash
+git tag -l | tail -5        # confirmer que le tag existe
+git log --oneline -3        # confirmer le commit de release
+```
+
+---
+
+## Règle d'or
+
+Si tu as modifié un nom d'outil, un chiffre, ou une fonctionnalité visible :  
+**toujours mettre à jour README, OUTILS.md, GUIDE_DEVELOPPEMENT.md, `_get_tool_definitions()` et `/guide` en même temps — dans la même release.**
