@@ -2,6 +2,51 @@
 
 ## [Unreleased]
 
+---
+
+## [2.0.2] — 2026-06-24
+
 ### Modifié
 
-- **Préfixe `greenit_`** : les 9 outils MCP sont renommés avec le préfixe `greenit_` pour cohérence avec les MCPs RGAA et RGESN (`lister_fiches` → `greenit_lister_fiches`, etc.)
+- **Documentation** : `README.md` et `docs/GUIDE_DEVELOPPEMENT.md` mis à jour avec le préfixe `greenit_` sur tous les noms d'outils
+
+---
+
+## [2.0.0] — 2026-06-24
+
+### Modifié
+
+- **Préfixe `greenit_`** : les 9 outils MCP renommés avec le préfixe `greenit_` pour cohérence avec les MCPs RGAA et RGESN (`lister_fiches` → `greenit_lister_fiches`, etc.)
+
+---
+
+## [1.2.0] — 2026-06-22
+
+### Modifié
+
+- **Refactorisation** : utilisation de `factory.create_mcp()` et `factory.run_main()` depuis `core/mcp_ref_core/factory.py`
+- **Tests** : `test_tools.py` et `test_architecture_parity.py` adaptés à la nouvelle architecture factory
+
+---
+
+## [1.1.1] — 2026-06-22
+
+### Corrigé
+
+- `test_tools.py` : restauration de `routes._VERSION` après mutation dans les tests
+
+---
+
+## [1.1.0] — 2026-06-22
+
+### Modifié
+
+- **UI** : thème visuel vert distinct (`#22c55e`) pour les pages `/` et `/guide` — CSS custom properties, cartes avec bordure colorée, tableaux avec lignes alternées
+- **Routes partagées** : suppression de 73 lignes dupliquées (`_http_homepage`, `_http_guide`) — délégation complète à `core/mcp_ref_core`
+- Logo 🌱 et tagline « Bonnes pratiques d'écoconception web »
+
+---
+
+## [1.0.0] — 2026-06-22
+
+Première release dans le monorepo `mcp-nr`.

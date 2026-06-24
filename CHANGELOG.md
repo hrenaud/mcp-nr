@@ -6,16 +6,73 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 ## [Unreleased]
 
-### Ajouté
+---
 
-- **Version du référentiel** : chaque MCP expose désormais la version du référentiel qu'il contient (RGAA 4.2.1, RGESN 2024, GreenIT 5.0.0) via l'outil `*_statistiques` et la page d'accueil `/`
-- **Homepage** : affichage de la version du référentiel sous la version MCP sur la page `/` des 3 serveurs
-- **`core/mcp_ref_core/factory.py`** : nouvelles fonctions `create_mcp()` et `run_main()` qui centralisent l'initialisation du serveur MCP (auth, transport, routes HTTP) — élimine ~150 lignes dupliquées entre les 3 MCPs
+## [2.0.2] — 2026-06-24
 
 ### Modifié
 
-- **Refactorisation majeure** : les 3 MCPs utilisent désormais `factory.create_mcp()` et `factory.run_main()` — suppression de `_create_mcp()` local, des fonctions de gestion de tokens locales (`_load_tokens`, `_save_tokens`, `_tokens_for_auth`, `_cmd_*`)
+- **Documentation** : mise à jour complète — RGESN décrit comme complet, préfixe `greenit_` dans tous les guides et la route `/guide`, chiffres corrects (119 fiches GreenIT, 78 critères RGESN)
+- **CLAUDE.md** : règle explicite de mise à jour obligatoire de la documentation à chaque évolution
+
+---
+
+## [2.0.1] — 2026-06-24
+
+### Modifié
+
+- **Build** : utilisation de `docker buildx` pour supprimer l'avertissement du builder legacy
+
+---
+
+## [2.0.0] — 2026-06-24
+
+### Ajouté
+
+- **`greenit_criteres_prioritaires`** → **`rgesn_criteres_prioritaires`** : nouvel outil RGESN retournant les 30 critères de priorité Prioritaire (poids ×1.5), sans paramètre
+- **`criteres_prioritaires_rgesn`** : nouveau prompt associé guidant l'exploration des 30 critères Prioritaire
+- **`build.sh`** : script de build et lancement local des 3 MCPs
+
+### Modifié
+
+- **Préfixe `greenit_`** : les 9 outils GreenIT renommés (`lister_fiches` → `greenit_lister_fiches`, etc.) pour cohérence avec RGAA et RGESN
+
+### Corrigé
+
+- `greenit/tokens/` : correction du nom du placeholder `.gitkeep`
+
+---
+
+## [1.2.0] — 2026-06-22
+
+### Ajouté
+
+- **`core/mcp_ref_core/factory.py`** : nouvelles fonctions `create_mcp()` et `run_main()` qui centralisent l'initialisation du serveur MCP (auth, transport, routes HTTP) — élimine ~150 lignes dupliquées entre les 3 MCPs
+- **`rgesn_cache.json` complet** : les 68 critères des thèmes 2 à 9 disposent maintenant de `objectif`, `mise_en_oeuvre` et `moyen_de_controle` extraits du PDF officiel RGESN 2024 (ARCEP)
+
+### Modifié
+
+- **Refactorisation majeure** : les 3 MCPs utilisent désormais `factory.create_mcp()` et `factory.run_main()` — suppression de `_create_mcp()` local et des fonctions de gestion de tokens locales
 - **Tests mis à jour** : `test_tools.py`, `test_admin_api.py` et `test_architecture_parity.py` des 3 MCPs adaptés à la nouvelle architecture factory
+- **`local-build.sh`** : exécution des tests avant le build
+
+---
+
+## [1.1.1] — 2026-06-22
+
+### Ajouté
+
+- **Prompts RGESN** (5 nouveaux) : `rapport_conformite`, `checklist_par_metier`, `audit_rapide_rgesn`, `plan_action`, `evaluer_score` — passe de 3 à 8 prompts
+- **Prompts RGAA** (2 nouveaux) : `plan_correction`, `formuler_exigences` — passe de 9 à 11 prompts
+- **Tests** : `test_prompts.py` pour RGESN et RGAA
+
+### Modifié
+
+- **Guides** : sections prompts MCP ajoutées dans les guides RGESN et RGAA
+
+### Corrigé
+
+- `fix(test)` : restauration de `routes._VERSION` après mutation dans les tests
 
 ---
 

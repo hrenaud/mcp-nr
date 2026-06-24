@@ -2,16 +2,46 @@
 
 ## [Unreleased]
 
+---
+
+## [2.0.2] — 2026-06-24
+
+### Modifié
+
+- **Documentation** : `README.md` mis à jour — `rgesn_criteres_prioritaires` ajouté, structure 7 outils/9 prompts, données complètes pour les 9 thèmes
+
+---
+
+## [2.0.0] — 2026-06-24
+
 ### Ajouté
 
 - **`rgesn_criteres_prioritaires`** : nouvel outil retournant les 30 critères de priorité Prioritaire (poids ×1.5), sans paramètre
 - **`criteres_prioritaires_rgesn`** : nouveau prompt guidant l'exploration et la planification des 30 critères Prioritaire
 
+---
+
+## [1.2.0] — 2026-06-22
+
+### Ajouté
+
+- **`rgesn_cache.json` complet** : les 68 critères des thèmes 2 à 9 disposent maintenant de `objectif`, `mise_en_oeuvre` et `moyen_de_controle` extraits du PDF officiel RGESN 2024 (ARCEP)
+
 ### Modifié
 
-- **Version du référentiel** : `rgesn_statistiques` retourne désormais `referentiel_version` ("2024", lue depuis `rgesn_cache.json`)
+- **Refactorisation** : utilisation de `factory.create_mcp()` et `factory.run_main()` depuis `core/mcp_ref_core/factory.py`
+- **Version du référentiel** : `rgesn_statistiques` retourne désormais `referentiel_version` ("2024")
 - **Homepage** : version du référentiel affichée sur la page `/`
-- **`rgesn_cache.json` complet** : les 68 critères des thèmes 2 à 9 disposent maintenant de `objectif`, `mise_en_oeuvre` et `moyen_de_controle` extraits du PDF officiel RGESN 2024 (ARCEP)
+- **Tests** : `test_tools.py`, `test_routes_http.py` et `test_architecture_parity.py` ajoutés et adaptés à la nouvelle architecture factory
+
+---
+
+## [1.1.1] — 2026-06-22
+
+### Ajouté
+
+- **Prompts** (5 nouveaux) : `rapport_conformite`, `checklist_par_metier`, `audit_rapide_rgesn`, `plan_action`, `evaluer_score` — passe de 3 à 8 prompts
+- **`test_prompts.py`** : tests TDD pour les nouveaux prompts
 
 ---
 
