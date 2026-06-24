@@ -103,8 +103,8 @@ class TestDockerToolsIntegration:
         sys.path.insert(0, "/Users/renaudheluin/DEV/DEV_GREENIT/refs/mcp-115-greenit/files")
         try:
             import greenit_mcp
-            assert hasattr(greenit_mcp, "lister_fiches"), "Outil lister_fiches non trouvé"
-            assert hasattr(greenit_mcp, "calculer_ecoindex"), "Outil calculer_ecoindex non trouvé"
+            assert hasattr(greenit_mcp, "greenit_lister_fiches"), "Outil lister_fiches non trouvé"
+            assert hasattr(greenit_mcp, "greenit_calculer_ecoindex"), "Outil calculer_ecoindex non trouvé"
         except ImportError as e:
             pytest.skip(f"Impossible d'importer le module: {e}")
 
@@ -116,14 +116,14 @@ class TestDockerToolsIntegration:
             import greenit_mcp as m
 
             expected_tools = [
-                "lister_fiches",
-                "fiches_prioritaires",
-                "chercher_fiche",
-                "comparer_fiches",
-                "lister_lifecycles",
-                "lister_ressources",
-                "calculer_ecoindex",
-                "obtenir_statistiques",
+                "greenit_lister_fiches",
+                "greenit_fiches_prioritaires",
+                "greenit_chercher_fiche",
+                "greenit_comparer_fiches",
+                "greenit_lister_lifecycles",
+                "greenit_lister_ressources",
+                "greenit_calculer_ecoindex",
+                "greenit_obtenir_statistiques",
             ]
 
             for tool_name in expected_tools:
@@ -142,7 +142,7 @@ class TestDockerDataAvailability:
         try:
             import greenit_mcp as m
             # Tester un appel simple pour vérifier que les données sont disponibles
-            result = m.obtenir_statistiques()
+            result = m.greenit_obtenir_statistiques()
             assert isinstance(result, dict), "obtenir_statistiques ne retourne pas un dict"
         except ImportError:
             pytest.skip("Impossible d'importer le module")
@@ -155,22 +155,22 @@ class TestDockerDataAvailability:
             import greenit_mcp as m
 
             # Test lister_fiches
-            result = m.lister_fiches()
+            result = m.greenit_lister_fiches()
             assert isinstance(result, dict), "lister_fiches ne retourne pas un dict"
             assert "fiches" in result, "Clé 'fiches' non trouvée dans le résultat"
 
             # Test lister_lifecycles
-            result = m.lister_lifecycles()
+            result = m.greenit_lister_lifecycles()
             assert isinstance(result, dict), "lister_lifecycles ne retourne pas un dict"
             assert "lifecycles" in result, "Clé 'lifecycles' non trouvée dans le résultat"
 
             # Test lister_ressources
-            result = m.lister_ressources()
+            result = m.greenit_lister_ressources()
             assert isinstance(result, dict), "lister_ressources ne retourne pas un dict"
             assert "ressources" in result, "Clé 'ressources' non trouvée dans le résultat"
 
             # Test obtenir_statistiques
-            result = m.obtenir_statistiques()
+            result = m.greenit_obtenir_statistiques()
             assert isinstance(result, dict), "obtenir_statistiques ne retourne pas un dict"
         except ImportError:
             pytest.skip("Impossible d'importer le module")

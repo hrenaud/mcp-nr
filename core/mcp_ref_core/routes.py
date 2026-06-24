@@ -733,7 +733,7 @@ def _greenit_tool_definitions() -> list[dict[str, Any]]:
     # Tool definitions with descriptions and schemas
     tool_defs = [
         {
-            "name": "lister_fiches",
+            "name": "greenit_lister_fiches",
             "description": "Liste toutes les fiches ou filtre par lifecycle, ressource, impact, priorité",
             "inputSchema": {
                 "type": "object",
@@ -746,7 +746,7 @@ def _greenit_tool_definitions() -> list[dict[str, Any]]:
             }
         },
         {
-            "name": "fiches_prioritaires",
+            "name": "greenit_fiches_prioritaires",
             "description": "Retourne les fiches à fort impact et haute priorité",
             "inputSchema": {
                 "type": "object",
@@ -757,7 +757,7 @@ def _greenit_tool_definitions() -> list[dict[str, Any]]:
             }
         },
         {
-            "name": "chercher_fiche",
+            "name": "greenit_chercher_fiche",
             "description": "Recherche des fiches par mot-clé avec scoring de pertinence",
             "inputSchema": {
                 "type": "object",
@@ -768,7 +768,7 @@ def _greenit_tool_definitions() -> list[dict[str, Any]]:
             }
         },
         {
-            "name": "comparer_fiches",
+            "name": "greenit_comparer_fiches",
             "description": "Compare plusieurs fiches côte à côte avec recommandation",
             "inputSchema": {
                 "type": "object",
@@ -779,7 +779,7 @@ def _greenit_tool_definitions() -> list[dict[str, Any]]:
             }
         },
         {
-            "name": "obtenir_fiche_complete",
+            "name": "greenit_obtenir_fiche_complete",
             "description": "Récupère le contenu complet d'une fiche",
             "inputSchema": {
                 "type": "object",
@@ -790,7 +790,7 @@ def _greenit_tool_definitions() -> list[dict[str, Any]]:
             }
         },
         {
-            "name": "obtenir_statistiques",
+            "name": "greenit_obtenir_statistiques",
             "description": "Statistiques du référentiel (distributions, top fiches)",
             "inputSchema": {
                 "type": "object",
@@ -798,7 +798,7 @@ def _greenit_tool_definitions() -> list[dict[str, Any]]:
             }
         },
         {
-            "name": "lister_lifecycles",
+            "name": "greenit_lister_lifecycles",
             "description": "Liste les 7 phases du cycle de vie avec nombre de fiches",
             "inputSchema": {
                 "type": "object",
@@ -806,7 +806,7 @@ def _greenit_tool_definitions() -> list[dict[str, Any]]:
             }
         },
         {
-            "name": "lister_ressources",
+            "name": "greenit_lister_ressources",
             "description": "Liste les 8 types de ressources avec nombre de fiches",
             "inputSchema": {
                 "type": "object",
@@ -814,7 +814,7 @@ def _greenit_tool_definitions() -> list[dict[str, Any]]:
             }
         },
         {
-            "name": "calculer_ecoindex",
+            "name": "greenit_calculer_ecoindex",
             "description": "Calcule l'EcoIndex (score + grade) à partir des 3 métriques brutes : nœuds DOM, requêtes HTTP, taille KB",
             "inputSchema": {
                 "type": "object",

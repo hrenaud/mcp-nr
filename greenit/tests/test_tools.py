@@ -103,7 +103,7 @@ def premier_id():
 
 class TestListerFiches:
     def test_sans_filtre(self, cache):
-        response = mcp_module.lister_fiches()
+        response = mcp_module.greenit_lister_fiches()
         assert isinstance(response, dict)
         assert "fiches" in response
         resultats = response["fiches"]
@@ -117,29 +117,29 @@ class TestListerFiches:
         )
         if not lifecycle:
             pytest.skip("Aucun lifecycle trouvé dans le cache")
-        response = mcp_module.lister_fiches(lifecycle=lifecycle)
+        response = mcp_module.greenit_lister_fiches(lifecycle=lifecycle)
         resultats = response["fiches"]
         assert all(r["lifecycle"] == lifecycle for r in resultats)
 
     def test_filtre_impact_min(self, cache):
-        response = mcp_module.lister_fiches(impact_min=4)
+        response = mcp_module.greenit_lister_fiches(impact_min=4)
         resultats = response["fiches"]
         assert all(r["environmental_impact"] >= 4 for r in resultats)
 
     def test_filtre_priorite_min(self, cache):
-        response = mcp_module.lister_fiches(priorite_min=4)
+        response = mcp_module.greenit_lister_fiches(priorite_min=4)
         resultats = response["fiches"]
         assert all(r["priority_implementation"] >= 4 for r in resultats)
 
     def test_filtre_combine(self, cache):
-        response = mcp_module.lister_fiches(impact_min=5, priorite_min=5)
+        response = mcp_module.greenit_lister_fiches(impact_min=5, priorite_min=5)
         resultats = response["fiches"]
         for r in resultats:
             assert r["environmental_impact"] >= 5
             assert r["priority_implementation"] >= 5
 
     def test_structure_resultat(self):
-        response = mcp_module.lister_fiches()
+        response = mcp_module.greenit_lister_fiches()
         resultats = response["fiches"]
         assert resultats
         r = resultats[0]
@@ -153,7 +153,7 @@ class TestListerFiches:
 
 class TestFichesPrioritaires:
     def test_defaut(self):
-        response = mcp_module.fiches_prioritaires()
+        response = mcp_module.greenit_fiches_prioritaires()
         assert isinstance(response, dict)
         assert "fiches" in response
         resultats = response["fiches"]
@@ -162,20 +162,20 @@ class TestFichesPrioritaires:
             assert r["priority_implementation"] >= 4
 
     def test_tri_decroissant(self):
-        response = mcp_module.fiches_prioritaires()
+        response = mcp_module.greenit_fiches_prioritaires()
         resultats = response["fiches"]
         scores = [r["score"] for r in resultats]
         assert scores == sorted(scores, reverse=True)
 
     def test_seuil_personnalise(self):
-        response = mcp_module.fiches_prioritaires(impact_min=3, priorite_min=3)
+        response = mcp_module.greenit_fiches_prioritaires(impact_min=3, priorite_min=3)
         resultats = response["fiches"]
         for r in resultats:
             assert r["environmental_impact"] >= 3
             assert r["priority_implementation"] >= 3
 
     def test_score_calcul(self):
-        response = mcp_module.fiches_prioritaires()
+        response = mcp_module.greenit_fiches_prioritaires()
         resultats = response["fiches"]
         for r in resultats:
             assert r["score"] == r["environmental_impact"] + r["priority_implementation"]
@@ -187,7 +187,7 @@ class TestFichesPrioritaires:
 
 class TestChercherFiche:
     def test_terme_commun(self):
-        response = mcp_module.chercher_fiche("image")
+        response = mcp_module.greenit_chercher_fiche("image")
         assert isinstance(response, dict)
         assert "fiches" in response
         resultats = response["fiches"]
@@ -195,23 +195,23 @@ class TestChercherFiche:
         assert len(resultats) > 0
 
     def test_max_15_resultats(self):
-        response = mcp_module.chercher_fiche("web")
+        response = mcp_module.greenit_chercher_fiche("web")
         resultats = response["fiches"]
         assert len(resultats) <= 15
 
     def test_tri_par_pertinence(self):
-        response = mcp_module.chercher_fiche("image")
+        response = mcp_module.greenit_chercher_fiche("image")
         resultats = response["fiches"]
         pertinences = [r["pertinence"] for r in resultats]
         assert pertinences == sorted(pertinences, reverse=True)
 
     def test_terme_absent(self):
-        response = mcp_module.chercher_fiche("xyzxyzxyz_terme_inexistant")
+        response = mcp_module.greenit_chercher_fiche("xyzxyzxyz_terme_inexistant")
         resultats = response["fiches"]
         assert resultats == []
 
     def test_chercher_fiche_structure_resultat(self):
-        response = mcp_module.chercher_fiche("cache")
+        response = mcp_module.greenit_chercher_fiche("cache")
         resultats = response["fiches"]
         if resultats:
             r = resultats[0]
@@ -226,20 +226,20 @@ class TestChercherFiche:
 class TestComparerFiches:
     def test_deux_fiches(self, cache):
         ids = list(cache.keys())[:2]
-        resultat = mcp_module.comparer_fiches(ids)
+        resultat = mcp_module.greenit_comparer_fiches(ids)
         assert "comparaison" in resultat
         assert "recommandation" in resultat
         assert len(resultat["comparaison"]) == 2
 
     def test_classement_present(self, cache):
         ids = list(cache.keys())[:3]
-        resultat = mcp_module.comparer_fiches(ids)
+        resultat = mcp_module.greenit_comparer_fiches(ids)
         assert "classement" in resultat["recommandation"]
         assert len(resultat["recommandation"]["classement"]) == 3
 
     def test_id_invalide(self):
         with pytest.raises(ToolError):
-            mcp_module.comparer_fiches(["RWEB_9999"])
+            mcp_module.greenit_comparer_fiches(["RWEB_9999"])
 
 
 # ============================================================================
@@ -248,14 +248,14 @@ class TestComparerFiches:
 
 class TestObtenirFicheComplete:
     def test_fiche_existante(self, premier_id):
-        resultat = mcp_module.obtenir_fiche_complete(premier_id)
+        resultat = mcp_module.greenit_obtenir_fiche_complete(premier_id)
         assert isinstance(resultat, dict)
         assert "erreur" not in resultat
         assert "title" in resultat
 
     def test_fiche_inexistante(self):
         with pytest.raises(ToolError):
-            mcp_module.obtenir_fiche_complete("RWEB_9999")
+            mcp_module.greenit_obtenir_fiche_complete("RWEB_9999")
 
 
 # ============================================================================
@@ -264,7 +264,7 @@ class TestObtenirFicheComplete:
 
 class TestObtenirStatistiques:
     def test_structure(self):
-        stats = mcp_module.obtenir_statistiques()
+        stats = mcp_module.greenit_obtenir_statistiques()
         for champ in (
             "total_fiches",
             "distribution_lifecycle",
@@ -275,15 +275,15 @@ class TestObtenirStatistiques:
             assert champ in stats, f"Champ '{champ}' manquant"
 
     def test_total_coherent(self, cache):
-        stats = mcp_module.obtenir_statistiques()
+        stats = mcp_module.greenit_obtenir_statistiques()
         assert stats["total_fiches"] == len(cache)
 
     def test_top5_longueur(self):
-        stats = mcp_module.obtenir_statistiques()
+        stats = mcp_module.greenit_obtenir_statistiques()
         assert len(stats["top_5_score_combine"]) <= 5
 
     def test_statistiques_includes_referentiel_version(self):
-        stats = mcp_module.obtenir_statistiques()
+        stats = mcp_module.greenit_obtenir_statistiques()
         assert "referentiel_version" in stats
         assert stats["referentiel_version"] != ""
 
@@ -375,7 +375,7 @@ class TestHttpRoutes:
 
     def test_guide_contains_tools_list(self, client):
         r = client.get("/guide")
-        for tool in ("lister_fiches", "chercher_fiche", "calculer_ecoindex"):
+        for tool in ("greenit_lister_fiches", "greenit_chercher_fiche", "greenit_calculer_ecoindex"):
             assert tool in r.text, f"Tool '{tool}' missing from guide"
 
     def test_guide_contains_token_section(self, client):
@@ -428,18 +428,18 @@ class TestCreateMcp:
 
 class TestListerLifecycles:
     def test_returns_seven_entries(self):
-        response = mcp_module.lister_lifecycles()
+        response = mcp_module.greenit_lister_lifecycles()
         result = response["lifecycles"]
         assert len(result) == 7
 
     def test_ordered_by_numeric_prefix(self):
-        response = mcp_module.lister_lifecycles()
+        response = mcp_module.greenit_lister_lifecycles()
         result = response["lifecycles"]
         ids = [entry["id"] for entry in result]
         assert ids == sorted(ids, key=lambda x: int(x.split("-")[0]))
 
     def test_lister_lifecycles_labels_match_i18n(self):
-        response = mcp_module.lister_lifecycles()
+        response = mcp_module.greenit_lister_lifecycles()
         result = response["lifecycles"]
         expected_labels = {
             "1-specification": "Spécification",
@@ -456,24 +456,24 @@ class TestListerLifecycles:
             )
 
     def test_lister_lifecycles_counts_are_nonnegative_integers(self):
-        response = mcp_module.lister_lifecycles()
+        response = mcp_module.greenit_lister_lifecycles()
         result = response["lifecycles"]
         for entry in result:
             assert isinstance(entry["count"], int)
             assert entry["count"] >= 0
 
     def test_total_count_covers_cache(self):
-        response = mcp_module.lister_lifecycles()
+        response = mcp_module.greenit_lister_lifecycles()
         result = response["lifecycles"]
         total = sum(entry["count"] for entry in result)
         # All fiches have a lifecycle — total must equal cache size
         assert total >= 115
 
     def test_lister_lifecycles_ids_are_valid_lister_fiches_filters(self):
-        response = mcp_module.lister_lifecycles()
+        response = mcp_module.greenit_lister_lifecycles()
         result = response["lifecycles"]
         for entry in result:
-            response_fiches = mcp_module.lister_fiches(lifecycle=entry["id"])
+            response_fiches = mcp_module.greenit_lister_fiches(lifecycle=entry["id"])
             fiches = response_fiches["fiches"]
             assert len(fiches) == entry["count"], (
                 f"lister_fiches(lifecycle={entry['id']!r}) returned {len(fiches)}, "
@@ -481,7 +481,7 @@ class TestListerLifecycles:
             )
 
     def test_lister_lifecycles_required_fields_on_every_entry(self):
-        response = mcp_module.lister_lifecycles()
+        response = mcp_module.greenit_lister_lifecycles()
         result = response["lifecycles"]
         for entry in result:
             assert "id" in entry
@@ -495,18 +495,18 @@ class TestListerLifecycles:
 
 class TestListerRessources:
     def test_returns_eight_entries(self):
-        response = mcp_module.lister_ressources()
+        response = mcp_module.greenit_lister_ressources()
         result = response["ressources"]
         assert len(result) == 8
 
     def test_sorted_by_count_descending(self):
-        response = mcp_module.lister_ressources()
+        response = mcp_module.greenit_lister_ressources()
         result = response["ressources"]
         counts = [entry["count"] for entry in result]
         assert counts == sorted(counts, reverse=True)
 
     def test_lister_ressources_labels_match_i18n(self):
-        response = mcp_module.lister_ressources()
+        response = mcp_module.greenit_lister_ressources()
         result = response["ressources"]
         expected_labels = {
             "network":     "Réseau",
@@ -524,14 +524,14 @@ class TestListerRessources:
             )
 
     def test_lister_ressources_counts_are_nonnegative_integers(self):
-        response = mcp_module.lister_ressources()
+        response = mcp_module.greenit_lister_ressources()
         result = response["ressources"]
         for entry in result:
             assert isinstance(entry["count"], int)
             assert entry["count"] >= 0
 
     def test_lister_ressources_required_fields_on_every_entry(self):
-        response = mcp_module.lister_ressources()
+        response = mcp_module.greenit_lister_ressources()
         result = response["ressources"]
         for entry in result:
             assert "id" in entry
@@ -539,10 +539,10 @@ class TestListerRessources:
             assert "count" in entry
 
     def test_lister_ressources_ids_are_valid_lister_fiches_filters(self):
-        response = mcp_module.lister_ressources()
+        response = mcp_module.greenit_lister_ressources()
         result = response["ressources"]
         for entry in result:
-            response_fiches = mcp_module.lister_fiches(saved_resource=entry["id"])
+            response_fiches = mcp_module.greenit_lister_fiches(saved_resource=entry["id"])
             fiches = response_fiches["fiches"]
             assert len(fiches) == entry["count"], (
                 f"lister_fiches(saved_resource={entry['id']!r}) returned {len(fiches)}, "
@@ -556,42 +556,42 @@ class TestListerRessources:
 
 class TestCalculerEcoindex:
     def test_zero_inputs_score_100(self):
-        result = json.loads(mcp_module.calculer_ecoindex(0, 0, 0))
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(0, 0, 0))
         assert result["score"] == pytest.approx(100.0, rel=1e-2)
         assert result["grade"] == "A"
 
     def test_good_page_grade_a(self):
         # dom=200, req=20, size_kb=200 → score >80
-        result = json.loads(mcp_module.calculer_ecoindex(200, 20, 200))
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(200, 20, 200))
         assert result["score"] > 80
         assert result["grade"] == "A"
 
     def test_bad_page_grade_low(self):
         # dom=2000, req=150, size_kb=6000 → score <25
-        result = json.loads(mcp_module.calculer_ecoindex(2000, 150, 6000))
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(2000, 150, 6000))
         assert result["score"] < 25
         assert result["grade"] in ("E", "F", "G")
 
     def test_score_clamped_between_0_and_100(self):
-        result = json.loads(mcp_module.calculer_ecoindex(0, 0, 0))
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(0, 0, 0))
         assert 0 <= result["score"] <= 100
 
     def test_returns_expected_keys(self):
-        result = json.loads(mcp_module.calculer_ecoindex(500, 50, 500, url="https://example.com"))
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(500, 50, 500, url="https://example.com"))
         for key in ("url", "dom_nodes", "requests", "size_kb", "score", "grade"):
             assert key in result
         assert result["grade"] in ("A", "B", "C", "D", "E", "F", "G")
         assert result["url"] == "https://example.com"
 
     def test_url_optional_defaults_empty(self):
-        result = json.loads(mcp_module.calculer_ecoindex(100, 10, 100))
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(100, 10, 100))
         assert result["url"] == ""
 
     def test_tool_is_registered(self):
         import asyncio
         tools = asyncio.run(mcp_module.mcp.list_tools())
         names = [t.name for t in tools]
-        assert "calculer_ecoindex" in names
+        assert "greenit_calculer_ecoindex" in names
 
 
 # ============================================================================
@@ -603,7 +603,7 @@ class TestAnnotations:
         """Verify lister_fiches has complete MCP annotations."""
         import asyncio
         tools = asyncio.run(mcp_module.mcp.list_tools())
-        tool = next((t for t in tools if t.name == "lister_fiches"), None)
+        tool = next((t for t in tools if t.name == "greenit_lister_fiches"), None)
         assert tool is not None, "lister_fiches tool not found"
 
         # Check annotations exist
@@ -619,7 +619,7 @@ class TestAnnotations:
         """Verify fiches_prioritaires has complete MCP annotations."""
         import asyncio
         tools = asyncio.run(mcp_module.mcp.list_tools())
-        tool = next((t for t in tools if t.name == "fiches_prioritaires"), None)
+        tool = next((t for t in tools if t.name == "greenit_fiches_prioritaires"), None)
         assert tool is not None, "fiches_prioritaires tool not found"
 
         # Check annotations exist
@@ -635,7 +635,7 @@ class TestAnnotations:
         """Verify chercher_fiche has complete MCP annotations including openWorldHint."""
         import asyncio
         tools = asyncio.run(mcp_module.mcp.list_tools())
-        tool = next((t for t in tools if t.name == "chercher_fiche"), None)
+        tool = next((t for t in tools if t.name == "greenit_chercher_fiche"), None)
         assert tool is not None, "chercher_fiche tool not found"
 
         # Check annotations exist
@@ -652,7 +652,7 @@ class TestAnnotations:
         """Verify comparer_fiches has complete MCP annotations."""
         import asyncio
         tools = asyncio.run(mcp_module.mcp.list_tools())
-        tool = next((t for t in tools if t.name == "comparer_fiches"), None)
+        tool = next((t for t in tools if t.name == "greenit_comparer_fiches"), None)
         assert tool is not None, "comparer_fiches tool not found"
 
         # Check annotations exist
@@ -668,7 +668,7 @@ class TestAnnotations:
         """Verify obtenir_fiche_complete has complete MCP annotations."""
         import asyncio
         tools = asyncio.run(mcp_module.mcp.list_tools())
-        tool = next((t for t in tools if t.name == "obtenir_fiche_complete"), None)
+        tool = next((t for t in tools if t.name == "greenit_obtenir_fiche_complete"), None)
         assert tool is not None, "obtenir_fiche_complete tool not found"
 
         # Check annotations exist
@@ -684,7 +684,7 @@ class TestAnnotations:
         """Verify obtenir_statistiques has complete MCP annotations."""
         import asyncio
         tools = asyncio.run(mcp_module.mcp.list_tools())
-        tool = next((t for t in tools if t.name == "obtenir_statistiques"), None)
+        tool = next((t for t in tools if t.name == "greenit_obtenir_statistiques"), None)
         assert tool is not None, "obtenir_statistiques tool not found"
 
         # Check annotations exist
@@ -700,7 +700,7 @@ class TestAnnotations:
         """Verify lister_lifecycles has complete MCP annotations."""
         import asyncio
         tools = asyncio.run(mcp_module.mcp.list_tools())
-        tool = next((t for t in tools if t.name == "lister_lifecycles"), None)
+        tool = next((t for t in tools if t.name == "greenit_lister_lifecycles"), None)
         assert tool is not None, "lister_lifecycles tool not found"
 
         # Check annotations exist
@@ -716,7 +716,7 @@ class TestAnnotations:
         """Verify lister_ressources has complete MCP annotations."""
         import asyncio
         tools = asyncio.run(mcp_module.mcp.list_tools())
-        tool = next((t for t in tools if t.name == "lister_ressources"), None)
+        tool = next((t for t in tools if t.name == "greenit_lister_ressources"), None)
         assert tool is not None, "lister_ressources tool not found"
 
         # Check annotations exist
@@ -732,7 +732,7 @@ class TestAnnotations:
         """Verify calculer_ecoindex has complete MCP annotations."""
         import asyncio
         tools = asyncio.run(mcp_module.mcp.list_tools())
-        tool = next((t for t in tools if t.name == "calculer_ecoindex"), None)
+        tool = next((t for t in tools if t.name == "greenit_calculer_ecoindex"), None)
         assert tool is not None, "calculer_ecoindex tool not found"
 
         # Check annotations exist
@@ -755,70 +755,70 @@ class TestErrorHandling:
     def test_lister_fiches_invalid_impact_min_raises_toolerror(self):
         """Test that invalid impact_min raises ToolError with French message."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.lister_fiches(impact_min=999)  # Out of valid range (1-5)
+            mcp_module.greenit_lister_fiches(impact_min=999)  # Out of valid range (1-5)
         assert "Les paramètres fournis sont invalides" in str(exc_info.value)
         assert "impact_min" in str(exc_info.value).lower()
 
     def test_lister_fiches_invalid_priorite_min_raises_toolerror(self):
         """Test that invalid priorite_min raises ToolError with French message."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.lister_fiches(priorite_min=0)  # Out of valid range (1-5)
+            mcp_module.greenit_lister_fiches(priorite_min=0)  # Out of valid range (1-5)
         assert "Les paramètres fournis sont invalides" in str(exc_info.value)
         assert "priorite_min" in str(exc_info.value).lower()
 
     def test_fiches_prioritaires_invalid_impact_min_raises_toolerror(self):
         """Test that invalid impact_min raises ToolError with French message."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.fiches_prioritaires(impact_min=6)  # Out of valid range (1-5)
+            mcp_module.greenit_fiches_prioritaires(impact_min=6)  # Out of valid range (1-5)
         assert "Les paramètres fournis sont invalides" in str(exc_info.value)
 
     def test_fiches_prioritaires_invalid_priorite_min_raises_toolerror(self):
         """Test that invalid priorite_min raises ToolError with French message."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.fiches_prioritaires(priorite_min=-1)  # Out of valid range (1-5)
+            mcp_module.greenit_fiches_prioritaires(priorite_min=-1)  # Out of valid range (1-5)
         assert "Les paramètres fournis sont invalides" in str(exc_info.value)
 
     def test_chercher_fiche_empty_query_raises_toolerror(self):
         """Test that empty search term raises ToolError with French message."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.chercher_fiche(terme="")  # Empty search term
+            mcp_module.greenit_chercher_fiche(terme="")  # Empty search term
         assert "vide" in str(exc_info.value).lower() or "Les paramètres fournis sont invalides" in str(exc_info.value)
 
     def test_comparer_fiches_empty_list_raises_toolerror(self):
         """Test that empty fiche_ids list raises ToolError with French message."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.comparer_fiches(fiche_ids=[])  # Empty list
+            mcp_module.greenit_comparer_fiches(fiche_ids=[])  # Empty list
         assert "vide" in str(exc_info.value).lower() or "Les paramètres fournis sont invalides" in str(exc_info.value)
 
     def test_comparer_fiches_invalid_id_raises_toolerror(self):
         """Test that invalid fiche_id raises ToolError with French message."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.comparer_fiches(fiche_ids=["INVALID_12345", "INVALID_67890"])
+            mcp_module.greenit_comparer_fiches(fiche_ids=["INVALID_12345", "INVALID_67890"])
         assert "Erreur" in str(exc_info.value) or "introuvable" in str(exc_info.value).lower()
 
     def test_obtenir_fiche_complete_invalid_id_raises_toolerror(self):
         """Test that invalid fiche_id raises ToolError with French message."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.obtenir_fiche_complete(fiche_id="INVALID_12345")
+            mcp_module.greenit_obtenir_fiche_complete(fiche_id="INVALID_12345")
         assert "Erreur" in str(exc_info.value) or "introuvable" in str(exc_info.value).lower()
         assert "INVALID_12345" in str(exc_info.value) or "identifiant" in str(exc_info.value).lower()
 
     def test_calculer_ecoindex_negative_dom_nodes_raises_toolerror(self):
         """Test that negative dom_nodes raises ToolError with French message."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.calculer_ecoindex(dom_nodes=-1, requests=10, size_kb=100.0)
+            mcp_module.greenit_calculer_ecoindex(dom_nodes=-1, requests=10, size_kb=100.0)
         assert "positif" in str(exc_info.value).lower() or "Les paramètres fournis sont invalides" in str(exc_info.value)
 
     def test_calculer_ecoindex_negative_requests_raises_toolerror(self):
         """Test that negative requests raises ToolError with French message."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.calculer_ecoindex(dom_nodes=100, requests=-5, size_kb=100.0)
+            mcp_module.greenit_calculer_ecoindex(dom_nodes=100, requests=-5, size_kb=100.0)
         assert "positif" in str(exc_info.value).lower() or "Les paramètres fournis sont invalides" in str(exc_info.value)
 
     def test_calculer_ecoindex_negative_size_kb_raises_toolerror(self):
         """Test that negative size_kb raises ToolError with French message."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.calculer_ecoindex(dom_nodes=100, requests=10, size_kb=-50.0)
+            mcp_module.greenit_calculer_ecoindex(dom_nodes=100, requests=10, size_kb=-50.0)
         assert "positif" in str(exc_info.value).lower() or "Les paramètres fournis sont invalides" in str(exc_info.value)
 
 
@@ -832,27 +832,27 @@ class TestListerFichesEdgeCases:
     def test_invalid_impact_min_boundary_zero(self):
         """Test that impact_min=0 (below valid range) raises ToolError."""
         with pytest.raises(ToolError):
-            mcp_module.lister_fiches(impact_min=0)
+            mcp_module.greenit_lister_fiches(impact_min=0)
 
     def test_invalid_impact_min_boundary_six(self):
         """Test that impact_min=6 (above valid range) raises ToolError."""
         with pytest.raises(ToolError):
-            mcp_module.lister_fiches(impact_min=6)
+            mcp_module.greenit_lister_fiches(impact_min=6)
 
     def test_invalid_priorite_min_boundary_negative(self):
         """Test that priorite_min=-1 (below valid range) raises ToolError."""
         with pytest.raises(ToolError):
-            mcp_module.lister_fiches(priorite_min=-1)
+            mcp_module.greenit_lister_fiches(priorite_min=-1)
 
     def test_invalid_priorite_min_boundary_high(self):
         """Test that priorite_min=10 (above valid range) raises ToolError."""
         with pytest.raises(ToolError):
-            mcp_module.lister_fiches(priorite_min=10)
+            mcp_module.greenit_lister_fiches(priorite_min=10)
 
     def test_all_valid_impact_min_values(self, cache):
         """Test that all valid impact_min values (1-5) work correctly."""
         for i in range(1, 6):
-            response = mcp_module.lister_fiches(impact_min=i)
+            response = mcp_module.greenit_lister_fiches(impact_min=i)
             assert "fiches" in response
             for fiche in response["fiches"]:
                 assert fiche["environmental_impact"] >= i
@@ -860,30 +860,30 @@ class TestListerFichesEdgeCases:
     def test_all_valid_priorite_min_values(self):
         """Test that all valid priorite_min values (1-5) work correctly."""
         for i in range(1, 6):
-            response = mcp_module.lister_fiches(priorite_min=i)
+            response = mcp_module.greenit_lister_fiches(priorite_min=i)
             assert "fiches" in response
             for fiche in response["fiches"]:
                 assert fiche["priority_implementation"] >= i
 
     def test_nonexistent_lifecycle_filter_returns_empty(self):
         """Test that filtering by non-existent lifecycle returns empty list."""
-        response = mcp_module.lister_fiches(lifecycle="999-nonexistent")
+        response = mcp_module.greenit_lister_fiches(lifecycle="999-nonexistent")
         assert response["fiches"] == []
 
     def test_nonexistent_saved_resource_filter_returns_empty(self):
         """Test that filtering by non-existent resource returns empty list."""
-        response = mcp_module.lister_fiches(saved_resource="nonexistent_resource")
+        response = mcp_module.greenit_lister_fiches(saved_resource="nonexistent_resource")
         assert response["fiches"] == []
 
     def test_combined_filters_more_restrictive(self, cache):
         """Test that combining filters results in fewer or equal results."""
-        no_filter = mcp_module.lister_fiches()
-        with_filter = mcp_module.lister_fiches(impact_min=5, priorite_min=5)
+        no_filter = mcp_module.greenit_lister_fiches()
+        with_filter = mcp_module.greenit_lister_fiches(impact_min=5, priorite_min=5)
         assert len(with_filter["fiches"]) <= len(no_filter["fiches"])
 
     def test_impact_5_priorite_5_intersection(self):
         """Test that impact_min=5 AND priorite_min=5 returns valid intersection."""
-        response = mcp_module.lister_fiches(impact_min=5, priorite_min=5)
+        response = mcp_module.greenit_lister_fiches(impact_min=5, priorite_min=5)
         for fiche in response["fiches"]:
             assert fiche["environmental_impact"] >= 5
             assert fiche["priority_implementation"] >= 5
@@ -894,25 +894,25 @@ class TestFichesPrioritairesEdgeCases:
 
     def test_boundary_impact_min_one(self):
         """Test with impact_min=1 (minimum valid)."""
-        response = mcp_module.fiches_prioritaires(impact_min=1)
+        response = mcp_module.greenit_fiches_prioritaires(impact_min=1)
         assert "fiches" in response
         assert isinstance(response["fiches"], list)
 
     def test_boundary_impact_min_five(self):
         """Test with impact_min=5 (maximum valid)."""
-        response = mcp_module.fiches_prioritaires(impact_min=5)
+        response = mcp_module.greenit_fiches_prioritaires(impact_min=5)
         assert "fiches" in response
         for fiche in response["fiches"]:
             assert fiche["environmental_impact"] >= 5
 
     def test_boundary_priorite_min_one(self):
         """Test with priorite_min=1 (minimum valid)."""
-        response = mcp_module.fiches_prioritaires(priorite_min=1)
+        response = mcp_module.greenit_fiches_prioritaires(priorite_min=1)
         assert "fiches" in response
 
     def test_boundary_priorite_min_five(self):
         """Test with priorite_min=5 (maximum valid)."""
-        response = mcp_module.fiches_prioritaires(priorite_min=5)
+        response = mcp_module.greenit_fiches_prioritaires(priorite_min=5)
         assert "fiches" in response
         for fiche in response["fiches"]:
             assert fiche["priority_implementation"] >= 5
@@ -920,27 +920,27 @@ class TestFichesPrioritairesEdgeCases:
     def test_invalid_impact_min_zero(self):
         """Test that impact_min=0 (below minimum) raises ToolError."""
         with pytest.raises(ToolError):
-            mcp_module.fiches_prioritaires(impact_min=0)
+            mcp_module.greenit_fiches_prioritaires(impact_min=0)
 
     def test_invalid_impact_min_six(self):
         """Test that impact_min=6 (above maximum) raises ToolError."""
         with pytest.raises(ToolError):
-            mcp_module.fiches_prioritaires(impact_min=6)
+            mcp_module.greenit_fiches_prioritaires(impact_min=6)
 
     def test_invalid_priorite_min_negative(self):
         """Test that priorite_min<1 raises ToolError."""
         with pytest.raises(ToolError):
-            mcp_module.fiches_prioritaires(priorite_min=-5)
+            mcp_module.greenit_fiches_prioritaires(priorite_min=-5)
 
     def test_invalid_priorite_min_above_range(self):
         """Test that priorite_min>5 raises ToolError."""
         with pytest.raises(ToolError):
-            mcp_module.fiches_prioritaires(priorite_min=100)
+            mcp_module.greenit_fiches_prioritaires(priorite_min=100)
 
     def test_no_high_priority_fiches_case(self):
         """Test when no fiches meet both impact and priority thresholds."""
         # This edge case occurs if we set both very high
-        response = mcp_module.fiches_prioritaires(impact_min=5, priorite_min=5)
+        response = mcp_module.greenit_fiches_prioritaires(impact_min=5, priorite_min=5)
         # May return empty or partial list, but should not error
         assert "fiches" in response
         assert isinstance(response["fiches"], list)
@@ -952,38 +952,38 @@ class TestChercherFicheEdgeCases:
     def test_whitespace_only_term_raises_toolerror(self):
         """Test that whitespace-only term raises ToolError."""
         with pytest.raises(ToolError):
-            mcp_module.chercher_fiche(terme="   ")
+            mcp_module.greenit_chercher_fiche(terme="   ")
 
     def test_single_character_search(self):
         """Test searching for single character."""
-        response = mcp_module.chercher_fiche(terme="a")
+        response = mcp_module.greenit_chercher_fiche(terme="a")
         assert "fiches" in response
         assert isinstance(response["fiches"], list)
 
     def test_very_long_search_term(self):
         """Test searching for very long term."""
         long_term = "a" * 500
-        response = mcp_module.chercher_fiche(terme=long_term)
+        response = mcp_module.greenit_chercher_fiche(terme=long_term)
         assert "fiches" in response
         assert isinstance(response["fiches"], list)
 
     def test_special_characters_in_search(self):
         """Test searching with special characters."""
-        response = mcp_module.chercher_fiche(terme="@#$%^&*()")
+        response = mcp_module.greenit_chercher_fiche(terme="@#$%^&*()")
         assert "fiches" in response
         assert isinstance(response["fiches"], list)
 
     def test_unicode_search_term(self):
         """Test searching with unicode characters."""
-        response = mcp_module.chercher_fiche(terme="développement")
+        response = mcp_module.greenit_chercher_fiche(terme="développement")
         assert "fiches" in response
         assert isinstance(response["fiches"], list)
 
     def test_case_insensitive_search(self):
         """Test that search is case insensitive."""
-        response_lower = mcp_module.chercher_fiche(terme="image")
-        response_upper = mcp_module.chercher_fiche(terme="IMAGE")
-        response_mixed = mcp_module.chercher_fiche(terme="ImAgE")
+        response_lower = mcp_module.greenit_chercher_fiche(terme="image")
+        response_upper = mcp_module.greenit_chercher_fiche(terme="IMAGE")
+        response_mixed = mcp_module.greenit_chercher_fiche(terme="ImAgE")
         # All should return same number of results (case-insensitive)
         assert len(response_lower["fiches"]) == len(response_upper["fiches"])
         assert len(response_lower["fiches"]) == len(response_mixed["fiches"])
@@ -991,12 +991,12 @@ class TestChercherFicheEdgeCases:
     def test_max_15_results_enforcement(self):
         """Test that results never exceed 15 items."""
         # Search for a common term that likely has many matches
-        response = mcp_module.chercher_fiche(terme="web")
+        response = mcp_module.greenit_chercher_fiche(terme="web")
         assert len(response["fiches"]) <= 15
 
     def test_pertinence_ordering(self):
         """Test that results are ordered by pertinence (descending)."""
-        response = mcp_module.chercher_fiche(terme="performance")
+        response = mcp_module.greenit_chercher_fiche(terme="performance")
         fiches = response["fiches"]
         if len(fiches) > 1:
             pertinences = [f["pertinence"] for f in fiches]
@@ -1004,7 +1004,7 @@ class TestChercherFicheEdgeCases:
 
     def test_no_results_returns_empty_list(self):
         """Test that impossible search returns empty list, not error."""
-        response = mcp_module.chercher_fiche(terme="xyzxyzxyzxyzxyzxyzxyzxyzxyzxyz")
+        response = mcp_module.greenit_chercher_fiche(terme="xyzxyzxyzxyzxyzxyzxyzxyzxyzxyz")
         assert response["fiches"] == []
 
 
@@ -1014,37 +1014,37 @@ class TestComparerFichesEdgeCases:
     def test_empty_list_raises_toolerror(self):
         """Test that empty fiche_ids list raises ToolError."""
         with pytest.raises(ToolError):
-            mcp_module.comparer_fiches(fiche_ids=[])
+            mcp_module.greenit_comparer_fiches(fiche_ids=[])
 
     def test_single_fiche(self, cache):
         """Test comparing single fiche."""
         single_id = [next(iter(cache.keys()))]
-        result = mcp_module.comparer_fiches(fiche_ids=single_id)
+        result = mcp_module.greenit_comparer_fiches(fiche_ids=single_id)
         assert len(result["comparaison"]) == 1
         assert len(result["recommandation"]["classement"]) == 1
 
     def test_three_fiches(self, cache):
         """Test comparing three fiches."""
         ids = list(cache.keys())[:3]
-        result = mcp_module.comparer_fiches(fiche_ids=ids)
+        result = mcp_module.greenit_comparer_fiches(fiche_ids=ids)
         assert len(result["comparaison"]) == 3
         assert len(result["recommandation"]["classement"]) == 3
 
     def test_all_invalid_ids_raises_toolerror(self):
         """Test that all invalid IDs raises ToolError."""
         with pytest.raises(ToolError):
-            mcp_module.comparer_fiches(fiche_ids=["INVALID_1", "INVALID_2", "INVALID_3"])
+            mcp_module.greenit_comparer_fiches(fiche_ids=["INVALID_1", "INVALID_2", "INVALID_3"])
 
     def test_mixed_valid_invalid_ids_raises_toolerror(self, cache):
         """Test that mixing valid and invalid IDs raises ToolError."""
         valid_id = next(iter(cache.keys()))
         with pytest.raises(ToolError):
-            mcp_module.comparer_fiches(fiche_ids=[valid_id, "INVALID_999"])
+            mcp_module.greenit_comparer_fiches(fiche_ids=[valid_id, "INVALID_999"])
 
     def test_classement_matches_score_order(self, cache):
         """Test that classement is ordered by combined score (descending)."""
         ids = list(cache.keys())[:5]
-        result = mcp_module.comparer_fiches(fiche_ids=ids)
+        result = mcp_module.greenit_comparer_fiches(fiche_ids=ids)
 
         # Build score map
         score_map = {f["id"]: f["score_combined"] for f in result["comparaison"]}
@@ -1057,7 +1057,7 @@ class TestComparerFichesEdgeCases:
     def test_recommandation_priorite_1_highest_score(self, cache):
         """Test that priorite_1 is the fiche with highest combined score."""
         ids = list(cache.keys())[:4]
-        result = mcp_module.comparer_fiches(fiche_ids=ids)
+        result = mcp_module.greenit_comparer_fiches(fiche_ids=ids)
 
         scores = {f["id"]: f["score_combined"] for f in result["comparaison"]}
         max_score_id = max(scores, key=scores.get)
@@ -1071,7 +1071,7 @@ class TestObtenirFicheCompleteEdgeCases:
     def test_nonexistent_id_raises_toolerror(self):
         """Test that nonexistent ID raises ToolError."""
         with pytest.raises(ToolError):
-            mcp_module.obtenir_fiche_complete("NONEXISTENT_999")
+            mcp_module.greenit_obtenir_fiche_complete("NONEXISTENT_999")
 
     def test_case_sensitive_id(self, cache):
         """Test that ID lookup is case-sensitive."""
@@ -1081,11 +1081,11 @@ class TestObtenirFicheCompleteEdgeCases:
         wrong_case_id = valid_id.lower() if valid_id.isupper() else valid_id.upper()
         if wrong_case_id != valid_id:  # Only if case actually differs
             with pytest.raises(ToolError):
-                mcp_module.obtenir_fiche_complete(wrong_case_id)
+                mcp_module.greenit_obtenir_fiche_complete(wrong_case_id)
 
     def test_returns_complete_structure(self, premier_id):
         """Test that result contains all expected fields."""
-        result = mcp_module.obtenir_fiche_complete(premier_id)
+        result = mcp_module.greenit_obtenir_fiche_complete(premier_id)
 
         # Should be a dict (not error dict)
         assert isinstance(result, dict)
@@ -1098,7 +1098,7 @@ class TestObtenirFicheCompleteEdgeCases:
 
     def test_validation_principles_generated(self, premier_id):
         """Test that principes_de_validation is generated from validations."""
-        result = mcp_module.obtenir_fiche_complete(premier_id)
+        result = mcp_module.greenit_obtenir_fiche_complete(premier_id)
 
         # Should have principes_de_validation field (generated or empty)
         assert "principes_de_validation" in result
@@ -1106,7 +1106,7 @@ class TestObtenirFicheCompleteEdgeCases:
 
     def test_returns_unmodified_cache_entry(self, premier_id, cache):
         """Test that returned fiche matches cache entry."""
-        result = mcp_module.obtenir_fiche_complete(premier_id)
+        result = mcp_module.greenit_obtenir_fiche_complete(premier_id)
         cached = cache[premier_id]
 
         # Core fields should match
@@ -1118,7 +1118,7 @@ class TestObtenirStatistiquesEdgeCases:
 
     def test_returns_expected_structure(self):
         """Test that all expected fields are present."""
-        stats = mcp_module.obtenir_statistiques()
+        stats = mcp_module.greenit_obtenir_statistiques()
 
         required_fields = [
             "total_fiches",
@@ -1133,13 +1133,13 @@ class TestObtenirStatistiquesEdgeCases:
 
     def test_total_fiches_is_positive(self, cache):
         """Test that total_fiches count is positive and matches cache."""
-        stats = mcp_module.obtenir_statistiques()
+        stats = mcp_module.greenit_obtenir_statistiques()
         assert stats["total_fiches"] > 0
         assert stats["total_fiches"] == len(cache)
 
     def test_distribution_lifecycle_keys_valid(self):
         """Test that lifecycle distribution keys are valid lifecycle IDs."""
-        stats = mcp_module.obtenir_statistiques()
+        stats = mcp_module.greenit_obtenir_statistiques()
         valid_lifecycles = {
             "1-specification", "2-concept", "3-developement", "4-production",
             "5-utilization", "6-support", "7-retirement"
@@ -1150,7 +1150,7 @@ class TestObtenirStatistiquesEdgeCases:
 
     def test_distribution_ressources_keys_valid(self):
         """Test that resource distribution keys are valid resource types."""
-        stats = mcp_module.obtenir_statistiques()
+        stats = mcp_module.greenit_obtenir_statistiques()
         valid_resources = {
             "network", "cpu", "ram", "storage", "requests",
             "electricity", "ghg", "e-waste"
@@ -1161,12 +1161,12 @@ class TestObtenirStatistiquesEdgeCases:
 
     def test_top_5_not_exceeds_limit(self):
         """Test that top_5_score_combine never exceeds 5 items."""
-        stats = mcp_module.obtenir_statistiques()
+        stats = mcp_module.greenit_obtenir_statistiques()
         assert len(stats["top_5_score_combine"]) <= 5
 
     def test_top_5_ordered_by_score(self):
         """Test that top_5 is ordered by score (descending)."""
-        stats = mcp_module.obtenir_statistiques()
+        stats = mcp_module.greenit_obtenir_statistiques()
         top_5 = stats["top_5_score_combine"]
 
         if len(top_5) > 1:
@@ -1175,7 +1175,7 @@ class TestObtenirStatistiquesEdgeCases:
 
     def test_all_counts_nonnegative(self):
         """Test that all count values are non-negative."""
-        stats = mcp_module.obtenir_statistiques()
+        stats = mcp_module.greenit_obtenir_statistiques()
 
         for count in stats["distribution_lifecycle"].values():
             assert count >= 0
@@ -1189,12 +1189,12 @@ class TestListerLifecyclesEdgeCases:
 
     def test_all_seven_lifecycles_present(self):
         """Test that exactly 7 lifecycle phases are returned."""
-        response = mcp_module.lister_lifecycles()
+        response = mcp_module.greenit_lister_lifecycles()
         assert len(response["lifecycles"]) == 7
 
     def test_lifecycle_ids_follow_pattern(self):
         """Test that all lifecycle IDs follow pattern N-name."""
-        response = mcp_module.lister_lifecycles()
+        response = mcp_module.greenit_lister_lifecycles()
         import re
         pattern = r"^\d+-[a-z]+$"
 
@@ -1203,10 +1203,10 @@ class TestListerLifecyclesEdgeCases:
 
     def test_lifecycle_counts_match_filter_results(self):
         """Test that counts match results from lister_fiches filters."""
-        response = mcp_module.lister_lifecycles()
+        response = mcp_module.greenit_lister_lifecycles()
 
         for entry in response["lifecycles"]:
-            filtered = mcp_module.lister_fiches(lifecycle=entry["id"])
+            filtered = mcp_module.greenit_lister_fiches(lifecycle=entry["id"])
             assert len(filtered["fiches"]) == entry["count"], (
                 f"Count mismatch for {entry['id']}: "
                 f"lister_lifecycles says {entry['count']}, "
@@ -1215,7 +1215,7 @@ class TestListerLifecyclesEdgeCases:
 
     def test_sum_of_counts_equals_total(self, cache):
         """Test that sum of all lifecycle counts equals total fiches."""
-        response = mcp_module.lister_lifecycles()
+        response = mcp_module.greenit_lister_lifecycles()
         total_count = sum(entry["count"] for entry in response["lifecycles"])
         assert total_count == len(cache)
 
@@ -1225,18 +1225,18 @@ class TestListerRessourcesEdgeCases:
 
     def test_all_eight_resources_present(self):
         """Test that exactly 8 resource types are returned."""
-        response = mcp_module.lister_ressources()
+        response = mcp_module.greenit_lister_ressources()
         assert len(response["ressources"]) == 8
 
     def test_counts_descending_order(self):
         """Test that resources are sorted by count (descending)."""
-        response = mcp_module.lister_ressources()
+        response = mcp_module.greenit_lister_ressources()
         counts = [entry["count"] for entry in response["ressources"]]
         assert counts == sorted(counts, reverse=True)
 
     def test_resource_ids_match_expected_set(self):
         """Test that all resource IDs are from the expected set."""
-        response = mcp_module.lister_ressources()
+        response = mcp_module.greenit_lister_ressources()
         valid_resources = {
             "network", "cpu", "ram", "storage", "requests",
             "electricity", "ghg", "e-waste"
@@ -1247,10 +1247,10 @@ class TestListerRessourcesEdgeCases:
 
     def test_resource_counts_match_filter_results(self):
         """Test that counts match results from lister_fiches filters."""
-        response = mcp_module.lister_ressources()
+        response = mcp_module.greenit_lister_ressources()
 
         for entry in response["ressources"]:
-            filtered = mcp_module.lister_fiches(saved_resource=entry["id"])
+            filtered = mcp_module.greenit_lister_fiches(saved_resource=entry["id"])
             assert len(filtered["fiches"]) == entry["count"], (
                 f"Count mismatch for {entry['id']}: "
                 f"lister_ressources says {entry['count']}, "
@@ -1259,7 +1259,7 @@ class TestListerRessourcesEdgeCases:
 
     def test_all_counts_nonnegative(self):
         """Test that all resource counts are non-negative."""
-        response = mcp_module.lister_ressources()
+        response = mcp_module.greenit_lister_ressources()
 
         for entry in response["ressources"]:
             assert entry["count"] >= 0
@@ -1270,13 +1270,13 @@ class TestCalculerEcoindexEdgeCases:
 
     def test_zero_all_metrics_gives_perfect_score(self):
         """Test that 0,0,0 gives score of 100 and grade A."""
-        result = json.loads(mcp_module.calculer_ecoindex(0, 0, 0))
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(0, 0, 0))
         assert result["score"] == 100.0
         assert result["grade"] == "A"
 
     def test_large_values_give_low_score(self):
         """Test that very large metrics give low score."""
-        result = json.loads(mcp_module.calculer_ecoindex(10000, 1000, 10000))
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(10000, 1000, 10000))
         assert result["score"] < 50
         assert result["grade"] in ("E", "F", "G", "D")
 
@@ -1287,45 +1287,45 @@ class TestCalculerEcoindexEdgeCases:
     ])
     def test_parametrized_valid_inputs(self, dom, req, size_kb):
         """Test valid input combinations."""
-        result = json.loads(mcp_module.calculer_ecoindex(dom, req, size_kb))
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(dom, req, size_kb))
         assert 0 <= result["score"] <= 100
         assert result["grade"] in ("A", "B", "C", "D", "E", "F", "G")
 
     def test_negative_dom_nodes_raises_toolerror(self):
         """Test that negative dom_nodes raises ToolError."""
         with pytest.raises(ToolError):
-            mcp_module.calculer_ecoindex(-1, 10, 100)
+            mcp_module.greenit_calculer_ecoindex(-1, 10, 100)
 
     def test_negative_requests_raises_toolerror(self):
         """Test that negative requests raises ToolError."""
         with pytest.raises(ToolError):
-            mcp_module.calculer_ecoindex(100, -1, 100)
+            mcp_module.greenit_calculer_ecoindex(100, -1, 100)
 
     def test_negative_size_kb_raises_toolerror(self):
         """Test that negative size_kb raises ToolError."""
         with pytest.raises(ToolError):
-            mcp_module.calculer_ecoindex(100, 10, -1.0)
+            mcp_module.greenit_calculer_ecoindex(100, 10, -1.0)
 
     def test_float_dom_nodes_accepted(self):
         """Test that float values for dom_nodes are accepted."""
-        result = json.loads(mcp_module.calculer_ecoindex(100.5, 10, 100))
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(100.5, 10, 100))
         assert "score" in result
         assert "grade" in result
 
     def test_very_small_decimal_values(self):
         """Test with very small decimal values."""
-        result = json.loads(mcp_module.calculer_ecoindex(0.1, 0.1, 0.1))
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(0.1, 0.1, 0.1))
         assert 0 <= result["score"] <= 100
         assert result["grade"] in ("A", "B", "C", "D", "E", "F", "G")
 
     def test_url_parameter_optional(self):
         """Test that url parameter is optional."""
-        result = json.loads(mcp_module.calculer_ecoindex(100, 10, 100))
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(100, 10, 100))
         assert result["url"] == ""
 
     def test_url_parameter_included_in_result(self):
         """Test that url parameter is included in result when provided."""
-        result = json.loads(mcp_module.calculer_ecoindex(
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(
             100, 10, 100, url="https://example.com"
         ))
         assert result["url"] == "https://example.com"
@@ -1333,37 +1333,37 @@ class TestCalculerEcoindexEdgeCases:
     def test_grade_corresponds_to_score(self):
         """Test that grade correctly corresponds to score ranges."""
         # Test grade A (80-100)
-        result = json.loads(mcp_module.calculer_ecoindex(100, 10, 100))
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(100, 10, 100))
         assert result["grade"] == "A", f"score={result['score']}: expected A, got {result['grade']}"
         assert 80 <= result["score"] <= 100
 
         # Test grade B (70-79)
-        result = json.loads(mcp_module.calculer_ecoindex(100, 30, 1500))
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(100, 30, 1500))
         assert result["grade"] == "B", f"score={result['score']}: expected B, got {result['grade']}"
         assert 70 <= result["score"] < 80
 
         # Test grade C (55-69)
-        result = json.loads(mcp_module.calculer_ecoindex(100, 70, 1700))
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(100, 70, 1700))
         assert result["grade"] == "C", f"score={result['score']}: expected C, got {result['grade']}"
         assert 55 <= result["score"] < 70
 
         # Test grade D (40-54)
-        result = json.loads(mcp_module.calculer_ecoindex(100, 190, 1900))
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(100, 190, 1900))
         assert result["grade"] == "D", f"score={result['score']}: expected D, got {result['grade']}"
         assert 40 <= result["score"] < 55
 
         # Test grade E (25-39)
-        result = json.loads(mcp_module.calculer_ecoindex(500, 190, 1900))
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(500, 190, 1900))
         assert result["grade"] == "E", f"score={result['score']}: expected E, got {result['grade']}"
         assert 25 <= result["score"] < 40
 
         # Test grade F (10-24)
-        result = json.loads(mcp_module.calculer_ecoindex(900, 260, 1900))
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(900, 260, 1900))
         assert result["grade"] == "F", f"score={result['score']}: expected F, got {result['grade']}"
         assert 10 <= result["score"] < 25
 
         # Test grade G (0-9)
-        result = json.loads(mcp_module.calculer_ecoindex(2000, 300, 3000))
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(2000, 300, 3000))
         assert result["grade"] == "G", f"score={result['score']}: expected G, got {result['grade']}"
         assert 0 <= result["score"] < 10
 
@@ -1388,10 +1388,10 @@ class TestErrorHandlingValidation:
         """Test lister_fiches validation of impact_min and priorite_min."""
         if should_raise:
             with pytest.raises(ToolError) as exc_info:
-                mcp_module.lister_fiches(impact_min=impact_min, priorite_min=priorite_min)
+                mcp_module.greenit_lister_fiches(impact_min=impact_min, priorite_min=priorite_min)
             assert "invalides" in str(exc_info.value).lower()
         else:
-            response = mcp_module.lister_fiches(impact_min=impact_min, priorite_min=priorite_min)
+            response = mcp_module.greenit_lister_fiches(impact_min=impact_min, priorite_min=priorite_min)
             assert "fiches" in response
 
     @pytest.mark.parametrize("impact_min,priorite_min,should_raise", [
@@ -1406,10 +1406,10 @@ class TestErrorHandlingValidation:
         """Test fiches_prioritaires validation of impact_min and priorite_min."""
         if should_raise:
             with pytest.raises(ToolError) as exc_info:
-                mcp_module.fiches_prioritaires(impact_min=impact_min, priorite_min=priorite_min)
+                mcp_module.greenit_fiches_prioritaires(impact_min=impact_min, priorite_min=priorite_min)
             assert "invalides" in str(exc_info.value).lower()
         else:
-            response = mcp_module.fiches_prioritaires(impact_min=impact_min, priorite_min=priorite_min)
+            response = mcp_module.greenit_fiches_prioritaires(impact_min=impact_min, priorite_min=priorite_min)
             assert "fiches" in response
 
     @pytest.mark.parametrize("terme", [
@@ -1421,19 +1421,19 @@ class TestErrorHandlingValidation:
     def test_chercher_fiche_empty_terme(self, terme):
         """Test chercher_fiche rejects empty or whitespace-only terms."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.chercher_fiche(terme)
+            mcp_module.greenit_chercher_fiche(terme)
         assert "vide" in str(exc_info.value).lower() or "invalides" in str(exc_info.value).lower()
 
     def test_comparer_fiches_empty_list(self):
         """Test comparer_fiches rejects empty list of fiche_ids."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.comparer_fiches([])
+            mcp_module.greenit_comparer_fiches([])
         assert "invalides" in str(exc_info.value).lower() or "vide" in str(exc_info.value).lower()
 
     def test_comparer_fiches_none_ids(self):
         """Test comparer_fiches rejects None as fiche_ids."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.comparer_fiches(None)
+            mcp_module.greenit_comparer_fiches(None)
         assert "invalides" in str(exc_info.value).lower()
 
     @pytest.mark.parametrize("invalid_id", [
@@ -1445,14 +1445,14 @@ class TestErrorHandlingValidation:
     def test_comparer_fiches_nonexistent_ids(self, invalid_id):
         """Test comparer_fiches raises for non-existent fiche IDs."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.comparer_fiches([invalid_id])
+            mcp_module.greenit_comparer_fiches([invalid_id])
         error_msg = str(exc_info.value).lower()
         assert "n'ont pas" in error_msg or "erreur" in error_msg or "introuvable" in error_msg
 
     def test_obtenir_fiche_complete_nonexistent(self):
         """Test obtenir_fiche_complete raises for non-existent ID."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.obtenir_fiche_complete("RWEB_9999")
+            mcp_module.greenit_obtenir_fiche_complete("RWEB_9999")
         error_msg = str(exc_info.value).lower()
         assert "trouvée" in error_msg or "introuvable" in error_msg or "n'existe" in error_msg
 
@@ -1469,7 +1469,7 @@ class TestExceptionHandling:
         monkeypatch.setattr(mcp_module, "charger_cache", mock_charger_cache_error)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.lister_fiches()
+            mcp_module.greenit_lister_fiches()
         assert "Erreur lors du listage" in str(exc_info.value)
 
     def test_fiches_prioritaires_generic_exception_handling(self, monkeypatch):
@@ -1480,7 +1480,7 @@ class TestExceptionHandling:
         monkeypatch.setattr(mcp_module, "charger_cache", mock_charger_cache_error)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.fiches_prioritaires()
+            mcp_module.greenit_fiches_prioritaires()
         assert "Erreur lors de la récupération" in str(exc_info.value)
 
     def test_chercher_fiche_generic_exception_handling(self, monkeypatch):
@@ -1491,7 +1491,7 @@ class TestExceptionHandling:
         monkeypatch.setattr(mcp_module, "charger_cache", mock_charger_cache_error)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.chercher_fiche("test")
+            mcp_module.greenit_chercher_fiche("test")
         assert "Erreur lors de la recherche" in str(exc_info.value)
 
     def test_comparer_fiches_generic_exception_handling(self, monkeypatch):
@@ -1502,7 +1502,7 @@ class TestExceptionHandling:
         monkeypatch.setattr(mcp_module, "charger_cache", mock_charger_cache_error)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.comparer_fiches(["RWEB_0001"])
+            mcp_module.greenit_comparer_fiches(["RWEB_0001"])
         assert "Erreur lors de la comparaison" in str(exc_info.value)
 
     def test_obtenir_fiche_complete_generic_exception_handling(self, monkeypatch):
@@ -1513,7 +1513,7 @@ class TestExceptionHandling:
         monkeypatch.setattr(mcp_module, "charger_cache", mock_charger_cache_error)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.obtenir_fiche_complete("RWEB_0001")
+            mcp_module.greenit_obtenir_fiche_complete("RWEB_0001")
         assert "Erreur lors de la récupération" in str(exc_info.value)
 
     def test_obtenir_statistiques_generic_exception_handling(self, monkeypatch):
@@ -1524,7 +1524,7 @@ class TestExceptionHandling:
         monkeypatch.setattr(mcp_module, "charger_cache", mock_charger_cache_error)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.obtenir_statistiques()
+            mcp_module.greenit_obtenir_statistiques()
         assert "Erreur lors du calcul" in str(exc_info.value)
 
     def test_lister_lifecycles_generic_exception_handling(self, monkeypatch):
@@ -1535,7 +1535,7 @@ class TestExceptionHandling:
         monkeypatch.setattr(mcp_module, "charger_cache", mock_charger_cache_error)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.lister_lifecycles()
+            mcp_module.greenit_lister_lifecycles()
         assert "Erreur lors de la récupération" in str(exc_info.value) and "phases" in str(exc_info.value).lower()
 
     def test_lister_ressources_generic_exception_handling(self, monkeypatch):
@@ -1546,7 +1546,7 @@ class TestExceptionHandling:
         monkeypatch.setattr(mcp_module, "charger_cache", mock_charger_cache_error)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.lister_ressources()
+            mcp_module.greenit_lister_ressources()
         assert "Erreur lors de la récupération" in str(exc_info.value) and "ressources" in str(exc_info.value).lower()
 
 
@@ -1561,7 +1561,7 @@ class TestEcoindexValidation:
     def test_ecoindex_negative_parameters(self, dom_nodes, requests, size_kb):
         """Test calculer_ecoindex with negative parameters."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.calculer_ecoindex(dom_nodes, requests, size_kb)
+            mcp_module.greenit_calculer_ecoindex(dom_nodes, requests, size_kb)
         assert "invalides" in str(exc_info.value).lower() or "négatif" in str(exc_info.value).lower()
 
 
@@ -1676,7 +1676,7 @@ class TestStatisticsEmptyCache:
         """Test obtenir_statistiques returns graceful response for empty cache."""
         # Mock charger_cache to return empty dict
         monkeypatch.setattr(mcp_module, "charger_cache", lambda: {})
-        stats = mcp_module.obtenir_statistiques()
+        stats = mcp_module.greenit_obtenir_statistiques()
         assert stats["statut"] == "Cache vide"
         assert stats["fiches"] == 0
 
@@ -1710,34 +1710,34 @@ class TestParameterEdgeCases:
     def test_lister_fiches_boundary_values(self):
         """Test lister_fiches with boundary impact_min and priorite_min values."""
         # Min boundary (1)
-        response = mcp_module.lister_fiches(impact_min=1, priorite_min=1)
+        response = mcp_module.greenit_lister_fiches(impact_min=1, priorite_min=1)
         assert "fiches" in response
         assert len(response["fiches"]) > 0
 
         # Max boundary (5)
-        response = mcp_module.lister_fiches(impact_min=5, priorite_min=5)
+        response = mcp_module.greenit_lister_fiches(impact_min=5, priorite_min=5)
         assert "fiches" in response
 
     def test_fiches_prioritaires_boundary_values(self):
         """Test fiches_prioritaires with boundary impact_min and priorite_min values."""
         # Min boundary (1)
-        response = mcp_module.fiches_prioritaires(impact_min=1, priorite_min=1)
+        response = mcp_module.greenit_fiches_prioritaires(impact_min=1, priorite_min=1)
         assert "fiches" in response
         assert len(response["fiches"]) > 0
 
         # Max boundary (5)
-        response = mcp_module.fiches_prioritaires(impact_min=5, priorite_min=5)
+        response = mcp_module.greenit_fiches_prioritaires(impact_min=5, priorite_min=5)
         assert "fiches" in response
 
     def test_chercher_fiche_single_character(self):
         """Test chercher_fiche with single character term."""
-        response = mcp_module.chercher_fiche("a")
+        response = mcp_module.greenit_chercher_fiche("a")
         assert "fiches" in response
         # Should return results without error
 
     def test_chercher_fiche_special_characters(self):
         """Test chercher_fiche with special characters in term."""
-        response = mcp_module.chercher_fiche("CSS/HTML")
+        response = mcp_module.greenit_chercher_fiche("CSS/HTML")
         assert "fiches" in response
         # Should handle special characters without error
 
@@ -1761,7 +1761,7 @@ class TestListerFichesErrorHandling:
     def test_lister_fiches_invalid_score_range(self, impact_min, priorite_min, should_fail_on):
         """Test lister_fiches raises ToolError for out-of-range score parameters."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.lister_fiches(impact_min=impact_min, priorite_min=priorite_min)
+            mcp_module.greenit_lister_fiches(impact_min=impact_min, priorite_min=priorite_min)
 
         # Verify error message contains French text and parameter name
         error_msg = str(exc_info.value)
@@ -1784,7 +1784,7 @@ class TestFichesPrioritairesErrorHandling:
     def test_fiches_prioritaires_invalid_score_range(self, impact_min, priorite_min, should_fail_on):
         """Test fiches_prioritaires raises ToolError for out-of-range score parameters."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.fiches_prioritaires(impact_min=impact_min, priorite_min=priorite_min)
+            mcp_module.greenit_fiches_prioritaires(impact_min=impact_min, priorite_min=priorite_min)
 
         # Verify error message contains French text and parameter name
         error_msg = str(exc_info.value)
@@ -1803,7 +1803,7 @@ class TestChercherFicheErrorHandling:
     def test_chercher_fiche_empty_term(self, terme):
         """Test chercher_fiche raises ToolError for empty search term."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.chercher_fiche(terme)
+            mcp_module.greenit_chercher_fiche(terme)
 
         # Verify error message is in French and mentions the parameter
         error_msg = str(exc_info.value)
@@ -1823,7 +1823,7 @@ class TestComparerFichesErrorHandling:
     def test_comparer_fiches_invalid_or_missing_ids(self, fiche_ids):
         """Test comparer_fiches raises ToolError for empty list or invalid IDs."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.comparer_fiches(fiche_ids)
+            mcp_module.greenit_comparer_fiches(fiche_ids)
 
         # Verify error message is in French
         error_msg = str(exc_info.value)
@@ -1842,7 +1842,7 @@ class TestObtenirFicheCompleteErrorHandling:
     def test_obtenir_fiche_complete_missing_fiche(self, fiche_id):
         """Test obtenir_fiche_complete raises ToolError for non-existent fiche IDs."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.obtenir_fiche_complete(fiche_id)
+            mcp_module.greenit_obtenir_fiche_complete(fiche_id)
 
         # Verify error message is in French and mentions the fiche ID
         error_msg = str(exc_info.value)
@@ -1864,7 +1864,7 @@ class TestCalculerEcoindexErrorHandling:
     def test_calculer_ecoindex_negative_values(self, dom_nodes, requests, size_kb, bad_param):
         """Test calculer_ecoindex raises ToolError for negative metric values."""
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.calculer_ecoindex(dom_nodes, requests, size_kb)
+            mcp_module.greenit_calculer_ecoindex(dom_nodes, requests, size_kb)
 
         # Verify error message is in French and contains parameter name
         error_msg = str(exc_info.value)
@@ -1913,7 +1913,7 @@ class TestExceptionHandling:
         monkeypatch.setattr(mcp_module, "charger_cache", mock_charger_cache_error)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.lister_fiches()
+            mcp_module.greenit_lister_fiches()
 
         # Verify error message is in French
         error_msg = str(exc_info.value)
@@ -1927,7 +1927,7 @@ class TestExceptionHandling:
         monkeypatch.setattr(mcp_module, "charger_cache", mock_charger_cache_error)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.fiches_prioritaires()
+            mcp_module.greenit_fiches_prioritaires()
 
         error_msg = str(exc_info.value)
         assert "Erreur" in error_msg
@@ -1940,7 +1940,7 @@ class TestExceptionHandling:
         monkeypatch.setattr(mcp_module, "charger_cache", mock_charger_cache_error)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.chercher_fiche("test")
+            mcp_module.greenit_chercher_fiche("test")
 
         error_msg = str(exc_info.value)
         assert "Erreur" in error_msg
@@ -1953,7 +1953,7 @@ class TestExceptionHandling:
         monkeypatch.setattr(mcp_module, "charger_cache", mock_charger_cache_error)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.comparer_fiches(["RWEB_0001"])
+            mcp_module.greenit_comparer_fiches(["RWEB_0001"])
 
         error_msg = str(exc_info.value)
         assert "Erreur" in error_msg
@@ -1966,7 +1966,7 @@ class TestExceptionHandling:
         monkeypatch.setattr(mcp_module, "charger_cache", mock_charger_cache_error)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.obtenir_fiche_complete("RWEB_0001")
+            mcp_module.greenit_obtenir_fiche_complete("RWEB_0001")
 
         error_msg = str(exc_info.value)
         assert "Erreur" in error_msg
@@ -1979,7 +1979,7 @@ class TestExceptionHandling:
         monkeypatch.setattr(mcp_module, "charger_cache", mock_charger_cache_error)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.obtenir_statistiques()
+            mcp_module.greenit_obtenir_statistiques()
 
         error_msg = str(exc_info.value)
         assert "Erreur" in error_msg
@@ -1992,7 +1992,7 @@ class TestExceptionHandling:
         monkeypatch.setattr(mcp_module, "charger_cache", mock_charger_cache_error)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.lister_lifecycles()
+            mcp_module.greenit_lister_lifecycles()
 
         error_msg = str(exc_info.value)
         assert "Erreur" in error_msg
@@ -2005,7 +2005,7 @@ class TestExceptionHandling:
         monkeypatch.setattr(mcp_module, "charger_cache", mock_charger_cache_error)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.lister_ressources()
+            mcp_module.greenit_lister_ressources()
 
         error_msg = str(exc_info.value)
         assert "Erreur" in error_msg
@@ -2018,7 +2018,7 @@ class TestExceptionHandling:
         monkeypatch.setattr(mcp_module, "_calculer_ecoindex_impl", mock_ecoindex_error)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.calculer_ecoindex(100, 10, 500)
+            mcp_module.greenit_calculer_ecoindex(100, 10, 500)
 
         error_msg = str(exc_info.value)
         assert "Erreur" in error_msg or "EcoIndex" in error_msg
@@ -2036,7 +2036,7 @@ class TestToolErrorReraising:
         monkeypatch.setattr("greenit_mcp.validate_score_range", mock_validate_error)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.lister_fiches(impact_min=10)
+            mcp_module.greenit_lister_fiches(impact_min=10)
 
         # Verify it's the same ToolError, not wrapped
         assert exc_info.value is original_error
@@ -2050,7 +2050,7 @@ class TestToolErrorReraising:
         monkeypatch.setattr("greenit_mcp.validate_score_range", mock_validate_error)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.fiches_prioritaires(impact_min=10)
+            mcp_module.greenit_fiches_prioritaires(impact_min=10)
 
         # Verify it's the same ToolError, not wrapped
         assert exc_info.value is original_error
@@ -2064,7 +2064,7 @@ class TestToolErrorReraising:
         monkeypatch.setattr(mcp_module, "charger_cache", mock_charger_cache)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.comparer_fiches(["RWEB_0001"])
+            mcp_module.greenit_comparer_fiches(["RWEB_0001"])
 
         # Error should be re-raised properly (may be wrapped by outer except)
         # but should contain the original message
@@ -2083,7 +2083,7 @@ class TestToolErrorRereiseInTools:
         monkeypatch.setattr(mcp_module, "charger_cache", mock_charger_cache)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.obtenir_statistiques()
+            mcp_module.greenit_obtenir_statistiques()
 
         # Error should be re-raised with original message
         assert "Validation error" in str(exc_info.value)
@@ -2097,7 +2097,7 @@ class TestToolErrorRereiseInTools:
         monkeypatch.setattr(mcp_module, "charger_cache", mock_charger_cache)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.lister_lifecycles()
+            mcp_module.greenit_lister_lifecycles()
 
         # Error should be re-raised with original message
         assert "Cache access denied" in str(exc_info.value)
@@ -2111,7 +2111,7 @@ class TestToolErrorRereiseInTools:
         monkeypatch.setattr(mcp_module, "charger_cache", mock_charger_cache)
 
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.lister_ressources()
+            mcp_module.greenit_lister_ressources()
 
         # Error should be re-raised with original message
         assert "Resource data missing" in str(exc_info.value)
@@ -2180,31 +2180,31 @@ class TestBoundaryConditions:
     @pytest.mark.parametrize("score_value", [1, 2, 3, 4, 5])
     def test_lister_fiches_all_valid_scores(self, score_value):
         """Test lister_fiches accepts all valid score values 1-5."""
-        response = mcp_module.lister_fiches(impact_min=score_value)
+        response = mcp_module.greenit_lister_fiches(impact_min=score_value)
         assert "fiches" in response
 
-        response = mcp_module.lister_fiches(priorite_min=score_value)
+        response = mcp_module.greenit_lister_fiches(priorite_min=score_value)
         assert "fiches" in response
 
     @pytest.mark.parametrize("score_value", [1, 2, 3, 4, 5])
     def test_fiches_prioritaires_all_valid_scores(self, score_value):
         """Test fiches_prioritaires accepts all valid score values 1-5."""
-        response = mcp_module.fiches_prioritaires(impact_min=score_value)
+        response = mcp_module.greenit_fiches_prioritaires(impact_min=score_value)
         assert "fiches" in response
 
-        response = mcp_module.fiches_prioritaires(priorite_min=score_value)
+        response = mcp_module.greenit_fiches_prioritaires(priorite_min=score_value)
         assert "fiches" in response
 
     def test_calculer_ecoindex_very_large_values(self):
         """Test calculer_ecoindex with very large metric values."""
-        result = json.loads(mcp_module.calculer_ecoindex(10000, 500, 50000))
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(10000, 500, 50000))
         assert result["score"] >= 0
         assert result["score"] <= 100
         assert result["grade"] in ("A", "B", "C", "D", "E", "F", "G")
 
     def test_calculer_ecoindex_zero_size_kb(self):
         """Test calculer_ecoindex with zero size_kb."""
-        result = json.loads(mcp_module.calculer_ecoindex(100, 10, 0))
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(100, 10, 0))
         assert result["score"] >= 0
         assert result["score"] <= 100
 

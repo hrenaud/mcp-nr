@@ -164,7 +164,7 @@ routes.register_version_resource(mcp, charger_cache)
         }
     }
 )
-def lister_fiches(
+def greenit_lister_fiches(
     lifecycle: Optional[str] = None,
     saved_resource: Optional[str] = None,
     impact_min: Optional[int] = None,
@@ -248,7 +248,7 @@ def lister_fiches(
         }
     }
 )
-def fiches_prioritaires(
+def greenit_fiches_prioritaires(
     impact_min: int = 4,
     priorite_min: int = 4,
 ) -> dict:
@@ -321,7 +321,7 @@ def fiches_prioritaires(
         }
     }
 )
-def chercher_fiche(terme: str) -> dict:
+def greenit_chercher_fiche(terme: str) -> dict:
     """
     Recherche des fiches par mot-clé avec scoring par pertinence.
 
@@ -417,7 +417,7 @@ def chercher_fiche(terme: str) -> dict:
         }
     }
 )
-def comparer_fiches(fiche_ids: List[str]) -> dict:
+def greenit_comparer_fiches(fiche_ids: List[str]) -> dict:
     """
     Compare plusieurs fiches côte à côte.
 
@@ -494,7 +494,7 @@ def comparer_fiches(fiche_ids: List[str]) -> dict:
         }
     }
 )
-def obtenir_fiche_complete(fiche_id: str) -> dict:
+def greenit_obtenir_fiche_complete(fiche_id: str) -> dict:
     """
     Récupère le contenu complet d'une fiche.
 
@@ -558,7 +558,7 @@ def obtenir_fiche_complete(fiche_id: str) -> dict:
         }
     }
 )
-def obtenir_statistiques() -> dict:
+def greenit_obtenir_statistiques() -> dict:
     """
     Retourne les statistiques avancées du référentiel.
 
@@ -652,12 +652,12 @@ _LIFECYCLE_LABELS = {
         }
     }
 )
-def lister_lifecycles() -> dict:
+def greenit_lister_lifecycles() -> dict:
     """
     Liste les 7 phases du cycle de vie du référentiel GreenIT.
 
     Les ids retournés sont directement utilisables comme valeur du filtre
-    `lifecycle` dans `lister_fiches`.
+    `lifecycle` dans `greenit_lister_fiches`.
 
     Returns:
         JSON : liste de 7 entrées {id, label, count}, ordonnées par préfixe numérique.
@@ -713,12 +713,12 @@ _RESSOURCE_LABELS = {
         }
     }
 )
-def lister_ressources() -> dict:
+def greenit_lister_ressources() -> dict:
     """
     Liste les 8 types de ressources sauvegardées du référentiel GreenIT.
 
     Les ids retournés sont directement utilisables comme valeur du filtre
-    `saved_resource` dans `lister_fiches`.
+    `saved_resource` dans `greenit_lister_fiches`.
 
     Returns:
         JSON : liste de 8 entrées {id, label, count}, triées par count décroissant.
@@ -757,7 +757,7 @@ def lister_ressources() -> dict:
         }
     }
 )
-def calculer_ecoindex(dom_nodes: int, requests: int, size_kb: float, url: str = "") -> str:
+def greenit_calculer_ecoindex(dom_nodes: int, requests: int, size_kb: float, url: str = "") -> str:
     """
     Calcule l'EcoIndex à partir des 3 métriques brutes mesurées par Playwright.
 
@@ -829,12 +829,12 @@ Focus: {focus} (all/dom/requests/size)
 
 Étapes:
 1. Charger la page et mesurer ses métriques (DOM nodes, requêtes HTTP, taille KB)
-2. Utiliser calculer_ecoindex avec les métriques mesurées
+2. Utiliser greenit_calculer_ecoindex avec les métriques mesurées
 3. Interpréter le score EcoIndex (0-100) et le grade (A-G)
 4. Recommander des optimisations si score < 50
 
 Outils disponibles:
-- calculer_ecoindex(dom_nodes, requests, size_kb) → {{"score": float, "grade": str}}
+- greenit_calculer_ecoindex(dom_nodes, requests, size_kb) → {{"score": float, "grade": str}}
 
 Génère un rapport structuré avec score, grade, et 3-5 recommandations d'amélioration."""
 
@@ -858,7 +858,7 @@ Format du rapport:
 - Recommandations: 5-10 actions classées par impact potentiel
 - Ressources économisées: Estimation énergie/CO2 sauvegardés par optimisation
 
-Utilise obtenir_statistiques pour contexte secteur si pertinent."""
+Utilise greenit_obtenir_statistiques pour contexte secteur si pertinent."""
 
 
 @mcp.prompt()
@@ -874,7 +874,7 @@ def expliquer_fiche(fiche_id: str) -> str:
 ID fiche: {fiche_id}
 
 Étapes:
-1. Récupérer la fiche complète avec obtenir_fiche_complete("{fiche_id}")
+1. Récupérer la fiche complète avec greenit_obtenir_fiche_complete("{fiche_id}")
 2. Expliquer l'objectif et le bénéfice environnemental
 3. Décrire les ressources économisées (CPU, réseau, stockage, énergie)
 4. Donner les étapes d'implémentation (conception/développement/test)
@@ -899,7 +899,7 @@ Phase: {phase} (conception/spécification/développement/test/déploiement/maint
 Impact minimum: {impact_min}/5
 
 Étapes:
-1. Lister toutes les fiches avec lister_fiches(lifecycle="{phase}")
+1. Lister toutes les fiches avec greenit_lister_fiches(lifecycle="{phase}")
 2. Filtrer par impact >= {impact_min}
 3. Organiser par domaine (architecture, frontend, backend, infra, data)
 4. Pour chaque fiche, résumer en 1 ligne l'objectif
@@ -936,7 +936,7 @@ Chaque élément doit être:
 - Estimable en temps d'implémentation
 - Classé par impact potentiel (High/Medium/Low)
 
-Utilise obtenir_statistiques pour contexte de conformité secteur."""
+Utilise greenit_obtenir_statistiques pour contexte de conformité secteur."""
 
 
 @mcp.prompt()
@@ -952,7 +952,7 @@ def ressources_comparaison(fiche_ids: str) -> str:
 Fiches: {fiche_ids} (format: RWEB_0001,RWEB_0002)
 
 Étapes:
-1. Récupérer chaque fiche avec obtenir_fiche_complete
+1. Récupérer chaque fiche avec greenit_obtenir_fiche_complete
 2. Extraire ressources économisées (network/cpu/storage/energy)
 3. Créer tableau comparatif
 4. Calculer impact cumulatif
@@ -978,8 +978,8 @@ def audit_rapide_greenit(url: str) -> str:
 URL: {url}
 
 Étapes:
-1. Récupérer fiches_prioritaires() pour les 10 recommandations à fort impact
-2. Mesurer l'URL avec calculer_ecoindex (estimer DOM, requêtes, taille)
+1. Récupérer greenit_fiches_prioritaires() pour les 10 recommandations à fort impact
+2. Mesurer l'URL avec greenit_calculer_ecoindex (estimer DOM, requêtes, taille)
 3. Pour chaque fiche du top 10: vérifier si implémentée
 4. Générer rapport rapide (5 min de review)
 
@@ -1007,7 +1007,7 @@ Ressource: {ressource} (network/cpu/storage/energy/requests)
 Budget temps: {budget} heures d'implémentation
 
 Étapes:
-1. Lister fiches avec lister_fiches(saved_resource="{ressource}")
+1. Lister fiches avec greenit_lister_fiches(saved_resource="{ressource}")
 2. Filtrer par priorité d'implémentation (rapide < {budget}h)
 3. Estimer gain global si toutes implémentées
 4. Détailler chaîne d'implémentation

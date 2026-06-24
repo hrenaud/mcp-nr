@@ -133,6 +133,14 @@ def _rgesn_tool_definitions() -> list[dict[str, Any]]:
                     "priorites": {"type": ["array", "null"], "description": "Liste de priorités (Prioritaire, Recommandé, Modéré)"}
                 }
             }
+        },
+        {
+            "name": "rgesn_criteres_prioritaires",
+            "description": "Retourne les 30 critères RGESN de priorité Prioritaire (poids ×1.5 dans le score de conformité)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {}
+            }
         }
     ]
 
@@ -627,6 +635,48 @@ def rgesn_checklist(
     return {"total": len(result), "criteres": result}
 
 
+@mcp.tool(
+    description="Retourne les 30 critères RGESN de priorité Prioritaire (poids ×1.5 dans le score de conformité)",
+    annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False},
+    output_schema={
+        "type": "object",
+        "properties": {
+            "total": {"type": "integer", "description": "Nombre de critères Prioritaire (toujours 30)"},
+            "criteres": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "theme": {"type": "integer"},
+                        "question": {"type": "string"},
+                        "priorite": {"type": "string"},
+                        "difficulte": {"type": "string"},
+                    },
+                    "required": ["id", "theme", "question", "priorite", "difficulte"]
+                }
+            }
+        },
+        "required": ["total", "criteres"]
+    }
+)
+def rgesn_criteres_prioritaires() -> dict:
+    """Retourne les 30 critères RGESN de priorité Prioritaire."""
+    cache = charger_cache()
+    criteres = [
+        {
+            "id": c["id"],
+            "theme": c["theme"],
+            "question": c["question"],
+            "priorite": c["priorite"],
+            "difficulte": c["difficulte"],
+        }
+        for c in cache["criteres"].values()
+        if c.get("priorite") == "Prioritaire"
+    ]
+    return {"total": len(criteres), "criteres": criteres}
+
+
 # ============================================================================
 # RESSOURCES MCP
 # ============================================================================
@@ -867,6 +917,31 @@ def evaluer_score(criteres_nc: str) -> str:
 |---------|----------|-------------------|------------|
 
 Recommande l'ordre optimal de correction pour maximiser le score RGESN."""
+
+
+@mcp.prompt()
+def criteres_prioritaires_rgesn() -> str:
+    """Guide pour explorer et agir sur les 30 critères RGESN Prioritaire."""
+    return """Tu es un expert en écoconception numérique RGESN 2024.
+
+Utilise rgesn_criteres_prioritaires pour récupérer les 30 critères de priorité Prioritaire (poids ×1.5).
+
+Ces critères sont les plus importants pour la conformité RGESN :
+- Ils ont un coefficient de pondération de 1.5 dans le calcul du taux de conformité
+- Leur non-conformité pèse davantage sur le score global
+- Les atteindre en premier maximise le retour sur investissement
+
+Étapes suggérées :
+1. Appelle rgesn_criteres_prioritaires() pour obtenir la liste complète
+2. Regroupe les critères par thème pour faciliter la planification
+3. Pour chaque critère, utilise rgesn_obtenir_critere(id) pour le détail complet (objectif, mise en œuvre, moyen de contrôle)
+4. Identifie les critères de difficulté "Faible" pour des quick wins
+5. Génère un plan d'action priorisé
+
+Format de sortie recommandé :
+- Tableau des 30 critères (id, thème, question, difficulté)
+- Regroupement par thème
+- Top 5 quick wins (Prioritaire + difficulté Faible)"""
 
 
 # ============================================================================

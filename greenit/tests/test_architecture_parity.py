@@ -262,26 +262,26 @@ class TestToolErrorHandling:
     def test_lister_fiches_tool_exists(self):
         """ToolError handling: lister_fiches tool exists."""
         assert hasattr(
-            mcp_module, "lister_fiches"
+            mcp_module, "greenit_lister_fiches"
         ), "lister_fiches tool missing"
 
     def test_comparer_fiches_tool_exists(self):
         """ToolError handling: comparer_fiches tool exists."""
         assert hasattr(
-            mcp_module, "comparer_fiches"
+            mcp_module, "greenit_comparer_fiches"
         ), "comparer_fiches tool missing"
 
     def test_chercher_fiche_tool_exists(self):
         """ToolError handling: chercher_fiche tool exists."""
         assert hasattr(
-            mcp_module, "chercher_fiche"
+            mcp_module, "greenit_chercher_fiche"
         ), "chercher_fiche tool missing"
 
     def test_tools_use_toolerror_for_validation(self):
         """ToolError handling: Tools should use ToolError, not plain exceptions."""
         # Test that lister_fiches with invalid impact_min raises ToolError
         with pytest.raises(ToolError) as exc_info:
-            mcp_module.lister_fiches(impact_min=99)
+            mcp_module.greenit_lister_fiches(impact_min=99)
         # Verify French error message
         assert isinstance(exc_info.value, ToolError)
         assert "invalides" in str(exc_info.value).lower()
@@ -415,37 +415,37 @@ class TestToolAnnotations:
     def test_lister_fiches_has_output_schema(self):
         """Tool annotations: lister_fiches tool has outputSchema."""
         # Check that the tool is properly defined with annotations
-        func = mcp_module.lister_fiches
+        func = mcp_module.greenit_lister_fiches
         assert callable(func), "lister_fiches must be callable"
         # The tool should have been decorated with @mcp.tool with output_schema
 
     def test_fiches_prioritaires_has_output_schema(self):
         """Tool annotations: fiches_prioritaires tool has outputSchema."""
-        func = mcp_module.fiches_prioritaires
+        func = mcp_module.greenit_fiches_prioritaires
         assert callable(func), "fiches_prioritaires must be callable"
 
     def test_comparer_fiches_has_output_schema(self):
         """Tool annotations: comparer_fiches tool has outputSchema."""
-        func = mcp_module.comparer_fiches
+        func = mcp_module.greenit_comparer_fiches
         assert callable(func), "comparer_fiches must be callable"
 
     def test_tools_have_correct_signatures(self):
         """Tool annotations: Tools have correct parameter signatures."""
         # lister_fiches should accept optional filters
-        sig = inspect.signature(mcp_module.lister_fiches)
+        sig = inspect.signature(mcp_module.greenit_lister_fiches)
         params = list(sig.parameters.keys())
         assert len(params) > 0, "lister_fiches should have parameters"
 
     def test_tools_are_coroutine_or_function(self):
         """Tool annotations: Tool implementations are proper callables."""
         assert callable(
-            mcp_module.lister_fiches
+            mcp_module.greenit_lister_fiches
         ), "lister_fiches must be callable"
         assert callable(
-            mcp_module.comparer_fiches
+            mcp_module.greenit_comparer_fiches
         ), "comparer_fiches must be callable"
         assert callable(
-            mcp_module.obtenir_fiche_complete
+            mcp_module.greenit_obtenir_fiche_complete
         ), "obtenir_fiche_complete must be callable"
 
     def test_resource_handlers_exist(self):

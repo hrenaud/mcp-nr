@@ -24,7 +24,7 @@ class TestGreenITPrompts:
         result = mcp_module.audit_ecoindex("https://example.com")
         assert isinstance(result, str), "audit_ecoindex should return a string"
         assert len(result) > 50, "Template should be substantial (>50 chars)"
-        assert "calculer_ecoindex" in result, "Should reference calculer_ecoindex tool"
+        assert "greenit_calculer_ecoindex" in result, "Should reference calculer_ecoindex tool"
 
     def test_audit_ecoindex_with_focus_parameter(self):
         """Test audit_ecoindex handles focus parameter."""
@@ -43,14 +43,14 @@ class TestGreenITPrompts:
         result = mcp_module.expliquer_fiche("RWEB_0001")
         assert isinstance(result, str), "expliquer_fiche should return a string"
         assert len(result) > 50, "Template should be substantial (>50 chars)"
-        assert "obtenir_fiche_complete" in result, "Should reference obtenir_fiche_complete tool"
+        assert "greenit_obtenir_fiche_complete" in result, "Should reference obtenir_fiche_complete tool"
 
     def test_fiches_par_lifecycle_returns_template(self):
         """Test fiches_par_lifecycle prompt exists and returns a non-empty template."""
         result = mcp_module.fiches_par_lifecycle("conception")
         assert isinstance(result, str), "fiches_par_lifecycle should return a string"
         assert "conception" in result.lower(), "Template should mention the phase parameter"
-        assert "lister_fiches" in result, "Should reference lister_fiches tool"
+        assert "greenit_lister_fiches" in result, "Should reference lister_fiches tool"
 
     def test_fiches_par_lifecycle_with_impact_min(self):
         """Test fiches_par_lifecycle handles impact_min parameter."""
@@ -76,14 +76,14 @@ class TestGreenITPrompts:
         result = mcp_module.ressources_comparaison("RWEB_0001,RWEB_0002")
         assert isinstance(result, str), "ressources_comparaison should return a string"
         assert len(result) > 50, "Template should be substantial (>50 chars)"
-        assert "obtenir_fiche_complete" in result, "Should reference obtenir_fiche_complete tool"
+        assert "greenit_obtenir_fiche_complete" in result, "Should reference obtenir_fiche_complete tool"
 
     def test_audit_rapide_greenit_returns_template(self):
         """Test audit_rapide_greenit prompt exists and returns a non-empty template."""
         result = mcp_module.audit_rapide_greenit("https://example.com")
         assert isinstance(result, str), "audit_rapide_greenit should return a string"
         assert len(result) > 50, "Template should be substantial (>50 chars)"
-        assert "fiches_prioritaires" in result, "Should reference fiches_prioritaires tool"
+        assert "greenit_fiches_prioritaires" in result, "Should reference fiches_prioritaires tool"
 
     def test_audit_par_ressource_returns_template(self):
         """Test audit_par_ressource prompt exists and returns a non-empty template."""

@@ -72,15 +72,15 @@ class TestGetToolDefinitions:
         tools = routes._get_tool_definitions()
         tool_names = {tool["name"] for tool in tools}
         expected_names = {
-            "lister_fiches",
-            "fiches_prioritaires",
-            "chercher_fiche",
-            "comparer_fiches",
-            "obtenir_fiche_complete",
-            "obtenir_statistiques",
-            "lister_lifecycles",
-            "lister_ressources",
-            "calculer_ecoindex",
+            "greenit_lister_fiches",
+            "greenit_fiches_prioritaires",
+            "greenit_chercher_fiche",
+            "greenit_comparer_fiches",
+            "greenit_obtenir_fiche_complete",
+            "greenit_obtenir_statistiques",
+            "greenit_lister_lifecycles",
+            "greenit_lister_ressources",
+            "greenit_calculer_ecoindex",
         }
         assert tool_names == expected_names, f"Tool names mismatch. Got {tool_names}"
 
@@ -161,8 +161,8 @@ class TestHttpGuideJsonResponse:
 
         # Verify tools are rendered in the table
         assert "<table>" in body
-        assert "lister_fiches" in body
-        assert "chercher_fiche" in body
+        assert "greenit_lister_fiches" in body
+        assert "greenit_chercher_fiche" in body
 
     @pytest.mark.asyncio
     async def test_json_response_content_type(self):

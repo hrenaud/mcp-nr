@@ -160,11 +160,11 @@ class TestToolAnnotationsParity:
             assert tool.annotations.readOnlyHint == True, f"{tool.name} not readOnly"
             assert tool.annotations.destructiveHint == False, f"{tool.name} marked destructive"
 
-    def test_six_tools_registered(self):
+    def test_seven_tools_registered(self):
         import asyncio
         import rgesn_mcp
         tools = asyncio.run(rgesn_mcp.mcp.list_tools())
-        assert len(tools) == 6
+        assert len(tools) == 7
 
 
 class TestMcpThemeVarsInjected:

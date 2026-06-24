@@ -219,13 +219,14 @@ class TestToolAnnotations:
         assert tool is not None
         assert tool.annotations.readOnlyHint == True
 
-    def test_six_tools_registered(self):
+    def test_seven_tools_registered(self):
         tools = asyncio.run(mcp_module.mcp.list_tools())
         names = {t.name for t in tools}
         expected = {
             "rgesn_lister_criteres", "rgesn_obtenir_critere",
             "rgesn_chercher", "rgesn_statistiques",
             "rgesn_taux_conformite", "rgesn_checklist",
+            "rgesn_criteres_prioritaires",
         }
         assert expected.issubset(names)
 
@@ -269,9 +270,9 @@ class TestToolErrorMessages:
 # ============================================================================
 
 class TestToolDefinitions:
-    def test_returns_list_of_six_tools(self):
+    def test_returns_list_of_seven_tools(self):
         defs = mcp_module._rgesn_tool_definitions()
-        assert len(defs) == 6
+        assert len(defs) == 7
 
     def test_all_have_required_fields(self):
         defs = mcp_module._rgesn_tool_definitions()
@@ -289,6 +290,7 @@ class TestToolDefinitions:
         assert "rgesn_statistiques" in names
         assert "rgesn_taux_conformite" in names
         assert "rgesn_checklist" in names
+        assert "rgesn_criteres_prioritaires" in names
 
     def test_no_duplicate_tool_names(self):
         defs = mcp_module._rgesn_tool_definitions()
@@ -299,6 +301,57 @@ class TestToolDefinitions:
         defs = mcp_module._rgesn_tool_definitions()
         for d in defs:
             assert len(d["description"]) > 10, f"{d['name']} has short description"
+
+
+class TestCriteresPrioritaires:
+    def test_returns_dict_with_criteres_key(self):
+        result = mcp_module.rgesn_criteres_prioritaires()
+        assert isinstance(result, dict)
+        assert "criteres" in result
+        assert "total" in result
+
+    def test_returns_only_prioritaire_criteres(self):
+        result = mcp_module.rgesn_criteres_prioritaires()
+        for c in result["criteres"]:
+            assert c["priorite"] == "Prioritaire"
+
+    def test_returns_thirty_prioritaire_criteres(self):
+        result = mcp_module.rgesn_criteres_prioritaires()
+        assert result["total"] == 30
+        assert len(result["criteres"]) == 30
+
+    def test_each_critere_has_required_fields(self):
+        result = mcp_module.rgesn_criteres_prioritaires()
+        for c in result["criteres"]:
+            assert "id" in c
+            assert "theme" in c
+            assert "question" in c
+            assert "priorite" in c
+            assert "difficulte" in c
+
+    def test_criteres_prioritaires_annotations(self):
+        tools = asyncio.run(mcp_module.mcp.list_tools())
+        tool = next((t for t in tools if t.name == "rgesn_criteres_prioritaires"), None)
+        assert tool is not None
+        assert tool.annotations.readOnlyHint == True
+        assert tool.annotations.destructiveHint == False
+        assert tool.annotations.idempotentHint == True
+
+
+class TestPromptCriteresPrioritaires:
+    def test_criteres_prioritaires_prompt_exists(self):
+        assert hasattr(mcp_module, "criteres_prioritaires_rgesn"), \
+            "criteres_prioritaires_rgesn prompt missing"
+        assert callable(mcp_module.criteres_prioritaires_rgesn)
+
+    def test_criteres_prioritaires_prompt_returns_string(self):
+        result = mcp_module.criteres_prioritaires_rgesn()
+        assert isinstance(result, str)
+        assert len(result) > 50
+
+    def test_criteres_prioritaires_prompt_mentions_tool(self):
+        result = mcp_module.criteres_prioritaires_rgesn()
+        assert "rgesn_criteres_prioritaires" in result
 
 
 class TestMcpResources:

@@ -40,7 +40,7 @@ class TestGetToolDefinitions:
     def test_expected_tool_count(self):
         import rgesn_mcp
         tools = rgesn_mcp._rgesn_tool_definitions()
-        assert len(tools) == 6
+        assert len(tools) == 7
 
     def test_all_tools_have_unique_names(self):
         import rgesn_mcp
