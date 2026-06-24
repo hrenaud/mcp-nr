@@ -89,41 +89,50 @@ Format :
 
 ---
 
-## 4. Lancer les tests
+## 4. Committer docs + CHANGELOGs
 
-Pour chaque MCP impacté :
-
-```bash
-cd greenit/files && pytest ../tests/ -v
-cd rgaa/files   && pytest ../tests/ -v
-cd rgesn/files  && pytest ../tests/ -v
-```
-
-Tous les tests doivent passer avant de continuer.
-
----
-
-## 5. Exécuter la release
-
-Depuis la racine du monorepo :
+`release.sh` exige un working tree **propre**. Committer tous les changements de docs et changelogs **avant** de lancer la release (utiliser le skill `git-commit`) :
 
 ```bash
-./release.sh <version>   # bump VERSION dans les 3 *_mcp.py + pyproject.toml
+git add CHANGELOG.md <mcp>/CHANGELOG.md <mcp>/README.md ...
+# → skill git-commit
 ```
 
 ---
 
-## 6. Commit et push
+## 5. Lancer les tests (optionnel — release.sh les relance)
+
+`release.sh` exécute les tests automatiquement. Vérification préalable si besoin :
 
 ```bash
-git add -p                               # stager les changements docs + changelogs
-git commit -m "chore(release): bump version to <version>"
+cd greenit/files && pytest ../tests/ -q
+cd rgaa/files   && pytest ../tests/ -q
+cd rgesn/files  && pytest ../tests/ -q
+```
+
+---
+
+## 6. Exécuter la release
+
+Depuis la racine du monorepo, avec un working tree propre :
+
+```bash
+./release.sh <version>
+# → lance les tests, bumpe VERSION dans les 3 *_mcp.py + pyproject.toml,
+#   crée le commit "chore(release): bump version to X.Y.Z" et le tag vX.Y.Z
+```
+
+---
+
+## 7. Pousser
+
+```bash
 git push && git push origin v<version>
 ```
 
 ---
 
-## 7. Vérification post-release
+## 8. Vérification post-release
 
 ```bash
 git tag -l | tail -5        # confirmer que le tag existe
