@@ -8,6 +8,15 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 ---
 
+## [2.1.2] — 2026-06-24
+
+### Corrigé
+
+- **Route `/guide` GreenIT** : ajout section "5. Prompts MCP" listant les 8 prompts `@mcp.prompt()` (parité avec RGAA et RGESN) ; renommage "Exemples de prompts" → "Exemples de questions" (section 7)
+- **Skill `mcp-nr-release`** : vérifications de parité outils/prompts/ressources renforcées avec commandes bash concrètes
+
+---
+
 ## [2.1.1] — 2026-06-24
 
 ### Corrigé

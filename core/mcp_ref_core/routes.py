@@ -844,7 +844,23 @@ _get_tool_definitions = _greenit_tool_definitions
 
 def _greenit_guide_extra_sections() -> str:
     return f"""
-    <h2>5. Ressources disponibles</h2>
+    <h2>5. Prompts MCP</h2>
+    <p>Ces prompts sont des workflows préconfigurés invocables directement depuis Claude&nbsp;Code avec <code>/mcp__greenit__&lt;nom&gt;</code>.</p>
+    <table>
+      <thead><tr><th>Prompt</th><th>Paramètres</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>audit_ecoindex</code></td><td><code>url</code>, <code>focus?</code></td><td>Analyse l'impact environnemental d'une page via EcoIndex</td></tr>
+        <tr><td><code>rapport_impact</code></td><td><code>resultats</code></td><td>Rapport d'impact environnemental structuré à partir de résultats d'analyse</td></tr>
+        <tr><td><code>expliquer_fiche</code></td><td><code>fiche_id</code></td><td>Explication pédagogique d'une fiche (objectif, mise en œuvre, exemples)</td></tr>
+        <tr><td><code>fiches_par_lifecycle</code></td><td><code>phase</code>, <code>impact_min?</code></td><td>Bonnes pratiques pour une phase du cycle de vie (ex : développement)</td></tr>
+        <tr><td><code>checklist_ecoindex</code></td><td><code>domaines?</code></td><td>Checklist d'optimisation manuelle par domaine</td></tr>
+        <tr><td><code>ressources_comparaison</code></td><td><code>fiche_ids</code></td><td>Comparaison des économies de ressources entre plusieurs fiches</td></tr>
+        <tr><td><code>audit_rapide_greenit</code></td><td><code>url</code></td><td>Audit express — bonnes pratiques prioritaires en 5 minutes</td></tr>
+        <tr><td><code>audit_par_ressource</code></td><td><code>ressource</code>, <code>budget?</code></td><td>Optimisation par type de ressource (réseau, CPU, mémoire…)</td></tr>
+      </tbody>
+    </table>
+
+    <h2>6. Ressources disponibles</h2>
     <p>Les ressources MCP exposent les données brutes du référentiel, accessibles directement dans Claude :</p>
     <table>
       <thead><tr><th>Ressource</th><th>Description</th></tr></thead>
@@ -856,7 +872,7 @@ def _greenit_guide_extra_sections() -> str:
       </tbody>
     </table>
 
-    <h2>6. Exemples de prompts</h2>
+    <h2>7. Exemples de questions</h2>
     <div class="note">Quelles fiches GreenIT sont prioritaires pour un site React ?</div>
     <div class="note">Quelles bonnes pratiques pour réduire les requêtes réseau ?</div>
     <div class="note">Quelles bonnes pratiques GreenIT s'appliquent à la phase de développement ?</div>
@@ -867,7 +883,7 @@ def _greenit_guide_extra_sections() -> str:
     <div class="note">J'ai mesuré avec Playwright : 450 nœuds DOM, 38 requêtes, 280 Ko — quel est l'EcoIndex de ma page ?</div>
     <div class="note">Calcule l'EcoIndex de https://example.com en utilisant Playwright pour mesurer les métriques réelles de la page</div>
 
-    <h2>7. Calculer l'EcoIndex</h2>
+    <h2>8. Calculer l'EcoIndex</h2>
     <p>L'EcoIndex est calculé à partir de 3 métriques mesurées avec Playwright :</p>
     <div class="note">Le serveur MCP pilote automatiquement Playwright en appliquant le protocole de mesure officiel EcoIndex. Il vous suffit de fournir une URL — Claude se charge du reste.</div>
     <table>

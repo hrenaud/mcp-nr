@@ -4,6 +4,14 @@
 
 ---
 
+## [2.1.2] — 2026-06-24
+
+### Corrigé
+
+- **Route `/guide`** : ajout section "5. Prompts MCP" listant les 8 `@mcp.prompt()` (parité avec RGAA et RGESN) ; renommage "Exemples de prompts" → "7. Exemples de questions"
+
+---
+
 ## [2.0.2] — 2026-06-24
 
 ### Modifié

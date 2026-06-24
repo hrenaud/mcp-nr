@@ -34,13 +34,22 @@ Pour chaque MCP impacté, vérifier la cohérence entre tous les fichiers. **Ne 
 
 Pour chaque MCP impacté, vérifier que `_*_guide_extra_sections()` est cohérente avec le code réel :
 
-- **Outils** : tous les outils de `_get_tool_definitions()` sont dans la table HTML de la section 4
-- **Prompts** : tous les `@mcp.prompt()` sont listés dans la section Prompts de `_*_guide_extra_sections()`
-- **Ressources** : toutes les `@mcp.resource(...)` sont listées dans la section Ressources de `_*_guide_extra_sections()`
+- **Outils** : les noms dans `_*_tool_definitions()` correspondent exactement aux fonctions `@mcp.tool()` déclarées
+- **Prompts** : tous les `@mcp.prompt()` sont listés dans la section Prompts de `_*_guide_extra_sections()` (section 5)
+- **Ressources** : toutes les `@mcp.resource(...)` + `register_version_resource()` sont dans la section Ressources (section 6)
+- **Parité** : GreenIT utilise `_greenit_guide_extra_sections()` dans `core/mcp_ref_core/routes.py` ; RGAA et RGESN ont leur propre fonction dans leur `*_mcp.py`
 
 ```bash
 # Compter les outils/prompts/ressources déclarés vs listés dans le guide
-grep -c "@mcp.tool\|@mcp.prompt\|@mcp.resource" <mcp>/files/<mcp>_mcp.py
+grep -c "@mcp\.tool\|@mcp\.prompt\|@mcp\.resource" <mcp>/files/<mcp>_mcp.py
+
+# Vérifier les noms d'outils dans _*_tool_definitions() vs @mcp.tool()
+python3 -c "
+import re; text = open('<mcp>/files/<mcp>_mcp.py').read()
+defs = re.findall(r'\"name\": \"([^\"]+)\"', open('core/mcp_ref_core/routes.py' if '<mcp>'=='greenit' else '<mcp>/files/<mcp>_mcp.py').read())
+impls = re.findall(r'@mcp\.tool\(.*?\)\s*\ndef (\w+)', text, re.DOTALL)
+print('defs only:', set(defs)-set(impls)); print('impls only:', set(impls)-set(defs))
+"
 ```
 
 ### Chiffres (nb fiches, nb critères)
