@@ -7,7 +7,7 @@ Monorepo de serveurs MCP pour les référentiels du numérique responsable (gree
 - Supprimer des fichiers avec `trash`, jamais `rm`
 - Docker build depuis la racine : `docker build -f greenit/Dockerfile .`
 - Tests depuis `<mcp>/files/` : `cd greenit/files && pytest ../tests/ -v`
-- Release : mettre à jour CHANGELOG.md de chaque MCP concerné, puis `./release.sh <version>` depuis la racine
+- Release : avant `./release.sh <version>`, déplacer les entrées `[Unreleased]` vers la nouvelle version datée dans **chaque** CHANGELOG concerné (root + MCPs impactés + `rgaa/CHANGELOG.md` si besoin), puis pousser avec `git push && git push origin v<version>`
 - Toute modification ou évolution (renommage d'outil, ajout de fonctionnalité, changement de comportement) doit être répercutée dans : `README.md` racine, `<mcp>/README.md`, `OUTILS.md`, `<mcp>/docs/GUIDE_DEVELOPPEMENT.md`, la route `/guide` (`core/mcp_ref_core/routes.py`), et `docs/DEPLOIEMENT.md` si pertinent
 
 ## Architecture
