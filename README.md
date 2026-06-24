@@ -94,7 +94,5 @@ Redémarrez Claude Desktop ou relancez `claude` pour que les MCPs soient actifs.
 
 - **Déployer les MCPs sur un serveur** (Docker, tokens, reverse proxy) → [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md)
 - **Lancer les MCPs en local** sans serveur (usage avancé, Docker requis) → [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md), section _Mode stdio_
-- **Outils GreenIT avec exemples de prompts** → [greenit/docs/GUIDE_DEVELOPPEMENT.md](greenit/docs/GUIDE_DEVELOPPEMENT.md)
-- **Outils RGAA avec exemples de prompts** → [rgaa/docs/GUIDE_DEVELOPPEMENT.md](rgaa/docs/GUIDE_DEVELOPPEMENT.md)
-- **Outils RGESN avec exemples de prompts** → [rgesn/docs/GUIDE_DEVELOPPEMENT.md](rgesn/docs/GUIDE_DEVELOPPEMENT.md)
-- **Structure et outils par MCP** (dev/archi) → [greenit/README.md](greenit/README.md), [rgaa/README.md](rgaa/README.md), [rgesn/README.md](rgesn/README.md)
+- **Détail des outils par MCP** (descriptions, exemples de prompts) → [greenit/README.md](greenit/README.md), [rgaa/README.md](rgaa/README.md), [rgesn/README.md](rgesn/README.md)
+- **Guide développeur** (architecture, tests, données) → [greenit/docs/GUIDE_DEVELOPPEMENT.md](greenit/docs/GUIDE_DEVELOPPEMENT.md), [rgaa/docs/GUIDE_DEVELOPPEMENT.md](rgaa/docs/GUIDE_DEVELOPPEMENT.md), [rgesn/docs/GUIDE_DEVELOPPEMENT.md](rgesn/docs/GUIDE_DEVELOPPEMENT.md)

@@ -1,176 +1,178 @@
-# Guide développeur — RGAA MCP
+# Guide développeur — MCP RGAA
 
-Le MCP RGAA connecte Claude au référentiel RGAA 4.2.1 (106 critères). Explorez les critères, recherchez des recommandations adaptées à votre contexte, et analysez statiquement du HTML selon le référentiel officiel.
+Documentation pour les développeurs qui maintiennent ce MCP dans le monorepo `mcp-nr`.
 
 ---
 
-## Outils disponibles
-
-### Parcourir le référentiel
-
-**`rgaa_lister_criteres`** — Liste tous les critères, filtrables par thème ou niveau WCAG. Sans filtre, retourne les 106 critères. Pour le détail d'un critère, utilisez `rgaa_obtenir_critere`.
+## Structure des fichiers
 
 ```
-"Liste tous les critères RGAA du thème Images"
-"Quels critères RGAA sont de niveau A ?"
-"Liste les critères du thème Formulaires"
-```
-
-**`rgaa_obtenir_critere`** — Contenu complet d'un critère : description, tests, conditions, références WCAG.
-
-```
-"Donne-moi le détail complet du critère 1.1"
-"Explique le critère 11.1 et comment le tester manuellement"
-"Quels sont les tests associés au critère 4.1 ?"
-```
-
-**`rgaa_chercher`** — Recherche par mot-clé dans les critères et le glossaire avec scoring de pertinence (titre, description, tests, références).
-
-```
-"Cherche les critères sur les alternatives textuelles"
-"Trouve les recommandations liées aux contrastes de couleur"
-"Recherche 'aria-label' dans le glossaire RGAA"
-```
-
-**`rgaa_glossaire`** — Définition d'un terme du glossaire RGAA avec correspondance approchante.
-
-```
-"Qu'est-ce que la 'restitution' dans le glossaire RGAA ?"
-"Définis le terme 'élément porteur de rôle landmark'"
-"Que signifie 'intitulé accessible' ?"
-```
-
-**`rgaa_statistiques`** — Distributions détaillées par thème et par niveau WCAG, avec nombre de tests par critère.
-
-```
-"Donne-moi les statistiques du référentiel RGAA"
-"Combien de critères RGAA sont de niveau AA ?"
-```
-
-**`rgaa_checklist`** — Génère une checklist de tests manuels avec outils recommandés, filtrable par thème ou liste de critères.
-
-```
-"Génère une checklist d'audit pour les thèmes Formulaires et Navigation"
-"Génère une checklist pour les critères 1.1, 1.2 et 1.3"
-"Quels outils utiliser pour tester le critère 9.1 ?"
-```
-
-**`rgaa_taux_conformite`** — Calcule le taux de conformité officiel RGAA à partir des résultats d'un audit (C / NC / NA par critère).
-
-```
-"Sur 42 critères applicables, 30 sont conformes et 12 non conformes. Quel est le taux ?"
-"Calcule le taux de conformité à partir de : {\"1.1\": \"C\", \"1.2\": \"NC\", \"6.1\": \"NA\"}"
+rgaa/
+├── files/
+│   ├── rgaa_mcp.py           # Outils, ressources et prompts MCP
+│   ├── data.py               # Chargement du cache
+│   ├── analyseur.py          # Analyse statique HTML (BeautifulSoup)
+│   ├── preparer_donnees.py   # Mise à jour des données depuis GitHub
+│   ├── audit_types.json      # Définitions des types d'audit (complet/rapide/complémentaire)
+│   └── rgaa_cache.json       # Cache statique (source de vérité)
+├── tests/
+│   ├── test_tools.py              # Tests unitaires des 10 outils MCP
+│   ├── test_routes_http.py        # Tests des routes HTTP (/, /guide, admin)
+│   ├── test_admin_api.py          # Tests de l'API d'administration des tokens
+│   ├── test_analyseur.py          # Tests de l'analyse statique HTML
+│   ├── test_conformite.py         # Tests du calcul du taux de conformité
+│   ├── test_referentiel.py        # Tests des données du référentiel
+│   ├── test_auth.py               # Tests d'authentification
+│   ├── test_integration_annotations.py
+│   ├── test_prompts.py            # Tests des prompts MCP
+│   ├── test_docker_integration.py
+│   └── test_architecture_parity.py  # Vérifie la parité avec le core
+└── docs/
+    └── GUIDE_DEVELOPPEMENT.md  (ce fichier)
 ```
 
 ---
 
-## Analyse statique HTML
+## Lancer les tests
 
-**`rgaa_analyser`** — Analyse statique d'une URL et détecte les violations RGAA sur les thèmes automatisables.
-
-```
-"Analyse l'accessibilité de https://example.com selon le RGAA 4.2.1"
-"Audite le thème Images et Formulaires de https://mon-site.fr"
-"Quelles violations RGAA détectes-tu sur https://example.com ?"
+```bash
+cd rgaa/files && pytest ../tests/ -v
 ```
 
-### Thèmes couverts automatiquement
+Tests ciblés :
 
-| Thème | Critères vérifiés |
-|-------|-------------------|
-| 1 — Images | Attribut `alt` manquant (1.1) |
-| 2 — Cadres | `title` sur les iframes (2.1) |
-| 5 — Tableaux | Caption et `scope` sur `th` (5.1, 5.7) |
-| 6 — Liens | Intitulé accessible des liens (6.1) |
-| 8 — Éléments obligatoires | Lang, title, charset (8.3, 8.5, 8.6) |
-| 9 — Structuration | H1 présent, hiérarchie des titres (9.1, 9.2) |
-| 11 — Formulaires | Étiquettes des champs (11.1) |
-| 12 — Navigation | Liens d'évitement (12.11) |
-
-L'analyse automatique couvre ~57% des critères applicables. Les critères restants nécessitent des tests manuels avec lecteur d'écran — utilisez `rgaa_checklist` pour les obtenir.
-
----
-
-## Types d'audit RGAA
-
-Trois types d'audit sont disponibles, chacun avec un périmètre différent :
-
-| Type | Critères | Obligation légale | Usage recommandé |
-|------|----------|-------------------|-----------------|
-| `complet` | 106 | ✅ Oui | Conformité RGAA officielle (DINUM, collectivités, établissements publics) |
-| `rapide` | 25 | ❌ Non | Premier diagnostic rapide — critères essentiels niveau A |
-| `complementaire` | 25 | ❌ Non | Approfondissement sur images avancées, médias, tableaux, consultation |
-
-**`rgaa_types_audit`** — Aucun paramètre. Retourne la liste des types avec leurs métadonnées.
-
-```
-"Quels types d'audit RGAA existent ?"
-"Quel type d'audit répond à l'obligation légale ?"
-```
-
-**`rgaa_criteres_audit`** — Retourne la liste enrichie des critères (id, thème, titre) pour le type demandé.
-
-```
-"Donne-moi les critères de l'audit rapide RGAA"
-"Liste les critères de l'audit complémentaire"
-"Quels sont les 106 critères de l'audit complet ?"
-```
-
-### Combiner les outils pour un audit guidé
-
-```
-"Effectue un audit rapide de https://example.com"
-→ utilise audit_rapide prompt ou : rgaa_criteres_audit(rapide) + rgaa_analyser + rgaa_checklist
-
-"Effectue un audit complémentaire de https://example.com"
-→ utilise audit_complementaire prompt ou : rgaa_criteres_audit(complementaire) + rgaa_checklist
-
-"Fais un audit de type rapide de https://example.com"
-→ utilise le prompt générique audit_par_type(url, type)
-```
-
-> **Note :** Seul l'audit complet couvre l'obligation légale RGAA. Les audits rapide et complémentaire sont des diagnostics — utiles en développement ou pour prioriser, mais insuffisants pour une déclaration d'accessibilité.
-
----
-
-## Exemples de prompts
-
-```
-"Liste tous les critères RGAA du thème Images"
-
-"Donne-moi le détail complet du critère 1.1"
-
-"Cherche les critères sur les alternatives textuelles"
-
-"Analyse l'accessibilité de https://example.com selon le RGAA 4.2.1"
-
-"Génère une checklist de tests manuels pour le thème Formulaires"
-
-"Sur 42 critères applicables, 30 sont conformes et 12 non conformes. Quel est le taux ?"
-
-"Quels critères RGAA correspondent à WCAG 2.1 AA ?"
-
-"Qu'est-ce que la 'restitution' dans le glossaire RGAA ?"
+```bash
+pytest ../tests/test_tools.py -v        # outils MCP uniquement
+pytest ../tests/test_analyseur.py -v    # analyse statique HTML
+pytest ../tests/test_routes_http.py -v  # routes HTTP
 ```
 
 ---
 
-## Structure d'un critère
+## Mettre à jour les données
+
+Le cache `rgaa_cache.json` est généré depuis les fichiers JSON du dépôt GitHub officiel DISIC.
+
+```bash
+cd rgaa/files
+python preparer_donnees.py --telecharger   # Fetch depuis GitHub DISIC
+python preparer_donnees.py --check         # Vérifie le cache existant
+```
+
+Sources :
+
+- Critères : `https://raw.githubusercontent.com/DISIC/accessibilite.numerique.gouv.fr/main/RGAA/criteres.json`
+- Glossaire : `https://raw.githubusercontent.com/DISIC/accessibilite.numerique.gouv.fr/main/RGAA/glossaire.json`
+
+Structure du cache :
 
 ```json
 {
-  "id": "1.1",
-  "titre": "Chaque image porteuse d'information a-t-elle une alternative textuelle ?",
-  "theme": "1",
-  "theme_nom": "Images",
-  "niveau_wcag": "A",
-  "tests": [
-    "1.1.1 : L'image (balise <img> ou balise possédant l'attribut WAI-ARIA role=\"img\") possède-t-elle une alternative textuelle ?"
-  ],
-  "references": {
-    "wcag": ["1.1.1 Non-text Content"]
+  "meta": { "version": "4.2.1", "updated_at": "..." },
+  "criteres": {
+    "1.1": {
+      "id": "1.1",
+      "titre": "...",
+      "theme": "1",
+      "theme_nom": "Images",
+      "niveau_wcag": "A",
+      "tests": ["1.1.1 : ..."],
+      "references": { "wcag": ["1.1.1 Non-text Content"] }
+    }
+  },
+  "glossaire": {
+    "terme": { "terme": "...", "definition": "...", "exemples": [...] }
   }
 }
 ```
 
-Les champs `niveau_wcag` valent `A`, `AA` ou `AAA`.
+---
+
+## Analyseur statique HTML
+
+`analyseur.py` implémente une analyse BeautifulSoup sur les thèmes automatisables (~57% des critères). Il est appelé par l'outil `rgaa_analyser`.
+
+Les thèmes couverts : Images (1.1), Cadres (2.1), Tableaux (5.1, 5.7), Liens (6.1), Éléments obligatoires (8.3, 8.5, 8.6), Structuration (9.1, 9.2), Formulaires (11.1), Navigation (12.11).
+
+Pour ajouter une règle d'analyse : modifier `analyseur.py` et ajouter les tests dans `test_analyseur.py`.
+
+---
+
+## Types d'audit
+
+`audit_types.json` définit les trois types d'audit : `complet` (106 critères), `rapide` (25 critères niveau A essentiels), `complementaire` (25 critères approfondissement). Seul `complet` répond à l'obligation légale RGAA.
+
+Pour modifier la liste des critères d'un type d'audit, éditer directement `audit_types.json`.
+
+---
+
+## Ajouter un outil MCP
+
+1. Déclarer les métadonnées dans `_rgaa_tool_definitions()` (utilisé par la route `/guide`) :
+
+```python
+def _rgaa_tool_definitions() -> list[dict]:
+    return [
+        # ... outils existants ...
+        {
+            "name": "rgaa_mon_outil",
+            "description": "Description courte.",
+            "params": [
+                {"name": "param1", "type": "str", "desc": "Description.", "required": True},
+            ],
+        },
+    ]
+```
+
+2. Implémenter l'outil avec le décorateur `@mcp.tool()` dans `rgaa_mcp.py` :
+
+```python
+@mcp.tool(
+    description="Description longue de l'outil.",
+    annotations=ToolAnnotations(title="Titre lisible"),
+)
+def rgaa_mon_outil(param1: str) -> dict:
+    criteres = charger_cache().get("criteres", {})
+    # ... logique ...
+    return {"resultat": ...}
+```
+
+3. Écrire le test TDD dans `tests/test_tools.py` avant l'implémentation.
+
+4. Mettre à jour `README.md` avec la description de l'outil.
+
+---
+
+## Variables injectées dans `routes.py`
+
+Ces variables sont injectées via `_routes_mod` en début de `rgaa_mcp.py` :
+
+| Variable                           | Valeur actuelle                                  |
+| ---------------------------------- | ------------------------------------------------ |
+| `_routes_mod._VERSION`             | `VERSION` (ex. `"2.0.2"`)                        |
+| `_routes_mod._REFERENTIEL_VERSION` | version lue dans le cache JSON                   |
+| `_routes_mod._MCP_NAME`            | `"RGAA MCP"`                                     |
+| `_routes_mod._MCP_ID`              | `"rgaa"`                                         |
+| `_routes_mod._ITEMS_KEY`           | `"criteres"`                                     |
+| `_routes_mod._LOGO`                | `"♿"`                                           |
+| `_routes_mod._ACCENT`              | `"#2563eb"`                                      |
+| `_routes_mod._TAGLINE`             | `"Référentiel d'accessibilité des services web"` |
+| `_rgaa_tool_definitions`           | passé à `factory.create_mcp()`                   |
+| `_rgaa_guide_extra_sections`       | passé à `factory.create_mcp()`                   |
+
+---
+
+## Ressources MCP déclarées
+
+| URI                            | Description                 |
+| ------------------------------ | --------------------------- |
+| `rgaa://version`               | Version du MCP (via core)   |
+| `rgaa://criteres/{critere_id}` | Critère complet par ID      |
+| `rgaa://index`                 | Index de tous les critères  |
+| `rgaa://metadata`              | Métadonnées et statistiques |
+
+---
+
+## Release
+
+Voir les instructions dans `CLAUDE.md` (à la racine du monorepo) : mettre à jour `CHANGELOG.md`, puis `./release.sh <version>` depuis la racine, puis `git push && git push origin v<version>`.

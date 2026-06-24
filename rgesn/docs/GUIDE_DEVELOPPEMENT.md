@@ -1,102 +1,97 @@
 # Guide développeur — MCP RGESN
 
-Le MCP RGESN connecte Claude au référentiel des 78 critères d'écoconception de services numériques (RGESN 2024). Vous pouvez explorer les critères, générer des checklists, et calculer un taux de conformité pondéré.
+Documentation pour les développeurs qui maintiennent ce MCP dans le monorepo `mcp-nr`.
 
 ---
 
-## Outils disponibles
-
-**`rgesn_lister_criteres`** — Liste tous les critères, filtrables par thème (1-9), priorité ou difficulté.
+## Structure des fichiers
 
 ```
-"Liste les critères RGESN du thème 3"
-"Quels critères RGESN sont de priorité Prioritaire ?"
-"Liste les critères de difficulté Faible"
-```
-
-**`rgesn_obtenir_critere`** — Détail complet d'un critère : objectif, mise en œuvre, moyen de contrôle, cible, métiers concernés.
-
-```
-"Explique le critère RGESN 1.1"
-"Donne-moi le détail du critère 4.3 avec son moyen de contrôle"
-```
-
-**`rgesn_chercher`** — Recherche par mot-clé dans les critères, optionnellement restreinte à un thème.
-
-```
-"Cherche les critères RGESN sur l'hébergement"
-"Quels critères parlent d'algorithmie dans le thème 2 ?"
-"Trouve les critères liés à la sobriété fonctionnelle"
-```
-
-**`rgesn_criteres_prioritaires`** — Les 30 critères de priorité Prioritaire (poids ×1.5), sans paramètre. Point d'entrée idéal pour démarrer une démarche d'écoconception.
-
-```
-"Donne-moi les critères RGESN prioritaires"
-"Par où commencer pour écoconcevoir mon service ?"
-```
-
-**`rgesn_checklist`** — Checklist prête à l'emploi, filtrable par thème(s) et/ou priorité(s).
-
-```
-"Génère une checklist RGESN pour les thèmes 1 et 2"
-"Checklist des critères Prioritaire du thème 4"
-"Checklist complète pour un audit RGESN"
-```
-
-**`rgesn_taux_conformite`** — Taux de conformité pondéré (Prioritaire ×1.5, Recommandé ×1.25, Modéré ×1.0) à partir d'un dict de résultats.
-
-```
-"Calcule mon taux de conformité RGESN avec ces résultats : {1.1: C, 1.2: NC, 2.1: NA}"
-```
-
-**`rgesn_statistiques`** — Distributions du référentiel par priorité, thème et difficulté.
-
-```
-"Donne-moi les statistiques du référentiel RGESN"
+rgesn/
+├── files/
+│   ├── rgesn_mcp.py          # Outils, ressources et prompts MCP
+│   ├── data.py               # Chargement du cache
+│   ├── preparer_donnees.py   # Mise à jour manuelle des données depuis le PDF
+│   └── rgesn_cache.json      # Cache statique (source de vérité)
+├── tests/
+│   ├── test_tools.py              # Tests unitaires des 7 outils MCP
+│   ├── test_routes_http.py        # Tests des routes HTTP (/, /guide, admin)
+│   ├── test_rgesn.py              # Tests fonctionnels du référentiel
+│   ├── test_prompts.py            # Tests des 9 prompts MCP
+│   ├── test_smoke.py              # Smoke tests de démarrage
+│   └── test_architecture_parity.py  # Vérifie la parité avec le core
+└── docs/
+    └── GUIDE_DEVELOPPEMENT.md  (ce fichier)
 ```
 
 ---
 
-## Prompts MCP
+## Lancer les tests
 
-Ces prompts sont des workflows préconfigurés invocables directement depuis Claude Code avec `/mcp__rgesn__<nom>`.
-
-| Prompt                        | Paramètres       | Description                                                             |
-| ----------------------------- | ---------------- | ----------------------------------------------------------------------- |
-| `audit_ecoconception`         | `url`, `themes?` | Audit complet d'un service numérique selon le RGESN 2024                |
-| `expliquer_critere`           | `id_critere`     | Explication pédagogique (objectif, mise en œuvre, contrôle)             |
-| `checklist_prioritaire`       | `themes?`        | Checklist des 30 critères Prioritaire, groupés par thème                |
-| `rapport_conformite`          | `resultats`      | Rapport structuré à partir d'un dict C/NC/NA — calcule le score pondéré |
-| `checklist_par_metier`        | `metier?`        | Checklist filtrée par profil (développeur, designer, chef de projet…)   |
-| `audit_rapide_rgesn`          | `url`            | Audit express sur les 30 critères Prioritaire (~30 min)                 |
-| `plan_action`                 | `service`        | Plan d'action écoconception en 3 horizons (court / moyen / long terme)  |
-| `evaluer_score`               | `criteres_nc`    | Simule le gain de score RGESN en corrigeant des critères NC             |
-| `criteres_prioritaires_rgesn` | _(aucun)_        | Guide pour explorer et agir sur les 30 critères Prioritaire             |
-
----
-
-## Exemples de prompts
-
+```bash
+cd rgesn/files && pytest ../tests/ -v
 ```
-"Quels critères RGESN s'appliquent à l'hébergement ?"
 
-"Explique le critère 1.1 du RGESN et comment le mettre en œuvre"
+Tests ciblés :
 
-"Génère une checklist pour les critères Prioritaire du thème 4"
-
-"Calcule le taux de conformité RGESN à partir de ces résultats"
-
-"Quels critères RGESN concernent l'algorithmie et l'IA ?"
-
-"Donne-moi les statistiques du référentiel RGESN"
+```bash
+pytest ../tests/test_tools.py -v        # outils MCP uniquement
+pytest ../tests/test_rgesn.py -v        # référentiel et pondération
+pytest ../tests/test_routes_http.py -v  # routes HTTP
 ```
 
 ---
 
-## Calcul du taux de conformité
+## Mettre à jour les données
 
-Le taux est pondéré par priorité : `[Σ(C × poids) / Σ(applicables × poids)] × 100`
+Contrairement à GreenIT et RGAA, les données RGESN n'ont pas d'API publique JSON. Le cache est mis à jour manuellement depuis le PDF officiel ARCEP.
+
+PDF source : `https://www.arcep.fr/uploads/tx_gspublication/referentiel_general_ecoconception_des_services_numeriques_version_2024.pdf`
+
+Pour compléter un critère, utiliser `mettre_a_jour_critere()` dans `preparer_donnees.py` :
+
+```python
+# Dans preparer_donnees.py, ajouter en bas :
+data = charger()
+mettre_a_jour_critere(data, "2.1",
+    objectif="...",
+    mise_en_oeuvre="...",
+    moyen_de_controle="...",
+)
+sauvegarder(data)
+```
+
+Puis exécuter : `cd rgesn/files && python preparer_donnees.py`
+
+État actuel : thème 1 (Stratégie, 10 critères) complet ; thèmes 2–9 ont les métadonnées mais les champs `objectif/mise_en_oeuvre/moyen_de_controle` sont vides.
+
+Structure du cache :
+
+```json
+{
+  "meta": { "version": "2024", "updated_at": "..." },
+  "criteres": {
+    "1.1": {
+      "id": "1.1",
+      "theme": 1,
+      "question": "...",
+      "priorite": "Prioritaire",
+      "difficulte": "Faible",
+      "objectif": "...",
+      "mise_en_oeuvre": "...",
+      "moyen_de_controle": "...",
+      "cible": ["Décideurs"],
+      "metiers": ["Product Owner"]
+    }
+  }
+}
+```
+
+---
+
+## Pondération par priorité
+
+Le calcul du taux de conformité `rgesn_taux_conformite` applique une pondération :
 
 | Priorité    | Poids |
 | ----------- | ----- |
@@ -104,23 +99,78 @@ Le taux est pondéré par priorité : `[Σ(C × poids) / Σ(applicables × poids
 | Recommandé  | 1.25  |
 | Modéré      | 1.0   |
 
-Les critères NA sont exclus du calcul.
+Formule : `[Σ(C × poids) / Σ(applicables × poids)] × 100`. Les critères NA sont exclus.
+
+Le même poids ×1.5 pour les 30 critères Prioritaire est utilisé dans `rgesn_criteres_prioritaires` pour les trier en tête.
 
 ---
 
-## Structure d'un critère
+## Ajouter un outil MCP
 
-```json
-{
-  "id": "1.1",
-  "theme": 1,
-  "question": "Le service numérique a-t-il défini une politique d'écoconception ?",
-  "priorite": "Prioritaire",
-  "difficulte": "Faible",
-  "objectif": "...",
-  "mise_en_oeuvre": "...",
-  "moyen_de_controle": "...",
-  "cible": ["Décideurs", "Chef de projet"],
-  "metiers": ["Product Owner", "Direction"]
-}
+1. Déclarer les métadonnées dans `_rgesn_tool_definitions()` (utilisé par la route `/guide`) :
+
+```python
+def _rgesn_tool_definitions() -> list[dict]:
+    return [
+        # ... outils existants ...
+        {
+            "name": "rgesn_mon_outil",
+            "description": "Description courte.",
+            "params": [
+                {"name": "param1", "type": "str", "desc": "Description.", "required": True},
+            ],
+        },
+    ]
 ```
+
+2. Implémenter l'outil avec le décorateur `@mcp.tool()` dans `rgesn_mcp.py` :
+
+```python
+@mcp.tool(
+    description="Description longue de l'outil.",
+    annotations=ToolAnnotations(title="Titre lisible"),
+)
+def rgesn_mon_outil(param1: str) -> dict:
+    criteres = charger_cache().get("criteres", {})
+    # ... logique ...
+    return {"resultat": ...}
+```
+
+3. Écrire le test TDD dans `tests/test_tools.py` avant l'implémentation.
+
+4. Mettre à jour `README.md` avec la description de l'outil.
+
+---
+
+## Variables injectées dans `routes.py`
+
+Ces variables sont injectées via `_routes_mod` en début de `rgesn_mcp.py` :
+
+| Variable                           | Valeur actuelle                           |
+| ---------------------------------- | ----------------------------------------- |
+| `_routes_mod._VERSION`             | `VERSION` (ex. `"2.0.2"`)                 |
+| `_routes_mod._REFERENTIEL_VERSION` | version lue dans le cache JSON            |
+| `_routes_mod._MCP_NAME`            | `"RGESN MCP"`                             |
+| `_routes_mod._MCP_ID`              | `"rgesn"`                                 |
+| `_routes_mod._ITEMS_KEY`           | `"criteres"`                              |
+| `_routes_mod._LOGO`                | `"💡"`                                    |
+| `_routes_mod._ACCENT`              | `"#f59e0b"`                               |
+| `_routes_mod._TAGLINE`             | `"Écoconception des services numériques"` |
+| `_rgesn_tool_definitions`          | passé à `factory.create_mcp()`            |
+| `_rgesn_guide_extra_sections`      | passé à `factory.create_mcp()`            |
+
+---
+
+## Ressources MCP déclarées
+
+| URI                             | Description                |
+| ------------------------------- | -------------------------- |
+| `rgesn://version`               | Version du MCP (via core)  |
+| `rgesn://criteres/{critere_id}` | Critère complet par ID     |
+| `rgesn://index`                 | Index de tous les critères |
+
+---
+
+## Release
+
+Voir les instructions dans `CLAUDE.md` (à la racine du monorepo) : mettre à jour `CHANGELOG.md`, puis `./release.sh <version>` depuis la racine, puis `git push && git push origin v<version>`.

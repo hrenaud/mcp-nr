@@ -1,138 +1,163 @@
 # Guide développeur — MCP GreenIT
 
-Le MCP GreenIT connecte Claude au référentiel des 119 bonnes pratiques d'éco-conception web GreenIT. Vous pouvez explorer les fiches, chercher des recommandations adaptées à votre contexte, et calculer l'EcoIndex d'une page web.
+Documentation pour les développeurs qui maintiennent ce MCP dans le monorepo `mcp-nr`.
 
 ---
 
-## Outils disponibles
-
-### Parcourir le référentiel
-
-**`greenit_lister_fiches`** — Liste toutes les fiches ou filtre par lifecycle, type de ressource, impact ou priorité. Sans filtre, retourne les 119 fiches. Pour le détail d'une fiche, utilisez `greenit_obtenir_fiche_complete`.
+## Structure des fichiers
 
 ```
-"Liste toutes les fiches GreenIT"
-"Liste les fiches de la phase développement avec un impact >= 4"
-"Quelles fiches concernent les économies réseau ?"
-```
-
-**`greenit_fiches_prioritaires`** — Fiches triées par score combiné (impact × priorité), filtrable par seuil minimum. Idéal pour identifier les actions à fort effet.
-
-```
-"Donne-moi les 10 fiches les plus prioritaires"
-"Quelles sont les bonnes pratiques à fort impact et faciles à implémenter ?"
-```
-
-**`greenit_chercher_fiche`** — Recherche textuelle avec scoring de pertinence (titre, description, corps, ressources, lifecycle).
-
-```
-"Cherche les fiches sur le lazy loading"
-"Trouve les recommandations liées aux images"
-"Quelles fiches parlent de cache HTTP ?"
-```
-
-**`greenit_obtenir_fiche_complete`** — Contenu complet d'une fiche : description détaillée, principes de validation, ressources sauvegardées, cycle de vie.
-
-```
-"Donne-moi le détail complet de la fiche RWEB_0049"
-"Explique-moi la fiche RWEB_0051 sur le lazy loading"
-```
-
-**`greenit_comparer_fiches`** — Compare plusieurs fiches côte à côte avec matrice comparative et classement.
-
-```
-"Compare les fiches RWEB_0049, RWEB_0051 et RWEB_0009"
-"Quelles différences entre RWEB_0001 et RWEB_0002 ?"
-```
-
-**`greenit_obtenir_statistiques`** — Distributions détaillées et top 5 par score combiné.
-
-```
-"Donne-moi les statistiques du référentiel GreenIT"
-```
-
-**`greenit_lister_lifecycles`** — Les 7 phases du cycle de vie (stratégie, spécification, design, intégration, développement, recette, mise en production) avec leur nombre de fiches. Les identifiants retournés s'utilisent comme filtre `lifecycle` dans `greenit_lister_fiches`.
-
-**`greenit_lister_ressources`** — Les 8 types de ressources sauvegardées (cpu, network, requests, storage, ram, dom, requests, greenhouse) avec leur nombre de fiches. Les identifiants retournés s'utilisent comme filtre `saved_resource` dans `greenit_lister_fiches`.
-
----
-
-## Calcul EcoIndex avec Playwright
-
-**`greenit_calculer_ecoindex`** — Calcule le score EcoIndex (0-100) et la note (A-G) à partir de 3 métriques : nœuds DOM, requêtes HTTP, poids total en Ko.
-
-Le MCP pilote Playwright automatiquement pour mesurer ces métriques selon le protocole officiel EcoIndex. Demandez simplement à Claude d'auditer une URL :
-
-```
-"Calcule l'EcoIndex de https://greenit.fr"
-
-"Utilise Playwright pour mesurer l'EcoIndex de https://mon-site.fr — viewport 1920×1080,
-attendre 3 s après chargement, scroller progressivement, attendre 3 s, puis calculer."
-```
-
-### Protocole de mesure (appliqué automatiquement par Claude)
-
-1. Ouvrir un contexte Playwright avec viewport **1920×1080** (spec EcoIndex officielle)
-2. Naviguer vers la page
-3. Attendre **3 secondes**
-4. Faire défiler jusqu'en bas **progressivement** (pour déclencher le lazy loading)
-5. Attendre **3 secondes**
-6. Mesurer : nœuds DOM, requêtes HTTP, poids total en Ko
-7. Appeler `greenit_calculer_ecoindex` avec les 3 métriques
-
-### Tableau des grades EcoIndex
-
-| Grade                                                                                                                                          | Score | Couleur |
-| ---------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ------- |
-| <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#349A47;vertical-align:middle;margin-right:6px"></span>A | > 80  | #349A47 |
-| <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#51B84B;vertical-align:middle;margin-right:6px"></span>B | > 70  | #51B84B |
-| <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#CADB2A;vertical-align:middle;margin-right:6px"></span>C | > 55  | #CADB2A |
-| <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#F6EB15;vertical-align:middle;margin-right:6px"></span>D | > 40  | #F6EB15 |
-| <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#FECD06;vertical-align:middle;margin-right:6px"></span>E | > 25  | #FECD06 |
-| <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#F99839;vertical-align:middle;margin-right:6px"></span>F | > 10  | #F99839 |
-| <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#ED2124;vertical-align:middle;margin-right:6px"></span>G | ≤ 10  | #ED2124 |
-
----
-
-## Exemples de prompts
-
-```
-"Donne moi les bonnes pratiques à appliquer pour réduire l'impact écologique du site greenit.fr"
-
-"Quelles sont les bonnes pratiques prioritaires du référentiel GreenIT ?"
-
-"Calcule l'EcoIndex de https://greenit.fr — utilise Playwright avec le protocole officiel
-(viewport 1920×1080, 3 s d'attente avant et après scroll progressif)"
-
-"Compare l'EcoIndex de la page d'accueil et de la page blog de mon-site.fr"
-
-"Quelles fiches GreenIT s'appliquent à un site e-commerce avec beaucoup d'images ?"
-
-"Cherche toutes les fiches sur la réduction des requêtes HTTP et trie-les par priorité"
+greenit/
+├── files/
+│   ├── greenit_mcp.py        # Outils, ressources et prompts MCP
+│   ├── data.py               # Chargement du cache + calcul EcoIndex
+│   ├── preparer_donnees.py   # Mise à jour des données depuis l'API
+│   └── greenit_cache.json    # Cache statique (source de vérité)
+├── tests/
+│   ├── test_tools.py          # Tests unitaires des 9 outils MCP
+│   ├── test_routes_http.py    # Tests des routes HTTP (/, /guide, admin)
+│   ├── test_admin_api.py      # Tests de l'API d'administration des tokens
+│   ├── test_data.py           # Tests du calcul EcoIndex et du cache
+│   ├── test_ecoindex.py       # Tests de précision du calcul EcoIndex
+│   ├── test_prompts.py        # Tests des prompts MCP
+│   ├── test_metadata.py       # Tests de la ressource metadata
+│   ├── test_helpers.py        # Tests des helpers de validation
+│   ├── test_docker_integration.py
+│   └── test_architecture_parity.py  # Vérifie la parité avec le core
+└── docs/
+    └── GUIDE_DEVELOPPEMENT.md  (ce fichier)
 ```
 
 ---
 
-## Structure d'une fiche
+## Lancer les tests
+
+```bash
+cd greenit/files && pytest ../tests/ -v
+```
+
+Tests ciblés :
+
+```bash
+pytest ../tests/test_tools.py -v        # outils MCP uniquement
+pytest ../tests/test_data.py -v         # cache + EcoIndex
+pytest ../tests/test_routes_http.py -v  # routes HTTP
+```
+
+---
+
+## Mettre à jour les données
+
+Le cache `greenit_cache.json` est la source de vérité. Il est généré depuis l'API officielle GreenIT.
+
+```bash
+cd greenit/files
+python preparer_donnees.py --telecharger   # Télécharge depuis rweb.greenit.fr/api
+python preparer_donnees.py --check         # Vérifie le cache existant
+```
+
+Source API : `https://rweb.greenit.fr/api/fiches?lang=fr&version=latest`
+
+Structure du cache :
 
 ```json
 {
-  "num": "RWEB_0051",
-  "title": "Utiliser le chargement paresseux",
-  "shortDescription": "...",
-  "description": "## Description\n\n...",
-  "lifecycle": "3-developement",
-  "environmental_impact": 5,
-  "priority_implementation": 5,
-  "saved_resources": ["cpu", "network", "requests"],
-  "validations": [
-    { "rule": "d'images sans attribut loading=lazy", "maxValue": "0%" }
-  ],
-  "principes_de_validation": [
-    "Le nombre d'images sans attribut loading=lazy est inférieur à 0%"
-  ],
-  "url": "https://rweb.greenit.fr/fr/fiches/0051"
+  "meta": { "version": "...", "updated_at": "..." },
+  "fiches": {
+    "RWEB_0001": {
+      "num": "RWEB_0001",
+      "title": "...",
+      "lifecycle": "3-developement",
+      "environmental_impact": 3,
+      "priority_implementation": 4,
+      "saved_resources": ["cpu", "network"],
+      "shortDescription": "...",
+      "description": "...",
+      "validations": [...]
+    }
+  }
 }
 ```
 
-Les champs `environmental_impact` et `priority_implementation` sont notés de 1 à 5.
+---
+
+## Ajouter un outil MCP
+
+1. Déclarer les métadonnées dans `_greenit_tool_definitions()` (utilisé par la route `/guide`) :
+
+```python
+def _greenit_tool_definitions() -> list[dict]:
+    return [
+        # ... outils existants ...
+        {
+            "name": "greenit_mon_outil",
+            "description": "Description courte.",
+            "params": [
+                {"name": "param1", "type": "str", "desc": "Description.", "required": True},
+            ],
+        },
+    ]
+```
+
+2. Implémenter l'outil avec le décorateur `@mcp.tool()` dans `greenit_mcp.py` :
+
+```python
+@mcp.tool(
+    description="Description longue de l'outil.",
+    annotations=ToolAnnotations(title="Titre lisible"),
+)
+def greenit_mon_outil(param1: str) -> dict:
+    fiches = charger_cache().get("fiches", {})
+    # ... logique ...
+    return {"resultat": ...}
+```
+
+3. Écrire le test TDD dans `tests/test_tools.py` avant l'implémentation.
+
+4. Mettre à jour `README.md` avec la description de l'outil.
+
+---
+
+## Calcul EcoIndex
+
+La logique de calcul est dans `data.py` (fonction `calculer_ecoindex`). Elle implémente l'algorithme officiel EcoIndex avec quantiles pour 3 métriques : nœuds DOM, requêtes HTTP, poids en Ko.
+
+L'outil `greenit_calculer_ecoindex` ne navigue pas sur le web — il reçoit les 3 métriques déjà mesurées. C'est Claude (via Playwright) qui mesure la page avant d'appeler l'outil.
+
+---
+
+## Variables injectées dans `routes.py`
+
+Ces variables sont injectées en début de `greenit_mcp.py`, après l'import de `routes` :
+
+| Variable                       | Valeur actuelle                          |
+| ------------------------------ | ---------------------------------------- |
+| `routes._VERSION`              | `VERSION` (ex. `"2.0.2"`)                |
+| `routes._REFERENTIEL_VERSION`  | version lue dans le cache JSON           |
+| `routes._MCP_NAME`             | `"GreenIT MCP"`                          |
+| `routes._MCP_ID`               | `"greenit"`                              |
+| `routes._ITEMS_KEY`            | `"fiches"`                               |
+| `routes._LOGO`                 | `"🌱"`                                   |
+| `routes._ACCENT`               | `"#22c55e"`                              |
+| `routes._TAGLINE`              | `"Bonnes pratiques d'écoconception web"` |
+| `routes._get_tool_definitions` | `_greenit_tool_definitions`              |
+| `routes._guide_extra_sections` | `_greenit_guide_extra_sections`          |
+
+Modifier ces variables change le comportement des routes partagées (homepage, guide, install.sh).
+
+---
+
+## Ressources MCP déclarées
+
+| URI                          | Description                 |
+| ---------------------------- | --------------------------- |
+| `greenit://version`          | Version du MCP (via core)   |
+| `greenit://fiche/{fiche_id}` | Fiche complète par ID       |
+| `greenit://index`            | Index de toutes les fiches  |
+| `greenit://metadata`         | Métadonnées et statistiques |
+
+---
+
+## Release
+
+Voir les instructions dans `CLAUDE.md` (à la racine du monorepo) : mettre à jour `CHANGELOG.md`, puis `./release.sh <version>` depuis la racine, puis `git push && git push origin v<version>`.
