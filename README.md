@@ -32,7 +32,16 @@ Claude peut :
 
 ### rgesn — Écoconception de services numériques
 
-Accès au [RGESN](https://ecoresponsable.numerique.gouv.fr/publications/referentiel-general-ecoconception/) — en cours d'implémentation.
+Accès au [RGESN 2024](https://ecoresponsable.numerique.gouv.fr/publications/referentiel-general-ecoconception/) (78 critères d'écoconception) pour évaluer et améliorer l'impact environnemental des services numériques.
+
+Claude peut :
+
+- Lister et filtrer les 78 critères par thème, priorité ou difficulté
+- Obtenir le détail complet d'un critère (objectif, mise en œuvre, moyen de contrôle)
+- Chercher par mot-clé dans les critères
+- Identifier les 30 critères prioritaires à traiter en premier
+- Générer une checklist d'audit filtrée
+- Calculer un taux de conformité pondéré par priorité
 
 ## Connexion à Claude
 
@@ -56,6 +65,13 @@ Demandez l'URL et un token d'accès à votre administrateur, puis ajoutez les MC
       "headers": {
         "Authorization": "Bearer <votre-token>"
       }
+    },
+    "rgesn": {
+      "type": "http",
+      "url": "https://mcp.example.com/rgesn",
+      "headers": {
+        "Authorization": "Bearer <votre-token>"
+      }
     }
   }
 }
@@ -68,6 +84,8 @@ claude mcp add greenit --transport http --url https://mcp.example.com/greenit \
   --header "Authorization: Bearer <votre-token>"
 claude mcp add rgaa --transport http --url https://mcp.example.com/rgaa \
   --header "Authorization: Bearer <votre-token>"
+claude mcp add rgesn --transport http --url https://mcp.example.com/rgesn \
+  --header "Authorization: Bearer <votre-token>"
 ```
 
 Redémarrez Claude Desktop ou relancez `claude` pour que les MCPs soient actifs.
@@ -78,4 +96,5 @@ Redémarrez Claude Desktop ou relancez `claude` pour que les MCPs soient actifs.
 - **Lancer les MCPs en local** sans serveur (usage avancé, Docker requis) → [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md), section _Mode stdio_
 - **Outils GreenIT avec exemples de prompts** → [greenit/docs/GUIDE_DEVELOPPEMENT.md](greenit/docs/GUIDE_DEVELOPPEMENT.md)
 - **Outils RGAA avec exemples de prompts** → [rgaa/docs/GUIDE_DEVELOPPEMENT.md](rgaa/docs/GUIDE_DEVELOPPEMENT.md)
-- **Structure et outils par MCP** (dev/archi) → [greenit/README.md](greenit/README.md), [rgaa/README.md](rgaa/README.md)
+- **Outils RGESN avec exemples de prompts** → [OUTILS.md](OUTILS.md), section _RGESN MCP_
+- **Structure et outils par MCP** (dev/archi) → [greenit/README.md](greenit/README.md), [rgaa/README.md](rgaa/README.md), [rgesn/README.md](rgesn/README.md)

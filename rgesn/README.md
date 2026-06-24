@@ -4,7 +4,7 @@
 
 Serveur [MCP (Model Context Protocol)](https://modelcontextprotocol.io) donnant accès au [RGESN](https://ecoresponsable.numerique.gouv.fr/publications/referentiel-general-ecoconception/) (Référentiel Général d'Écoconception de Services Numériques) depuis Claude (Desktop, Code, ou tout client MCP).
 
-Outils disponibles : `rgesn_lister_criteres`, `rgesn_obtenir_critere`, `rgesn_chercher`, `rgesn_statistiques`, `rgesn_taux_conformite`, `rgesn_checklist`.
+Outils disponibles : `rgesn_lister_criteres`, `rgesn_obtenir_critere`, `rgesn_chercher`, `rgesn_statistiques`, `rgesn_taux_conformite`, `rgesn_checklist`, `rgesn_criteres_prioritaires`.
 
 ## Démarrage rapide
 
@@ -70,13 +70,13 @@ rgesn/
 ├── pyproject.toml
 ├── CHANGELOG.md
 ├── files/
-│   ├── rgesn_mcp.py          # Serveur MCP principal (6 outils)
+│   ├── rgesn_mcp.py          # Serveur MCP principal (7 outils, 9 prompts)
 │   ├── data.py               # Chargeur de cache singleton
 │   ├── rgesn_cache.json      # 78 critères RGESN 2024
-│   └── preparer_donnees.py   # Script pour compléter les données depuis le PDF
+│   └── preparer_donnees.py   # Script de préparation des données depuis le PDF
 ├── tests/
-│   ├── test_rgesn.py         # Tests fonctionnels (41 tests)
-│   └── test_smoke.py         # Tests smoke (2 tests)
+│   ├── test_rgesn.py         # Tests fonctionnels
+│   └── test_smoke.py         # Tests smoke
 └── tokens/
     └── .gitkeep              # Volume Docker (tokens.json non embarqué)
 ```
@@ -92,7 +92,7 @@ cd rgesn/files && pytest ../tests/ -v
 
 ## Données
 
-Le cache contient les 78 critères RGESN 2024 avec leurs métadonnées complètes. Les champs `objectif`, `mise_en_oeuvre` et `moyen_de_controle` sont remplis pour le **thème 1 (Stratégie)**. Pour les thèmes 2-9, utiliser `preparer_donnees.py` pour compléter depuis le [PDF officiel](https://www.arcep.fr/uploads/tx_gspublication/referentiel_general_ecoconception_des_services_numeriques_version_2024.pdf).
+Le cache contient les 78 critères RGESN 2024 avec leurs métadonnées complètes. Les champs `objectif`, `mise_en_oeuvre` et `moyen_de_controle` sont renseignés pour l'ensemble des 9 thèmes (données extraites du [PDF officiel ARCEP](https://www.arcep.fr/uploads/tx_gspublication/referentiel_general_ecoconception_des_services_numeriques_version_2024.pdf)).
 
 ## Calcul du taux de conformité
 

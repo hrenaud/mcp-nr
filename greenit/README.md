@@ -6,17 +6,17 @@ Serveur MCP donnant accès au référentiel des 119 bonnes pratiques d'éco-conc
 
 ## Outils
 
-| Outil                    | Description                                                                    |
-| ------------------------ | ------------------------------------------------------------------------------ |
-| `lister_fiches`          | Liste toutes les fiches — filtrable par lifecycle, ressource, impact, priorité |
-| `fiches_prioritaires`    | Fiches triées par score combiné impact × priorité                              |
-| `chercher_fiche`         | Recherche textuelle avec scoring de pertinence                                 |
-| `obtenir_fiche_complete` | Contenu complet d'une fiche                                                    |
-| `comparer_fiches`        | Comparaison côte à côte de plusieurs fiches                                    |
-| `obtenir_statistiques`   | Distributions et top 5 par score combiné                                       |
-| `lister_lifecycles`      | Les 7 phases du cycle de vie avec nombre de fiches                             |
-| `lister_ressources`      | Les 8 types de ressources sauvegardées avec nombre de fiches                   |
-| `calculer_ecoindex`      | Score EcoIndex (0–100, grade A–G) à partir de 3 métriques DOM/HTTP/poids       |
+| Outil                            | Description                                                                    |
+| -------------------------------- | ------------------------------------------------------------------------------ |
+| `greenit_lister_fiches`          | Liste toutes les fiches — filtrable par lifecycle, ressource, impact, priorité |
+| `greenit_fiches_prioritaires`    | Fiches triées par score combiné impact × priorité                              |
+| `greenit_chercher_fiche`         | Recherche textuelle avec scoring de pertinence                                 |
+| `greenit_obtenir_fiche_complete` | Contenu complet d'une fiche                                                    |
+| `greenit_comparer_fiches`        | Comparaison côte à côte de plusieurs fiches                                    |
+| `greenit_obtenir_statistiques`   | Distributions et top 5 par score combiné                                       |
+| `greenit_lister_lifecycles`      | Les 7 phases du cycle de vie avec nombre de fiches                             |
+| `greenit_lister_ressources`      | Les 8 types de ressources sauvegardées avec nombre de fiches                   |
+| `greenit_calculer_ecoindex`      | Score EcoIndex (0–100, grade A–G) à partir de 3 métriques DOM/HTTP/poids       |
 
 ## Ressources
 

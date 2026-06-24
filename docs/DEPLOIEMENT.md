@@ -8,9 +8,9 @@ Trois services Docker indépendants, chacun exposant un serveur MCP en mode HTTP
 
 | Service | Port externe | Référentiel                  |
 | ------- | ------------ | ---------------------------- |
-| greenit | 8000         | GreenIT 115 bonnes pratiques |
+| greenit | 8000         | GreenIT 119 bonnes pratiques |
 | rgaa    | 8001         | RGAA 4.2.1 — 106 critères    |
-| rgesn   | 8002         | RGESN (scaffold)             |
+| rgesn   | 8002         | RGESN 2024 — 78 critères     |
 
 Chaque service gère ses propres tokens dans un volume Docker dédié.
 

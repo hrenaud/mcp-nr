@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build et lance greenit + rgaa en local (depuis la racine du monorepo).
+# Build et lance les 3 MCPs en local (depuis la racine du monorepo).
 # Usage : ./local-build.sh
 
 MCPS=(greenit rgaa rgesn)

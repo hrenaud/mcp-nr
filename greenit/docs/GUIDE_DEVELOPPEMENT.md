@@ -8,7 +8,7 @@ Le MCP GreenIT connecte Claude au référentiel des 119 bonnes pratiques d'éco-
 
 ### Parcourir le référentiel
 
-**`lister_fiches`** — Liste toutes les fiches ou filtre par lifecycle, type de ressource, impact ou priorité. Sans filtre, retourne les 119 fiches. Pour le détail d'une fiche, utilisez `obtenir_fiche_complete`.
+**`greenit_lister_fiches`** — Liste toutes les fiches ou filtre par lifecycle, type de ressource, impact ou priorité. Sans filtre, retourne les 119 fiches. Pour le détail d'une fiche, utilisez `greenit_obtenir_fiche_complete`.
 
 ```
 "Liste toutes les fiches GreenIT"
@@ -16,14 +16,14 @@ Le MCP GreenIT connecte Claude au référentiel des 119 bonnes pratiques d'éco-
 "Quelles fiches concernent les économies réseau ?"
 ```
 
-**`fiches_prioritaires`** — Fiches triées par score combiné (impact × priorité), filtrable par seuil minimum. Idéal pour identifier les actions à fort effet.
+**`greenit_fiches_prioritaires`** — Fiches triées par score combiné (impact × priorité), filtrable par seuil minimum. Idéal pour identifier les actions à fort effet.
 
 ```
 "Donne-moi les 10 fiches les plus prioritaires"
 "Quelles sont les bonnes pratiques à fort impact et faciles à implémenter ?"
 ```
 
-**`chercher_fiche`** — Recherche textuelle avec scoring de pertinence (titre, description, corps, ressources, lifecycle).
+**`greenit_chercher_fiche`** — Recherche textuelle avec scoring de pertinence (titre, description, corps, ressources, lifecycle).
 
 ```
 "Cherche les fiches sur le lazy loading"
@@ -31,35 +31,35 @@ Le MCP GreenIT connecte Claude au référentiel des 119 bonnes pratiques d'éco-
 "Quelles fiches parlent de cache HTTP ?"
 ```
 
-**`obtenir_fiche_complete`** — Contenu complet d'une fiche : description détaillée, principes de validation, ressources sauvegardées, cycle de vie.
+**`greenit_obtenir_fiche_complete`** — Contenu complet d'une fiche : description détaillée, principes de validation, ressources sauvegardées, cycle de vie.
 
 ```
 "Donne-moi le détail complet de la fiche RWEB_0049"
 "Explique-moi la fiche RWEB_0051 sur le lazy loading"
 ```
 
-**`comparer_fiches`** — Compare plusieurs fiches côte à côte avec matrice comparative et classement.
+**`greenit_comparer_fiches`** — Compare plusieurs fiches côte à côte avec matrice comparative et classement.
 
 ```
 "Compare les fiches RWEB_0049, RWEB_0051 et RWEB_0009"
 "Quelles différences entre RWEB_0001 et RWEB_0002 ?"
 ```
 
-**`obtenir_statistiques`** — Distributions détaillées et top 5 par score combiné.
+**`greenit_obtenir_statistiques`** — Distributions détaillées et top 5 par score combiné.
 
 ```
 "Donne-moi les statistiques du référentiel GreenIT"
 ```
 
-**`lister_lifecycles`** — Les 7 phases du cycle de vie (stratégie, spécification, design, intégration, développement, recette, mise en production) avec leur nombre de fiches. Les identifiants retournés s'utilisent comme filtre `lifecycle` dans `lister_fiches`.
+**`greenit_lister_lifecycles`** — Les 7 phases du cycle de vie (stratégie, spécification, design, intégration, développement, recette, mise en production) avec leur nombre de fiches. Les identifiants retournés s'utilisent comme filtre `lifecycle` dans `greenit_lister_fiches`.
 
-**`lister_ressources`** — Les 8 types de ressources sauvegardées (cpu, network, requests, storage, ram, dom, requests, greenhouse) avec leur nombre de fiches. Les identifiants retournés s'utilisent comme filtre `saved_resource` dans `lister_fiches`.
+**`greenit_lister_ressources`** — Les 8 types de ressources sauvegardées (cpu, network, requests, storage, ram, dom, requests, greenhouse) avec leur nombre de fiches. Les identifiants retournés s'utilisent comme filtre `saved_resource` dans `greenit_lister_fiches`.
 
 ---
 
 ## Calcul EcoIndex avec Playwright
 
-**`calculer_ecoindex`** — Calcule le score EcoIndex (0-100) et la note (A-G) à partir de 3 métriques : nœuds DOM, requêtes HTTP, poids total en Ko.
+**`greenit_calculer_ecoindex`** — Calcule le score EcoIndex (0-100) et la note (A-G) à partir de 3 métriques : nœuds DOM, requêtes HTTP, poids total en Ko.
 
 Le MCP pilote Playwright automatiquement pour mesurer ces métriques selon le protocole officiel EcoIndex. Demandez simplement à Claude d'auditer une URL :
 
@@ -78,19 +78,19 @@ attendre 3 s après chargement, scroller progressivement, attendre 3 s, puis cal
 4. Faire défiler jusqu'en bas **progressivement** (pour déclencher le lazy loading)
 5. Attendre **3 secondes**
 6. Mesurer : nœuds DOM, requêtes HTTP, poids total en Ko
-7. Appeler `calculer_ecoindex` avec les 3 métriques
+7. Appeler `greenit_calculer_ecoindex` avec les 3 métriques
 
 ### Tableau des grades EcoIndex
 
-| Grade | Score | Couleur |
-|-------|-------|---------|
-| <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#349A47;vertical-align:middle;margin-right:6px"></span>A | > 80 | #349A47 |
-| <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#51B84B;vertical-align:middle;margin-right:6px"></span>B | > 70 | #51B84B |
-| <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#CADB2A;vertical-align:middle;margin-right:6px"></span>C | > 55 | #CADB2A |
-| <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#F6EB15;vertical-align:middle;margin-right:6px"></span>D | > 40 | #F6EB15 |
-| <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#FECD06;vertical-align:middle;margin-right:6px"></span>E | > 25 | #FECD06 |
-| <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#F99839;vertical-align:middle;margin-right:6px"></span>F | > 10 | #F99839 |
-| <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#ED2124;vertical-align:middle;margin-right:6px"></span>G | ≤ 10 | #ED2124 |
+| Grade                                                                                                                                          | Score | Couleur |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ------- |
+| <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#349A47;vertical-align:middle;margin-right:6px"></span>A | > 80  | #349A47 |
+| <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#51B84B;vertical-align:middle;margin-right:6px"></span>B | > 70  | #51B84B |
+| <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#CADB2A;vertical-align:middle;margin-right:6px"></span>C | > 55  | #CADB2A |
+| <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#F6EB15;vertical-align:middle;margin-right:6px"></span>D | > 40  | #F6EB15 |
+| <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#FECD06;vertical-align:middle;margin-right:6px"></span>E | > 25  | #FECD06 |
+| <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#F99839;vertical-align:middle;margin-right:6px"></span>F | > 10  | #F99839 |
+| <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#ED2124;vertical-align:middle;margin-right:6px"></span>G | ≤ 10  | #ED2124 |
 
 ---
 

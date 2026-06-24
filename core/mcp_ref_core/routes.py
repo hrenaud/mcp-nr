@@ -885,7 +885,7 @@ def _greenit_guide_extra_sections() -> str:
 4. Faire défiler jusqu'en bas progressivement
 5. Attendre 3 secondes
 6. Mesurer DOM, requêtes, taille
-7. Appeler calculer_ecoindex(dom_nodes, requests, size_kb)</code></pre>
+7. Appeler greenit_calculer_ecoindex(dom_nodes, requests, size_kb)</code></pre>
     <table>
       <thead><tr><th>Grade</th><th>Score</th></tr></thead>
       <tbody>
