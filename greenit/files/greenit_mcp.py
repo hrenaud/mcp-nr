@@ -52,7 +52,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("greenit-mcp")
 
-VERSION = "2.0.2"
+VERSION = "2.1.0"
 
 _BASE_DIR = Path(__file__).parent
 TOKENS_FILE = str(_BASE_DIR / "tokens" / "tokens.json")
