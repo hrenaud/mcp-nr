@@ -8,7 +8,11 @@ Monorepo de serveurs MCP pour les référentiels du numérique responsable (gree
 - Docker build depuis la racine : `docker build -f greenit/Dockerfile .`
 - Tests depuis `<mcp>/files/` : `cd greenit/files && pytest ../tests/ -v`
 - Release : avant `./release.sh <version>`, déplacer les entrées `[Unreleased]` vers la nouvelle version datée dans **chaque** CHANGELOG concerné (root + MCPs impactés + `rgaa/CHANGELOG.md` si besoin), puis pousser avec `git push && git push origin v<version>`
-- Toute modification ou évolution (renommage d'outil, ajout de fonctionnalité, changement de comportement) doit être répercutée dans : `README.md` racine, `<mcp>/README.md`, `OUTILS.md`, `<mcp>/docs/GUIDE_DEVELOPPEMENT.md`, la route `/guide` (`core/mcp_ref_core/routes.py`), et `docs/DEPLOIEMENT.md` si pertinent
+- Toute modification ou évolution (renommage d'outil, ajout de fonctionnalité, changement de comportement) doit être répercutée **proactivement** dans tous les fichiers liés — ne pas attendre qu'on le signale :
+  - Noms d'outils → `<mcp>/README.md`, `OUTILS.md`, `<mcp>/docs/GUIDE_DEVELOPPEMENT.md`, `_get_tool_definitions()` dans `*_mcp.py`, `_*_guide_extra_sections()` dans `*_mcp.py` ou `core/mcp_ref_core/routes.py`
+  - Nouveaux outils/prompts → idem + `README.md` racine section capacités
+  - Chiffres (nb fiches, nb critères) → `README.md` racine, `<mcp>/README.md`, `docs/DEPLOIEMENT.md`
+  - Nouvelles fonctionnalités → `CHANGELOG.md` racine + `<mcp>/CHANGELOG.md`
 
 ## Architecture
 
