@@ -684,6 +684,25 @@ def rgesn_criteres_prioritaires() -> dict:
 _routes_mod.register_version_resource(mcp, charger_cache)
 
 
+@mcp.resource("rgesn://metadata")
+async def resource_metadata() -> str:
+    """Métadonnées du référentiel RGESN (source, statistiques, pondérations)."""
+    cache = charger_cache()
+    criteres = cache.get("criteres", {})
+    meta = cache.get("meta", {})
+    ponderations = cache.get("ponderations", {})
+    nb_prioritaires = sum(1 for c in criteres.values() if c.get("priorite") == "Prioritaire")
+    nb_themes = len({c["theme"] for c in criteres.values()})
+    return json.dumps({
+        "source": "https://ecoresponsable.numerique.gouv.fr/publications/referentiel-general-ecoconception/",
+        "updated_at": meta.get("updated_at", "inconnue"),
+        "nb_criteres": len(criteres),
+        "nb_themes": nb_themes,
+        "nb_prioritaires": nb_prioritaires,
+        "ponderations": ponderations,
+    }, ensure_ascii=False, indent=2)
+
+
 @mcp.resource("rgesn://criteres/{critere_id}")
 async def resource_critere(critere_id: str) -> str:
     """Détail complet d'un critère RGESN."""

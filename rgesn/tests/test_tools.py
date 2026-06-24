@@ -370,6 +370,34 @@ class TestMcpResources:
         assert "updated_at" in data
         assert "nb_items" in data
 
+    def test_metadata_resource_registered(self):
+        import asyncio
+        resources = asyncio.run(mcp_module.mcp.list_resources())
+        uris = [str(r.uri) for r in resources]
+        assert any("rgesn://metadata" in u for u in uris), f"rgesn://metadata missing. Got: {uris}"
+
+    def test_metadata_resource_structure(self):
+        import asyncio
+        result = asyncio.run(mcp_module.mcp.read_resource("rgesn://metadata"))
+        data = json.loads(result.contents[0].content)
+        assert "source" in data
+        assert "updated_at" in data
+        assert "nb_criteres" in data
+        assert "nb_themes" in data
+        assert "nb_prioritaires" in data
+        assert "ponderations" in data
+
+    def test_metadata_resource_values(self):
+        import asyncio
+        result = asyncio.run(mcp_module.mcp.read_resource("rgesn://metadata"))
+        data = json.loads(result.contents[0].content)
+        assert data["nb_criteres"] == 78
+        assert data["nb_themes"] == 9
+        assert data["nb_prioritaires"] == 30
+        assert data["ponderations"]["Prioritaire"] == 1.5
+        assert data["ponderations"]["Recommandé"] == 1.25
+        assert data["ponderations"]["Modéré"] == 1.0
+
 
 class TestRgesnStatistiquesStructure:
     def test_statistiques_includes_referentiel_version(self):

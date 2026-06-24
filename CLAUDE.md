@@ -5,6 +5,7 @@ Monorepo de serveurs MCP pour les référentiels du numérique responsable (gree
 ## Skills
 
 - **mcp-nr-release** (`.claude/skills/mcp-nr-release/SKILL.md`) — checklist complète de release. Lire et suivre ce fichier quand l'utilisateur demande une release, un bump de version ou un tag git.
+- **mcp-nr-add-tool** (`.claude/skills/mcp-nr-add-tool/SKILL.md`) — checklist pour ajouter un outil ou un prompt à un MCP. Lire et suivre ce fichier quand l'utilisateur demande d'ajouter un outil.
 - **git-commit** — toujours utiliser ce skill pour les commits git dans ce projet.
 
 ## Règles non-évidentes

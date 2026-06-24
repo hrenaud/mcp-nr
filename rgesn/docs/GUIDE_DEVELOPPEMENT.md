@@ -163,11 +163,12 @@ Ces variables sont injectées via `_routes_mod` en début de `rgesn_mcp.py` :
 
 ## Ressources MCP déclarées
 
-| URI                             | Description                |
-| ------------------------------- | -------------------------- |
-| `rgesn://version`               | Version du MCP (via core)  |
-| `rgesn://criteres/{critere_id}` | Critère complet par ID     |
-| `rgesn://index`                 | Index de tous les critères |
+| URI                             | Description                                 |
+| ------------------------------- | ------------------------------------------- |
+| `rgesn://version`               | Version du MCP (via core)                   |
+| `rgesn://metadata`              | Statistiques du référentiel et pondérations |
+| `rgesn://criteres/{critere_id}` | Critère complet par ID                      |
+| `rgesn://index`                 | Index de tous les critères                  |
 
 ---
 
