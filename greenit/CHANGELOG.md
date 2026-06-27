@@ -4,6 +4,24 @@
 
 ---
 
+## [2.1.3] — 2026-06-27
+
+### Ajouté
+
+- Labels Caddy (`caddy-docker-proxy`) et Traefik dans `docker-compose.yml` pour l'auto-découverte reverse proxy
+- Réseau externe `proxy` dans `docker-compose.yml`
+- Variable `DOMAIN` dans `.env`
+
+### Modifié
+
+- `local-build.sh` : tests d'intégration Docker déplacés après `docker compose up`
+
+### Corrigé
+
+- `tests/test_docker_integration.py` : chemin absolu vers ancien dépôt remplacé par chemin relatif
+
+---
+
 ## [2.1.2] — 2026-06-24
 
 ### Corrigé

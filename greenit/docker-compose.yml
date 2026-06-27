@@ -5,8 +5,8 @@
 services:
   greenit:
     # Service name and container configuration
-    build: .                          # Build from Dockerfile in current directory
-    image: greenit-mcp                # Image name for easy reference
+    build: . # Build from Dockerfile in current directory
+    image: greenit-mcp # Image name for easy reference
 
     # Port mappings: external:internal
     # External port (8000) is exposed to host; internal (8000) is the FastMCP server port
@@ -62,7 +62,7 @@ services:
     # - Default tmpfs is often too small (~64mb), causing browser crashes
     # - Set to 256mb for headless Chromium + page rendering
     # - Can increase if running multiple browsers simultaneously or analyzing large pages
-    shm_size: '256mb'
+    shm_size: "256mb"
 
     # Restart policy: ensures service stays running unless explicitly stopped
     # - 'unless-stopped': Auto-restart on crash, but respect manual docker stop
@@ -81,3 +81,24 @@ services:
       timeout: 5s
       start_period: 10s
       retries: 3
+
+    # Reverse proxy auto-discovery labels
+    # Traefik: enable=true triggers Docker provider discovery
+    # Caddy: uses caddy-docker-proxy (https://github.com/lucaslorentz/caddy-docker-proxy)
+    labels:
+      # Traefik
+      - "traefik.enable=true"
+      - "traefik.http.routers.greenit.rule=Host(`greenit.${DOMAIN}`)"
+      - "traefik.http.routers.greenit.entrypoints=websecure"
+      - "traefik.http.routers.greenit.tls=true"
+      - "traefik.http.services.greenit.loadbalancer.server.port=8000"
+      # Caddy (caddy-docker-proxy)
+      - "caddy=greenit.${DOMAIN}"
+      - "caddy.reverse_proxy={{upstreams 8000}}"
+
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true

@@ -4,11 +4,11 @@
 
 MCPS=(greenit rgaa rgesn)
 
-echo "Exécution des tests avant release..."
+echo "Exécution des tests unitaires..."
 for MCP in "${MCPS[@]}"; do
   echo "[$MCP] tests..."
-  (cd "${MCP}/files" && pytest ../tests/ -q) || {
-    echo "Erreur: les tests $MCP ont échoué. Release annulée."
+  (cd "${MCP}/files" && pytest ../tests/ -q --ignore=../tests/test_docker_integration.py) || {
+    echo "Erreur: les tests $MCP ont échoué. Build annulé."
     exit 1
   }
 done
@@ -18,6 +18,18 @@ docker buildx build -f greenit/Dockerfile -t greenit-mcp .
 docker buildx build -f rgaa/Dockerfile    -t rgaa-mcp .
 docker buildx build -f rgesn/Dockerfile   -t rgesn-mcp .
 
+docker network inspect proxy &>/dev/null || docker network create proxy
+
 docker compose -f greenit/docker-compose.yml up -d
 docker compose -f rgaa/docker-compose.yml    up -d
 docker compose -f rgesn/docker-compose.yml   up -d
+
+echo "Tests d'intégration Docker..."
+for MCP in "${MCPS[@]}"; do
+  echo "[$MCP] intégration..."
+  (cd "${MCP}/files" && pytest ../tests/test_docker_integration.py -q) || {
+    echo "Erreur: les tests d'intégration $MCP ont échoué."
+    exit 1
+  }
+done
+echo "Tous les tests d'intégration passent."

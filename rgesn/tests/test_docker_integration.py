@@ -1,5 +1,5 @@
 """
-Tests d'intégration Docker pour greenit-mcp.
+Tests d'intégration Docker pour rgesn-mcp.
 
 Ces tests valident que le serveur MCP tourne correctement dans Docker.
 
@@ -18,7 +18,7 @@ import json
 from pathlib import Path
 
 
-def get_docker_service_status(service_name="greenit"):
+def get_docker_service_status(service_name="rgesn"):
     """Vérifier le status d'un service Docker."""
     try:
         result = subprocess.run(
@@ -32,7 +32,7 @@ def get_docker_service_status(service_name="greenit"):
         return False
 
 
-def get_docker_service_logs(service_name="mcp-115-greenit-greenit-1"):
+def get_docker_service_logs(service_name="rgesn-rgesn-1"):
     """Récupérer les logs d'un service Docker."""
     try:
         result = subprocess.run(
@@ -49,10 +49,10 @@ def get_docker_service_logs(service_name="mcp-115-greenit-greenit-1"):
 @pytest.fixture(scope="session", autouse=True)
 def service_is_ready():
     """Vérifier que le service est prêt avant les tests."""
-    print("\nVérification du service Docker greenit-mcp...")
-    if not get_docker_service_status("greenit"):
+    print("\nVérification du service Docker rgesn-mcp...")
+    if not get_docker_service_status("rgesn"):
         pytest.skip(
-            "Service greenit-mcp non disponible. "
+            "Service rgesn-mcp non disponible. "
             "Lancez: docker-compose up -d"
         )
 
@@ -62,12 +62,11 @@ class TestDockerHealthCheck:
 
     def test_service_is_running(self):
         """Vérifier que le service Docker est en cours d'exécution."""
-        assert get_docker_service_status("greenit"), "Service greenit-mcp n'est pas en cours d'exécution"
+        assert get_docker_service_status("rgesn"), "Service rgesn-mcp n'est pas en cours d'exécution"
 
     def test_service_has_no_errors_in_logs(self):
         """Vérifier qu'il n'y a pas d'erreurs critiques dans les logs."""
-        logs = get_docker_service_logs("mcp-115-greenit-greenit-1")
-        # Vérifier que le service a démarré sans erreurs fatales
+        logs = get_docker_service_logs("rgesn-rgesn-1")
         assert "ERROR" not in logs or "Traceback" not in logs, f"Erreurs trouvées dans les logs: {logs[:500]}"
 
 
@@ -76,23 +75,21 @@ class TestDockerConfiguration:
 
     def test_container_has_required_env_vars(self):
         """Vérifier que les variables d'environnement requises sont présentes."""
-        logs = get_docker_service_logs("mcp-115-greenit-greenit-1")
-        # Vérifier que le service démarre correctement
+        logs = get_docker_service_logs("rgesn-rgesn-1")
         assert "Starting" in logs or "listening" in logs.lower() or logs.strip() != ""
 
     def test_container_restart_policy_is_set(self):
         """Vérifier que la politique de redémarrage est configurée."""
         try:
             result = subprocess.run(
-                ["docker", "inspect", "--format", "{{.RestartPolicy.Name}}", "mcp-115-greenit-greenit-1"],
+                ["docker", "inspect", "--format", "{{.RestartPolicy.Name}}", "rgesn-rgesn-1"],
                 capture_output=True,
                 text=True,
                 timeout=5
             )
-            # La politique devrait être 'unless-stopped' ou 'always'
             assert result.stdout.strip() in ["unless-stopped", "always", ""], "Service sans politique de redémarrage"
         except Exception:
-            pass  # Accepter si docker inspect échoue
+            pass
 
 
 class TestDockerToolsIntegration:
@@ -103,28 +100,27 @@ class TestDockerToolsIntegration:
         import sys
         sys.path.insert(0, str(Path(__file__).parent.parent / "files"))
         try:
-            import greenit_mcp
-            assert hasattr(greenit_mcp, "greenit_lister_fiches"), "Outil lister_fiches non trouvé"
-            assert hasattr(greenit_mcp, "greenit_calculer_ecoindex"), "Outil calculer_ecoindex non trouvé"
+            import rgesn_mcp
+            assert hasattr(rgesn_mcp, "rgesn_lister_criteres"), "Outil rgesn_lister_criteres non trouvé"
+            assert hasattr(rgesn_mcp, "rgesn_statistiques"), "Outil rgesn_statistiques non trouvé"
         except ImportError as e:
             pytest.skip(f"Impossible d'importer le module: {e}")
 
     def test_expected_tools_are_defined(self):
-        """Vérifier que tous les outils attendus (9) sont disponibles."""
+        """Vérifier que tous les outils attendus sont disponibles."""
         import sys
         sys.path.insert(0, str(Path(__file__).parent.parent / "files"))
         try:
-            import greenit_mcp as m
+            import rgesn_mcp as m
 
             expected_tools = [
-                "greenit_lister_fiches",
-                "greenit_fiches_prioritaires",
-                "greenit_chercher_fiche",
-                "greenit_comparer_fiches",
-                "greenit_lister_lifecycles",
-                "greenit_lister_ressources",
-                "greenit_calculer_ecoindex",
-                "greenit_obtenir_statistiques",
+                "rgesn_lister_criteres",
+                "rgesn_obtenir_critere",
+                "rgesn_chercher",
+                "rgesn_statistiques",
+                "rgesn_taux_conformite",
+                "rgesn_checklist",
+                "rgesn_criteres_prioritaires",
             ]
 
             for tool_name in expected_tools:
@@ -141,10 +137,9 @@ class TestDockerDataAvailability:
         import sys
         sys.path.insert(0, str(Path(__file__).parent.parent / "files"))
         try:
-            import greenit_mcp as m
-            # Tester un appel simple pour vérifier que les données sont disponibles
-            result = m.greenit_obtenir_statistiques()
-            assert isinstance(result, dict), "obtenir_statistiques ne retourne pas un dict"
+            import rgesn_mcp as m
+            result = m.rgesn_statistiques()
+            assert isinstance(result, dict), "rgesn_statistiques ne retourne pas un dict"
         except ImportError:
             pytest.skip("Impossible d'importer le module")
 
@@ -153,25 +148,13 @@ class TestDockerDataAvailability:
         import sys
         sys.path.insert(0, str(Path(__file__).parent.parent / "files"))
         try:
-            import greenit_mcp as m
+            import rgesn_mcp as m
 
-            # Test lister_fiches
-            result = m.greenit_lister_fiches()
-            assert isinstance(result, dict), "lister_fiches ne retourne pas un dict"
-            assert "fiches" in result, "Clé 'fiches' non trouvée dans le résultat"
+            result = m.rgesn_lister_criteres()
+            assert isinstance(result, dict), "rgesn_lister_criteres ne retourne pas un dict"
+            assert "criteres" in result, "Clé 'criteres' non trouvée dans le résultat"
 
-            # Test lister_lifecycles
-            result = m.greenit_lister_lifecycles()
-            assert isinstance(result, dict), "lister_lifecycles ne retourne pas un dict"
-            assert "lifecycles" in result, "Clé 'lifecycles' non trouvée dans le résultat"
-
-            # Test lister_ressources
-            result = m.greenit_lister_ressources()
-            assert isinstance(result, dict), "lister_ressources ne retourne pas un dict"
-            assert "ressources" in result, "Clé 'ressources' non trouvée dans le résultat"
-
-            # Test obtenir_statistiques
-            result = m.greenit_obtenir_statistiques()
-            assert isinstance(result, dict), "obtenir_statistiques ne retourne pas un dict"
+            result = m.rgesn_statistiques()
+            assert isinstance(result, dict), "rgesn_statistiques ne retourne pas un dict"
         except ImportError:
             pytest.skip("Impossible d'importer le module")

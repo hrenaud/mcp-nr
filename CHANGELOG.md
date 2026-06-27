@@ -8,6 +8,27 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 ---
 
+## [2.1.3] — 2026-06-27
+
+### Ajouté
+
+- **Reverse proxy** : labels Docker Caddy (`caddy-docker-proxy`) et Traefik ajoutés aux 3 `docker-compose.yml` pour l'auto-découverte
+- **Réseau `proxy`** : réseau externe partagé déclaré dans les 3 `docker-compose.yml`
+- **`docs/REVERSE_PROXY.md`** : guide de déploiement derrière Caddy ou Traefik (réseau partagé, TLS Let's Encrypt, test local)
+- **Variable `DOMAIN`** : ajoutée dans les `.env` des 3 MCPs pour configurer les sous-domaines
+
+### Modifié
+
+- **`local-build.sh`** : séparation tests unitaires (avant build) / tests d'intégration Docker (après `docker compose up`) ; création automatique du réseau `proxy` si absent
+- **`docs/DEPLOIEMENT.md`** : section reverse proxy nginx remplacée par une référence à `REVERSE_PROXY.md`
+
+### Corrigé
+
+- **`test_docker_integration.py`** (greenit, rgaa) : chemins absolus vers anciens dépôts remplacés par `Path(__file__).parent.parent / "files"`
+- **`rgesn/tests/test_docker_integration.py`** : créé pour parité architecturale avec greenit et rgaa
+
+---
+
 ## [2.1.2] — 2026-06-24
 
 ### Corrigé

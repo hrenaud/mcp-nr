@@ -4,8 +4,8 @@
 services:
   rgaa:
     # Service name and container configuration
-    build: .                          # Build from Dockerfile in current directory
-    image: rgaa-mcp                   # Image name for easy reference
+    build: . # Build from Dockerfile in current directory
+    image: rgaa-mcp # Image name for easy reference
 
     # Port mappings: external:internal
     # External port (8001) is exposed to host; internal (8000) is the FastMCP server port
@@ -59,3 +59,24 @@ services:
     # Restart policy: ensures service stays running unless explicitly stopped
     # - 'unless-stopped': Auto-restart on crash, but respect manual docker stop
     restart: unless-stopped
+
+    # Reverse proxy auto-discovery labels
+    # Traefik: enable=true triggers Docker provider discovery
+    # Caddy: uses caddy-docker-proxy (https://github.com/lucaslorentz/caddy-docker-proxy)
+    labels:
+      # Traefik
+      - "traefik.enable=true"
+      - "traefik.http.routers.rgaa.rule=Host(`rgaa.${DOMAIN}`)"
+      - "traefik.http.routers.rgaa.entrypoints=websecure"
+      - "traefik.http.routers.rgaa.tls=true"
+      - "traefik.http.services.rgaa.loadbalancer.server.port=8000"
+      # Caddy (caddy-docker-proxy)
+      - "caddy=rgaa.${DOMAIN}"
+      - "caddy.reverse_proxy={{upstreams 8000}}"
+
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true

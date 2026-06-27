@@ -148,37 +148,11 @@ L'API renvoie 503 si `ADMIN_TOKEN` n'est pas défini, 401 si le token admin est 
 
 ## Reverse proxy (HTTPS)
 
-Exemple de configuration nginx pour exposer les trois MCPs sous un même domaine :
+Les trois services sont prêts pour une auto-découverte via labels Docker par **Caddy** ou **Traefik**.
 
-```nginx
-server {
-    listen 443 ssl;
-    server_name mcp.example.com;
+Voir [REVERSE_PROXY.md](REVERSE_PROXY.md) pour le guide complet : réseau partagé, docker-compose du proxy, TLS Let's Encrypt, et test local.
 
-    location /greenit {
-        proxy_pass http://localhost:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /rgaa {
-        proxy_pass http://localhost:8001;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /rgesn {
-        proxy_pass http://localhost:8002;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-Définir `MCP_BASE_URL` en conséquence (`https://mcp.example.com/greenit` etc.) pour que les URLs générées par le serveur soient correctes.
+Définir `MCP_BASE_URL` avec l'URL publique finale de chaque service pour que les liens générés dans `/guide` et `/install.sh` soient corrects.
 
 ## Health checks
 

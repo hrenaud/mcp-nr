@@ -4,6 +4,21 @@
 
 ---
 
+## [2.1.3] — 2026-06-27
+
+### Ajouté
+
+- Labels Caddy (`caddy-docker-proxy`) et Traefik dans `docker-compose.yml` pour l'auto-découverte reverse proxy
+- Réseau externe `proxy` dans `docker-compose.yml`
+- Variable `DOMAIN` dans `.env`
+- `tests/test_docker_integration.py` : créé pour parité architecturale avec greenit et rgaa
+
+### Modifié
+
+- `local-build.sh` : tests d'intégration Docker déplacés après `docker compose up`
+
+---
+
 ## [2.1.1] — 2026-06-24
 
 ### Corrigé

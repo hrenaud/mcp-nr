@@ -15,6 +15,7 @@ import os
 import pytest
 import subprocess
 import json
+from pathlib import Path
 
 
 def get_docker_service_status(service_name="rgaa"):
@@ -100,7 +101,7 @@ class TestDockerToolsIntegration:
     def test_server_module_imports(self):
         """Vérifier que le module serveur peut être importé."""
         import sys
-        sys.path.insert(0, "/Users/renaudheluin/DEV/mcp-rgaa/files")
+        sys.path.insert(0, str(Path(__file__).parent.parent / "files"))
         try:
             import rgaa_mcp
             assert hasattr(rgaa_mcp, "rgaa_lister_criteres"), "Outil rgaa_lister_criteres non trouvé"
@@ -111,7 +112,7 @@ class TestDockerToolsIntegration:
     def test_expected_tools_are_defined(self):
         """Vérifier que tous les outils attendus sont disponibles."""
         import sys
-        sys.path.insert(0, "/Users/renaudheluin/DEV/mcp-rgaa/files")
+        sys.path.insert(0, str(Path(__file__).parent.parent / "files"))
         try:
             import rgaa_mcp as m
 
@@ -140,7 +141,7 @@ class TestDockerDataAvailability:
     def test_rgaa_data_is_loaded(self):
         """Vérifier que les données RGAA sont chargées."""
         import sys
-        sys.path.insert(0, "/Users/renaudheluin/DEV/mcp-rgaa/files")
+        sys.path.insert(0, str(Path(__file__).parent.parent / "files"))
         try:
             import rgaa_mcp as m
             # Tester un appel simple pour vérifier que les données sont disponibles
@@ -153,7 +154,7 @@ class TestDockerDataAvailability:
     def test_tools_return_valid_data(self):
         """Vérifier que les outils retournent des données valides."""
         import sys
-        sys.path.insert(0, "/Users/renaudheluin/DEV/mcp-rgaa/files")
+        sys.path.insert(0, str(Path(__file__).parent.parent / "files"))
         try:
             import rgaa_mcp as m
 

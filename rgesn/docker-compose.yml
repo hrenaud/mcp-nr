@@ -16,5 +16,26 @@ services:
     volumes:
       - rgesn_tokens:/app/tokens
 
+    # Reverse proxy auto-discovery labels
+    # Traefik: enable=true triggers Docker provider discovery
+    # Caddy: uses caddy-docker-proxy (https://github.com/lucaslorentz/caddy-docker-proxy)
+    labels:
+      # Traefik
+      - "traefik.enable=true"
+      - "traefik.http.routers.rgesn.rule=Host(`rgesn.${DOMAIN}`)"
+      - "traefik.http.routers.rgesn.entrypoints=websecure"
+      - "traefik.http.routers.rgesn.tls=true"
+      - "traefik.http.services.rgesn.loadbalancer.server.port=8000"
+      # Caddy (caddy-docker-proxy)
+      - "caddy=rgesn.${DOMAIN}"
+      - "caddy.reverse_proxy={{upstreams 8000}}"
+
+    networks:
+      - proxy
+
 volumes:
   rgesn_tokens:
+
+networks:
+  proxy:
+    external: true
