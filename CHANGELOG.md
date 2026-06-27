@@ -12,6 +12,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 ### Corrigé
 
+- **`_helpers.validate_themes` (core)** : le message d'erreur ne cite plus `rgaa_statistiques` (nom d'outil spécifique à RGAA). `core` ne doit connaître aucun MCP — docstring du module généralisé. (review #11/#47)
 - **Convergence du périmètre infra** : `Dockerfile` et `docker-compose.yml` des 3 MCP rendus identiques (modulo nom/port/deps). `greenit/Dockerfile` aligné sur la forme canonique (fichiers sous `/app/files`, `VOLUME /app/tokens`, `PYTHONPATH=/app`) ; `shm_size`/Playwright supprimés (le serveur ne lance pas de navigateur). `rgesn/docker-compose.yml` : volume nommé vide remplacé par le **bind mount** `./tokens:/app/tokens` (cause racine de l'auth désactivée en prod). `greenit_mcp.py` : `TOKENS_FILE` résolu via `_BASE_DIR.parent / "tokens"` comme rgaa/rgesn.
 
 ### Ajouté

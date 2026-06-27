@@ -1,4 +1,4 @@
-"""Validation helpers for GreenIT MCP server."""
+"""Validation helpers shared across MCP servers."""
 
 from fastmcp.exceptions import ToolError
 
@@ -23,7 +23,7 @@ def validate_themes(themes: list[int] | None) -> list[int]:
     if invalid:
         raise ToolError(
             f"Les thèmes fournis sont invalides. Les thèmes doivent être entre 1 et 13. "
-            f"Invalides reçus: {invalid}. Consulter rgaa_statistiques pour la liste complète."
+            f"Invalides reçus: {invalid}."
         )
 
     return themes
