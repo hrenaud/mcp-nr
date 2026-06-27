@@ -55,7 +55,7 @@ logger = logging.getLogger("greenit-mcp")
 VERSION = "2.1.3"
 
 _BASE_DIR = Path(__file__).parent
-TOKENS_FILE = str(_BASE_DIR / "tokens" / "tokens.json")
+TOKENS_FILE = str(_BASE_DIR.parent / "tokens" / "tokens.json")
 GREENIT_API_URL = "https://rweb.greenit.fr/api"
 
 routes._VERSION = VERSION

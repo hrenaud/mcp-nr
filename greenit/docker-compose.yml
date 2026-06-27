@@ -1,101 +1,36 @@
-# GreenIT MCP Server Docker Compose Configuration
-# This file defines the containerized GreenIT MCP service with browser automation support.
-# Note: GreenIT MCP requires additional resources (shm_size) for Playwright browser automation.
+# GreenIT MCP Server — Docker Compose
+# Forme canonique partagée par les 3 MCP (greenit/rgaa/rgesn).
+# Divergences permises : nom du service, image, port externe, sous-domaine.
 
 services:
   greenit:
-    # Service name and container configuration
-    build: . # Build from Dockerfile in current directory
-    image: greenit-mcp # Image name for easy reference
-
-    # Port mappings: external:internal
-    # External port (8000) is exposed to host; internal (8000) is the FastMCP server port
+    build:
+      context: ..
+      dockerfile: greenit/Dockerfile
+    image: greenit-mcp
     ports:
       - "8000:8000"
-
-    # Environment variables configure transport mode, network binding, and token management
     environment:
-      # MCP_TRANSPORT: Protocol for MCP communication
-      # - 'stdio': Used for local Claude Desktop/Code integrations (embedded process)
-      # - 'http' (default): REST API exposed on MCP_HOST:MCP_PORT (for network access or proxying)
       MCP_TRANSPORT: ${MCP_TRANSPORT:-http}
-
-      # MCP_HOST: Network address the HTTP server binds to (only used when MCP_TRANSPORT=http)
-      # - '0.0.0.0': Listen on all interfaces (docker default)
-      # - '127.0.0.1': Localhost only (requires custom docker network)
       MCP_HOST: ${MCP_HOST:-0.0.0.0}
-
-      # MCP_PORT: Port the HTTP server binds to internally (only used when MCP_TRANSPORT=http)
-      # Default: 8000. Must match the internal port in 'ports' mapping above.
-      # External access uses the external port (8000 in this config).
       MCP_PORT: ${MCP_PORT:-8000}
-
-      # MCP_BASE_URL: Public URL of the server (shown in /install.sh and homepage)
-      # - Set this if the server is behind a reverse proxy (e.g., https://mcp.example.com)
-      # - Leave empty for local testing (auto-detected from request headers)
-      # - Critical for token generation scripts to display correct installation command
-      MCP_BASE_URL: ${MCP_BASE_URL:-}
-
-      # MCP_TOKEN_REQUEST_URL: Form URL for requesting access tokens (optional)
-      # - If set, this link appears on the homepage (/guide) for users to request tokens
-      # - Example: https://forms.example.com/request-greenit-token
-      # - Leave empty if not using a token request form
+      MCP_BASE_URL: ${MCP_BASE_URL:-http://localhost:8000}
       MCP_TOKEN_REQUEST_URL: ${MCP_TOKEN_REQUEST_URL:-}
-
-      # ADMIN_TOKEN: Admin token for the REST token management API (HTTP mode only)
-      # - If set, enables GET/POST/PATCH/DELETE /admin/tokens routes
-      # - Use a strong random value (e.g.: openssl rand -hex 32)
-      # - Example: ADMIN_TOKEN=your_admin_token_here
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
-
-    # Volume mounts: host_path:container_path
-    # ./tokens:/app/tokens - Persists authentication tokens across container restarts
-    # - Tokens are generated locally and stored in tokens/tokens.json
-    # - This volume is CRITICAL: without it, tokens are lost on container restart
-    # - Directory is created automatically on first --generate-token call
-    # - Never included in the Docker image for security (Bearer tokens must stay on host)
+    # Bind mount des tokens (CRITIQUE : sans tokens présents au boot en HTTP,
+    # le serveur refuse de démarrer — cf. fail-safe auth dans core/factory.py).
     volumes:
       - ./tokens:/app/tokens
-
-    # Shared memory size: Required for Playwright browser automation
-    # GreenIT MCP uses Playwright to run browser automation (EcoIndex calculations)
-    # - Default tmpfs is often too small (~64mb), causing browser crashes
-    # - Set to 256mb for headless Chromium + page rendering
-    # - Can increase if running multiple browsers simultaneously or analyzing large pages
-    shm_size: "256mb"
-
-    # Restart policy: ensures service stays running unless explicitly stopped
-    # - 'unless-stopped': Auto-restart on crash, but respect manual docker stop
     restart: unless-stopped
-
-    # Health check configuration: monitors container liveness
-    # GreenIT MCP exposes --health flag for container health status
-    # - Runs: python greenit_mcp.py --health (exit 0 = healthy, 1 = unhealthy)
-    # - Interval: Check every 30 seconds
-    # - Timeout: Command must complete within 5 seconds
-    # - Start period: Wait 10 seconds before first health check (container startup)
-    # - Retries: Container marked unhealthy after 3 consecutive failures
-    healthcheck:
-      test: ["CMD", "python", "greenit_mcp.py", "--health"]
-      interval: 30s
-      timeout: 5s
-      start_period: 10s
-      retries: 3
-
-    # Reverse proxy auto-discovery labels
-    # Traefik: enable=true triggers Docker provider discovery
-    # Caddy: uses caddy-docker-proxy (https://github.com/lucaslorentz/caddy-docker-proxy)
+    # Reverse proxy auto-discovery (Traefik + Caddy via caddy-docker-proxy)
     labels:
-      # Traefik
       - "traefik.enable=true"
       - "traefik.http.routers.greenit.rule=Host(`greenit.${DOMAIN}`)"
       - "traefik.http.routers.greenit.entrypoints=websecure"
       - "traefik.http.routers.greenit.tls=true"
       - "traefik.http.services.greenit.loadbalancer.server.port=8000"
-      # Caddy (caddy-docker-proxy)
       - "caddy=greenit.${DOMAIN}"
       - "caddy.reverse_proxy={{upstreams 8000}}"
-
     networks:
       - proxy
 

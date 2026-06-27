@@ -8,7 +8,15 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 ### Sécurité
 
-- **Fail-safe auth** (`core/factory.py`) : en transport HTTP, le serveur refuse désormais de démarrer si aucun token valide n'est présent, au lieu de basculer silencieusement en mode sans authentification. Override explicite possible via `MCP_ALLOW_NO_AUTH=1` (avec WARNING). Évite qu'un volume de tokens vide/mal monté n'expose un MCP sans auth (cf. incident prod rgesn).
+- **Fail-safe auth** (`core/factory.py`, `run_main`) : en transport HTTP, le serveur refuse désormais de **servir** si aucun token valide n'est présent, au lieu de basculer silencieusement en mode sans authentification. Override explicite via `MCP_ALLOW_NO_AUTH=1` (avec WARNING). Le contrôle est au moment de servir (pas à l'import) pour ne pas casser `--health` ni les commandes CLI de gestion des tokens. Évite qu'un volume de tokens vide/mal monté n'expose un MCP sans auth (cf. incident prod rgesn).
+
+### Corrigé
+
+- **Convergence du périmètre infra** : `Dockerfile` et `docker-compose.yml` des 3 MCP rendus identiques (modulo nom/port/deps). `greenit/Dockerfile` aligné sur la forme canonique (fichiers sous `/app/files`, `VOLUME /app/tokens`, `PYTHONPATH=/app`) ; `shm_size`/Playwright supprimés (le serveur ne lance pas de navigateur). `rgesn/docker-compose.yml` : volume nommé vide remplacé par le **bind mount** `./tokens:/app/tokens` (cause racine de l'auth désactivée en prod). `greenit_mcp.py` : `TOKENS_FILE` résolu via `_BASE_DIR.parent / "tokens"` comme rgaa/rgesn.
+
+### Ajouté
+
+- **`tests/test_infra_parity.py`** : verrouille la parité Dockerfile/compose/résolution des tokens entre les 3 MCP ; échoue à toute divergence non autorisée.
 
 ---
 
