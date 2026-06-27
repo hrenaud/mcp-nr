@@ -185,8 +185,20 @@ class TestRgaaMcpWiring:
         from mcp_ref_core import factory
         path = tmp_path / "tokens.json"
         monkeypatch.setenv("MCP_TRANSPORT", "http")
+        # Fail-safe: HTTP sans token exige l'opt-in explicite MCP_ALLOW_NO_AUTH=1
+        monkeypatch.setenv("MCP_ALLOW_NO_AUTH", "1")
         mcp_instance = factory.create_mcp("RGAA MCP", str(path), mod._rgaa_tool_definitions, mod._rgaa_guide_extra_sections)
         assert mcp_instance._auth is None
+
+    def test_create_mcp_http_no_tokens_refuses_without_override(self, monkeypatch, tmp_path):
+        import rgaa_mcp as mod
+        from mcp_ref_core import factory
+        import pytest
+        path = tmp_path / "tokens.json"
+        monkeypatch.setenv("MCP_TRANSPORT", "http")
+        monkeypatch.delenv("MCP_ALLOW_NO_AUTH", raising=False)
+        with pytest.raises(RuntimeError, match="aucun token"):
+            factory.create_mcp("RGAA MCP", str(path), mod._rgaa_tool_definitions, mod._rgaa_guide_extra_sections)
 
     def test_verifier_injected_in_routes(self, monkeypatch, tmp_path):
         import json as _json

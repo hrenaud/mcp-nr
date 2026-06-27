@@ -1639,6 +1639,7 @@ class TestConfigureMcp:
 
     def test_configure_mcp_http_mode_routes(self, monkeypatch, tmp_path):
         monkeypatch.setenv("MCP_TRANSPORT", "http")
+        monkeypatch.setenv("MCP_ALLOW_NO_AUTH", "1")  # fail-safe: démarrage HTTP sans token
         test_mcp = factory.create_mcp("RGAA MCP", str(tmp_path / "tokens.json"), mcp_module._rgaa_tool_definitions)
         paths = [r.path for r in test_mcp._additional_http_routes]
         assert "/" in paths

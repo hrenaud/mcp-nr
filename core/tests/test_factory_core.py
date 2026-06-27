@@ -60,6 +60,36 @@ class TestCreateMcp:
         assert mcp.name == "My Custom MCP"
 
 
+class TestAuthFailSafe:
+    """Fail-safe: HTTP transport must never start silently without auth."""
+
+    def test_http_without_tokens_refuses_to_start(self, tmp_path):
+        tokens_file = str(tmp_path / "tokens.json")
+        Path(tokens_file).write_text("{}")
+        with patch.dict(os.environ, {"MCP_TRANSPORT": "http"}, clear=False):
+            os.environ.pop("MCP_ALLOW_NO_AUTH", None)
+            with pytest.raises(RuntimeError, match="aucun token"):
+                factory.create_mcp("Test MCP", tokens_file, lambda: [])
+
+    def test_http_without_tokens_allowed_with_override(self, tmp_path, caplog):
+        import logging
+        tokens_file = str(tmp_path / "tokens.json")
+        Path(tokens_file).write_text("{}")
+        with patch.dict(os.environ, {"MCP_TRANSPORT": "http", "MCP_ALLOW_NO_AUTH": "1"}, clear=False):
+            with caplog.at_level(logging.WARNING, logger="mcp-ref-core"):
+                mcp = factory.create_mcp("Test MCP", tokens_file, lambda: [])
+        assert mcp._auth is None
+        assert any("AUTH DÉSACTIVÉE" in r.message for r in caplog.records)
+
+    def test_stdio_without_tokens_starts_normally(self, tmp_path):
+        tokens_file = str(tmp_path / "tokens.json")
+        Path(tokens_file).write_text("{}")
+        with patch.dict(os.environ, {"MCP_TRANSPORT": "stdio"}, clear=False):
+            os.environ.pop("MCP_ALLOW_NO_AUTH", None)
+            mcp = factory.create_mcp("Test MCP", tokens_file, lambda: [])
+        assert mcp._auth is None
+
+
 class TestRunMain:
     """Tests for run_main entrypoint function."""
 

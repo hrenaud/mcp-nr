@@ -22,14 +22,24 @@ def create_mcp(name: str, tokens_file: str, tool_definitions_fn, guide_extra_sec
     if guide_extra_sections_fn is not None:
         _routes_mod._guide_extra_sections = guide_extra_sections_fn
 
+    transport = os.environ.get("MCP_TRANSPORT", "stdio")
     if verifier.tokens:
         mcp_instance = FastMCP(name, auth=verifier)
         mcp_instance._auth = verifier
+    elif transport == "http" and os.environ.get("MCP_ALLOW_NO_AUTH") != "1":
+        raise RuntimeError(
+            f"{name}: transport HTTP mais aucun token valide dans {tokens_file}. "
+            "Générez un token, ou forcez MCP_ALLOW_NO_AUTH=1 pour démarrer sans auth."
+        )
     else:
+        if transport == "http":
+            logger.warning(
+                "%s: ⚠️ AUTH DÉSACTIVÉE (MCP_ALLOW_NO_AUTH=1) — serveur HTTP ouvert sans token.",
+                name,
+            )
         mcp_instance = FastMCP(name)
         mcp_instance._auth = None
 
-    transport = os.environ.get("MCP_TRANSPORT", "stdio")
     if transport == "http":
         from mcp_ref_core.routes import (
             _http_admin_create_token,

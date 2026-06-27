@@ -189,8 +189,19 @@ class TestGreenitMcpWiring:
         from mcp_ref_core import factory, routes as _routes
         path = tmp_path / "tokens.json"
         monkeypatch.setenv("MCP_TRANSPORT", "http")
+        # Fail-safe: HTTP sans token exige l'opt-in explicite MCP_ALLOW_NO_AUTH=1
+        monkeypatch.setenv("MCP_ALLOW_NO_AUTH", "1")
         mcp_instance = factory.create_mcp("GreenIT-Referentiel", str(path), _routes._greenit_tool_definitions)
         assert mcp_instance._auth is None
+
+    def test_create_mcp_http_no_tokens_refuses_without_override(self, monkeypatch, tmp_path):
+        from mcp_ref_core import factory, routes as _routes
+        import pytest
+        path = tmp_path / "tokens.json"
+        monkeypatch.setenv("MCP_TRANSPORT", "http")
+        monkeypatch.delenv("MCP_ALLOW_NO_AUTH", raising=False)
+        with pytest.raises(RuntimeError, match="aucun token"):
+            factory.create_mcp("GreenIT-Referentiel", str(path), _routes._greenit_tool_definitions)
 
     def test_verifier_injected_in_routes(self, monkeypatch, tmp_path):
         import json as _json

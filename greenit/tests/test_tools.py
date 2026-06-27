@@ -411,6 +411,7 @@ class TestCreateMcp:
 
     def test_http_mode_registers_routes(self, monkeypatch):
         monkeypatch.setenv("MCP_TRANSPORT", "http")
+        monkeypatch.setenv("MCP_ALLOW_NO_AUTH", "1")  # fail-safe: démarrage HTTP sans token
         mcp = factory.create_mcp("GreenIT-Referentiel", mcp_module.TOKENS_FILE, routes_mod._greenit_tool_definitions)
         assert mcp.name == "GreenIT-Referentiel"
         assert len(mcp._additional_http_routes) == 8

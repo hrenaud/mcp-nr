@@ -6,6 +6,10 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 ## [Unreleased]
 
+### Sécurité
+
+- **Fail-safe auth** (`core/factory.py`) : en transport HTTP, le serveur refuse désormais de démarrer si aucun token valide n'est présent, au lieu de basculer silencieusement en mode sans authentification. Override explicite possible via `MCP_ALLOW_NO_AUTH=1` (avec WARNING). Évite qu'un volume de tokens vide/mal monté n'expose un MCP sans auth (cf. incident prod rgesn).
+
 ---
 
 ## [2.1.3] — 2026-06-27
