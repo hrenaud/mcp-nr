@@ -61,33 +61,59 @@ class TestCreateMcp:
 
 
 class TestAuthFailSafe:
-    """Fail-safe: HTTP transport must never start silently without auth."""
+    """Fail-safe: run_main must never SERVE over HTTP without auth silently."""
 
-    def test_http_without_tokens_refuses_to_start(self, tmp_path):
+    def _fake_cache(self):
+        return {"items": {"a": 1}}
+
+    def _valid_token_file(self, tmp_path):
+        import time
+        tokens_file = tmp_path / "tokens.json"
+        tokens_file.write_text(json.dumps({
+            "tok": {"id": "x", "client_id": "c", "scopes": ["read"],
+                    "expires_at": time.time() + 86400}
+        }))
+        return str(tokens_file)
+
+    def test_http_serve_without_tokens_refuses(self, tmp_path):
         tokens_file = str(tmp_path / "tokens.json")
         Path(tokens_file).write_text("{}")
-        with patch.dict(os.environ, {"MCP_TRANSPORT": "http"}, clear=False):
+        mcp = MagicMock()
+        with patch("sys.argv", ["prog"]), patch.dict(os.environ, {"MCP_TRANSPORT": "http"}, clear=False):
             os.environ.pop("MCP_ALLOW_NO_AUTH", None)
             with pytest.raises(RuntimeError, match="aucun token"):
-                factory.create_mcp("Test MCP", tokens_file, lambda: [])
+                factory.run_main(mcp, "1.0", "Test", self._fake_cache, "items", tokens_file)
+        mcp.run.assert_not_called()
 
-    def test_http_without_tokens_allowed_with_override(self, tmp_path, caplog):
+    def test_http_serve_without_tokens_allowed_with_override(self, tmp_path, caplog):
         import logging
         tokens_file = str(tmp_path / "tokens.json")
         Path(tokens_file).write_text("{}")
-        with patch.dict(os.environ, {"MCP_TRANSPORT": "http", "MCP_ALLOW_NO_AUTH": "1"}, clear=False):
+        mcp = MagicMock()
+        with patch("sys.argv", ["prog"]), patch.dict(os.environ, {"MCP_TRANSPORT": "http", "MCP_ALLOW_NO_AUTH": "1"}, clear=False):
             with caplog.at_level(logging.WARNING, logger="mcp-ref-core"):
-                mcp = factory.create_mcp("Test MCP", tokens_file, lambda: [])
-        assert mcp._auth is None
+                factory.run_main(mcp, "1.0", "Test", self._fake_cache, "items", tokens_file)
+        mcp.run.assert_called_once()
         assert any("AUTH DÉSACTIVÉE" in r.message for r in caplog.records)
 
-    def test_stdio_without_tokens_starts_normally(self, tmp_path):
+    def test_http_serve_with_tokens_runs(self, tmp_path):
+        tokens_file = self._valid_token_file(tmp_path)
+        mcp = MagicMock()
+        with patch("sys.argv", ["prog"]), patch.dict(os.environ, {"MCP_TRANSPORT": "http"}, clear=False):
+            os.environ.pop("MCP_ALLOW_NO_AUTH", None)
+            factory.run_main(mcp, "1.0", "Test", self._fake_cache, "items", tokens_file)
+        mcp.run.assert_called_once()
+
+    def test_health_works_without_tokens(self, tmp_path):
+        """--health ne doit PAS dépendre de l'auth (sinon CI/HEALTHCHECK cassés)."""
         tokens_file = str(tmp_path / "tokens.json")
         Path(tokens_file).write_text("{}")
-        with patch.dict(os.environ, {"MCP_TRANSPORT": "stdio"}, clear=False):
+        mcp = MagicMock()
+        with patch("sys.argv", ["prog", "--health"]), patch.dict(os.environ, {"MCP_TRANSPORT": "http"}, clear=False):
             os.environ.pop("MCP_ALLOW_NO_AUTH", None)
-            mcp = factory.create_mcp("Test MCP", tokens_file, lambda: [])
-        assert mcp._auth is None
+            with pytest.raises(SystemExit) as exc:
+                factory.run_main(mcp, "1.0", "Test", self._fake_cache, "items", tokens_file)
+        assert exc.value.code == 0
 
 
 class TestRunMain:
