@@ -10,6 +10,10 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 - **Fail-safe auth** (`core/factory.py`, `run_main`) : en transport HTTP, le serveur refuse désormais de **servir** si aucun token valide n'est présent, au lieu de basculer silencieusement en mode sans authentification. Override explicite via `MCP_ALLOW_NO_AUTH=1` (avec WARNING). Le contrôle est au moment de servir (pas à l'import) pour ne pas casser `--health` ni les commandes CLI de gestion des tokens. Évite qu'un volume de tokens vide/mal monté n'expose un MCP sans auth (cf. incident prod rgesn).
 
+### Refactorisé
+
+- **Code spécifique GreenIT sorti de `core/routes.py`** : `_greenit_tool_definitions` et `_greenit_guide_extra_sections` déplacés dans `greenit/files/greenit_mcp.py` (parité avec RGAA/RGESN qui définissent leurs fonctions localement). `core/routes.py` expose désormais des défauts neutres (`_default_tool_definitions → []`, `_default_guide_extra_sections → ""`). Le guide GreenIT (section EcoIndex) est injecté explicitement via `factory.create_mcp(...)`. (review #7/#8/#13/#48, #46 partiel)
+
 ### Corrigé
 
 - **`_helpers.validate_themes` (core)** : le message d'erreur ne cite plus `rgaa_statistiques` (nom d'outil spécifique à RGAA). `core` ne doit connaître aucun MCP — docstring du module généralisé. (review #11/#47)

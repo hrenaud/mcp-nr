@@ -8,6 +8,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "files"))
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "core"))
 
+import greenit_mcp  # noqa: E402,F401 — fonctions tool defs GreenIT (injectées dans routes)
+
 
 class TestDynamicTokenVerifier:
     @pytest.fixture
@@ -182,14 +184,14 @@ class TestGreenitMcpWiring:
             }
         }))
         monkeypatch.setenv("MCP_TRANSPORT", "http")
-        mcp_instance = factory.create_mcp("GreenIT-Referentiel", str(path), _routes._greenit_tool_definitions)
+        mcp_instance = factory.create_mcp("GreenIT-Referentiel", str(path), greenit_mcp._greenit_tool_definitions)
         assert isinstance(mcp_instance._auth, DynamicTokenVerifier)
 
     def test_create_mcp_no_auth_when_no_tokens(self, monkeypatch, tmp_path):
         from mcp_ref_core import factory, routes as _routes
         path = tmp_path / "tokens.json"
         monkeypatch.setenv("MCP_TRANSPORT", "http")
-        mcp_instance = factory.create_mcp("GreenIT-Referentiel", str(path), _routes._greenit_tool_definitions)
+        mcp_instance = factory.create_mcp("GreenIT-Referentiel", str(path), greenit_mcp._greenit_tool_definitions)
         assert mcp_instance._auth is None
 
     def test_verifier_injected_in_routes(self, monkeypatch, tmp_path):
@@ -211,7 +213,7 @@ class TestGreenitMcpWiring:
             }
         }))
         monkeypatch.setenv("MCP_TRANSPORT", "http")
-        factory.create_mcp("GreenIT-Referentiel", str(path), routes._greenit_tool_definitions)
+        factory.create_mcp("GreenIT-Referentiel", str(path), greenit_mcp._greenit_tool_definitions)
         assert isinstance(routes._token_verifier, DynamicTokenVerifier)
 
 

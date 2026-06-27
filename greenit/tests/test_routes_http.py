@@ -18,6 +18,7 @@ import pytest
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 from mcp_ref_core import routes
+import greenit_mcp  # noqa: F401 — injecte les tool defs + sections guide GreenIT dans routes
 
 
 class TestGetToolDefinitions:
@@ -615,3 +616,16 @@ class TestGuideWithTokenRequestUrl:
 
             # Should include the HTTPS URL
             assert "https://secure.example.com/token" in body
+
+
+class TestGuideGreenItEcoIndex:
+    """Le guide GreenIT doit toujours afficher la section EcoIndex (injectée par greenit_mcp)."""
+
+    def test_guide_greenit_contient_ecoindex(self):
+        import asyncio
+        req = MagicMock()
+        req.headers = {"accept": "text/html"}
+        resp = asyncio.run(routes._http_guide(req))
+        body = resp.body.decode()
+        assert "EcoIndex" in body
+        assert "greenit_calculer_ecoindex" in body

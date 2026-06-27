@@ -69,3 +69,19 @@ class TestRegisterVersionResource:
         assert data["nb_items"] == 1
 
 
+
+class TestNoMcpSpecificsInCore:
+    """core/routes.py ne doit contenir aucun code spécifique à un MCP (règle d'or)."""
+
+    def test_default_tool_definitions_is_empty(self):
+        assert routes._default_tool_definitions() == []
+
+    def test_default_guide_extra_sections_is_empty(self):
+        assert routes._default_guide_extra_sections() == ""
+
+    def test_routes_has_no_greenit_specifics(self):
+        import inspect
+        src = inspect.getsource(routes)
+        assert "_greenit_tool_definitions" not in src
+        assert "greenit_calculer_ecoindex" not in src
+        assert "EcoIndex" not in src

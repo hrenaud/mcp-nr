@@ -405,13 +405,13 @@ class TestHttpRoutes:
 class TestCreateMcp:
     def test_stdio_mode_no_routes(self, monkeypatch):
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        mcp = factory.create_mcp("GreenIT-Referentiel", mcp_module.TOKENS_FILE, routes_mod._greenit_tool_definitions)
+        mcp = factory.create_mcp("GreenIT-Referentiel", mcp_module.TOKENS_FILE, mcp_module._greenit_tool_definitions)
         assert mcp.name == "GreenIT-Referentiel"
         assert len(mcp._additional_http_routes) == 0
 
     def test_http_mode_registers_routes(self, monkeypatch):
         monkeypatch.setenv("MCP_TRANSPORT", "http")
-        mcp = factory.create_mcp("GreenIT-Referentiel", mcp_module.TOKENS_FILE, routes_mod._greenit_tool_definitions)
+        mcp = factory.create_mcp("GreenIT-Referentiel", mcp_module.TOKENS_FILE, mcp_module._greenit_tool_definitions)
         assert mcp.name == "GreenIT-Referentiel"
         assert len(mcp._additional_http_routes) == 8
         paths = [r.path for r in mcp._additional_http_routes]
@@ -1692,14 +1692,14 @@ class TestAuthTokenHandling:
             "tok_test": {"name": "test", "created_at": "2025-01-01T00:00:00+00:00", "expires_at": _time.time() + 86400}
         }))
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        mcp = factory.create_mcp("GreenIT-Referentiel", str(tokens_file), routes_mod._greenit_tool_definitions)
+        mcp = factory.create_mcp("GreenIT-Referentiel", str(tokens_file), mcp_module._greenit_tool_definitions)
         assert mcp.name == "GreenIT-Referentiel"
         assert mcp._auth is not None
 
     def test_create_mcp_without_tokens(self, monkeypatch, tmp_path):
         """Test factory.create_mcp creates instance without auth when no tokens."""
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        mcp = factory.create_mcp("GreenIT-Referentiel", str(tmp_path / "empty.json"), routes_mod._greenit_tool_definitions)
+        mcp = factory.create_mcp("GreenIT-Referentiel", str(tmp_path / "empty.json"), mcp_module._greenit_tool_definitions)
         assert mcp.name == "GreenIT-Referentiel"
         assert mcp._auth is None
 
