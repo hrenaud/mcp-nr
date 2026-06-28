@@ -6,6 +6,10 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 ## [Unreleased]
 
+---
+
+## [2.2.0] — 2026-06-28
+
 ### Sécurité
 
 - **Durcissement outillage release/build/CI** : `release.sh` refuse de tourner hors `main` (#35), exige une entrée CHANGELOG pour la version (#34/#49), et utilise un `git add` explicite (#33) ; `build.sh` lance les tests avant le build (#37) ; le smoke test CI vérifie une vraie réponse HTTP sur le port 8000 au lieu de l'argument CLI `--health` (#39) ; `_http_install_script` valide `_MCP_ID` (`[a-z][a-z0-9-]*`) avant injection dans le script shell (#6).
@@ -29,6 +33,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 ### Ajouté
 
+- **Outil RGAA `rgaa_criteres_prioritaires`** : liste les critères classés par niveau de priorité WCAG (A le plus prioritaire > AA > AAA). Chaque critère reçoit le niveau le plus contraignant qu'il référence — partition sans double comptage (83 A + 23 AA = 106), contrairement au filtre `niveau_wcag` de `rgaa_lister_criteres`. Filtre optionnel par palier ; `repartition` globale incluse. (RGAA : 10 → 11 outils)
 - **Documentation des limites de l'analyseur RGAA** : le champ `note` des résultats explicite désormais les cas non couverts par l'analyse statique (thème 1 `<input type="image">`/`<svg>`, thème 9 sauts de titre inter-sections) à vérifier manuellement. (review #23/#24)
 - **Couverture de tests analyseur RGAA / RGESN** : tests des chemins NC manquants (thèmes 12 skip links, 5.7 `scope`, 8.5 `<title>` vide, 8.6 charset) et cas limite RGESN (critère inexistant) — comble le manque TDD. (review #25/#26/#31/#50)
 - **`tests/test_infra_parity.py`** : verrouille la parité Dockerfile/compose/résolution des tokens entre les 3 MCP ; échoue à toute divergence non autorisée.

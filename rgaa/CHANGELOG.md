@@ -2,9 +2,17 @@
 
 ## [Unreleased]
 
+---
+
+## [2.2.0] — 2026-06-28
+
 ### Ajouté
 
 - `rgaa_criteres_prioritaires` : liste les critères classés par niveau de priorité WCAG (A le plus prioritaire > AA > AAA). Chaque critère reçoit le niveau le plus contraignant qu'il référence (partition sans double comptage, contrairement au filtre `niveau_wcag` de `rgaa_lister_criteres`). Filtre optionnel par palier ; `repartition` donne le décompte global par niveau.
+
+### Corrigé
+
+- URL de base des pages `/`, `/guide`, `/install.sh` détectée depuis la requête (reverse proxy / en-tête `Host`) ; correction client supplémentaire des URLs affichées via `window.location.origin`. (core)
 
 ---
 

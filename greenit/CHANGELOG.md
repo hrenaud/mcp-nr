@@ -4,6 +4,14 @@
 
 ---
 
+## [2.2.0] — 2026-06-28
+
+### Corrigé
+
+- URL de base des pages `/`, `/guide`, `/install.sh` détectée depuis la requête (reverse proxy / en-tête `Host`) ; correction client supplémentaire des URLs affichées via `window.location.origin`. (core)
+
+---
+
 ## [2.1.3] — 2026-06-27
 
 ### Ajouté
