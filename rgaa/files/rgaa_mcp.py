@@ -36,6 +36,31 @@ logging.basicConfig(
 )
 logger = logging.getLogger("rgaa-mcp")
 
+import time as _time
+import threading as _threading
+
+# Rate limiting en mémoire pour rgaa_analyser (fenêtre glissante).
+_RATE_LIMIT_MAX = 10           # requêtes
+_RATE_LIMIT_WINDOW = 60.0      # secondes
+_rate_lock = _threading.Lock()
+_rate_hits: list[float] = []
+
+
+def _reset_rate_limit() -> None:
+    with _rate_lock:
+        _rate_hits.clear()
+
+
+def _check_rate_limit() -> None:
+    now = _time.time()
+    with _rate_lock:
+        cutoff = now - _RATE_LIMIT_WINDOW
+        _rate_hits[:] = [t for t in _rate_hits if t > cutoff]
+        if len(_rate_hits) >= _RATE_LIMIT_MAX:
+            raise ToolError("Trop de requêtes vers rgaa_analyser. Réessayez dans une minute.")
+        _rate_hits.append(now)
+
+
 _BASE_DIR = Path(__file__).parent
 TOKENS_FILE = str(_BASE_DIR.parent / "tokens" / "tokens.json")
 
@@ -708,6 +733,8 @@ def rgaa_analyser(url: str, themes: list[int] = None) -> dict:
     Returns:
         {"url": "...", "date": "...", "themes_analyses": [...], "nb_violations": N, "criteres": [...], "note": "..."}
     """
+    _check_rate_limit()
+
     if not url or not url.strip():
         raise ToolError(
             "L'URL ne peut pas être vide. "

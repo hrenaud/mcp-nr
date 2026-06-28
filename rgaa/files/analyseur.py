@@ -12,8 +12,8 @@ THEMES_ANALYSES = [1, 2, 5, 6, 8, 9, 11, 12]
 NOTE = "Analyse statique uniquement. Utiliser Playwright MCP pour l'analyse DOM rendu (contrastes, ARIA dynamique, focus visible)."
 
 
-def fetcher_html(url: str) -> str:
-    with httpx.Client(timeout=30, follow_redirects=True) as client:
+def fetcher_html(url: str, timeout: float = 10.0) -> str:
+    with httpx.Client(timeout=timeout, follow_redirects=True) as client:
         r = client.get(url, headers={"User-Agent": "Mozilla/5.0 RGAA-MCP/1.0"})
         r.raise_for_status()
         return r.text
