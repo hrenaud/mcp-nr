@@ -90,7 +90,7 @@
 | 🟦 13 | greenit_mcp.py:73       | **`factory.create_mcp("GreenIT-Referentiel", ...)`** passe `routes._greenit_tool_definitions` mais **ne passe PAS** `_greenit_guide_extra_sections`. Le guide est générique, pas personnalisé. _(Faux positif fonctionnel — cf. #8 : EcoIndex rendu via le défaut core. Amélioration archi désormais **faite** (Task 1) : fn déplacée dans `greenit_mcp.py` et injectée explicitement.)_ | **Haut** |
 | ⬜ 14 | greenit_mcp.py:143-808  | **Double `output_schema`** : chaque outil a `@mcp.tool(output_schema=...)` ET une définition dans `routes._greenit_tool_definitions()`. **18 points de failure** au lieu de 9.                                                                                                                                                                                                           | **Haut** |
 | ℹ️ 15 | greenit_mcp.py:816-1016 | **8 prompts** : `audit_ecoindex`, `rapport_impact`, `expliquer_fiche`, `fiches_par_lifecycle`, `checklist_ecoindex`, `ressources_comparaison`, `audit_rapide_greenit`, `audit_par_ressource`. ✅ Couverture complète.                                                                                                                                                                    | Info     |
-| ⬜ 16 | data.py:14-26           | **`charger_cache()` non thread-safe** : `global _cache` n'est pas protégé par un lock. En HTTP multithread, 2 threads peuvent écrire `_cache` simultanément. **Worst case**: recalcul redondant (harmless mais inefficace).                                                                                                                                                              | Moyen    |
+| ✅ 16 | data.py:14-26           | **`charger_cache()` non thread-safe** : `global _cache` n'est pas protégé par un lock. En HTTP multithread, 2 threads peuvent écrire `_cache` simultanément. **Worst case**: recalcul redondant (harmless mais inefficace). _(Fait Task 11 : verrou double-checked appliqué aux 3 `data.py` + test concurrent. Au passage, bug de test latent `test_metadata` corrigé.)_                 | Moyen    |
 
 <!-- INVALID_SECTION_END -->
 
@@ -223,12 +223,12 @@
 
 #### Avancement remédiation (2026-06-27)
 
-| Statut                        | Count | #s                                                                                                             |
-| ----------------------------- | ----- | -------------------------------------------------------------------------------------------------------------- |
-| ✅ **Fait**                   | 14    | 1, 2, 3, 7, 11, 17, 18, 25, 26, 31, 41, 44, 47, 50 (+ fail-safe auth & parité infra, **hors review** — cf. §8) |
-| ⬜ **À faire**                | 18    | 4-6, 9, 12, 14, 16, 20-24, 28, 30, 32-39, 46, 49, 51                                                           |
-| 🟦 **Faux positif / vérifié** | 5     | 8, 13, 19, 45, 48                                                                                              |
-| ℹ️ **Info (rien à corriger)** | 6     | 10, 15, 27, 29, 40, 42, 43                                                                                     |
+| Statut                        | Count | #s                                                                                                                 |
+| ----------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------ |
+| ✅ **Fait**                   | 15    | 1, 2, 3, 7, 11, 16, 17, 18, 25, 26, 31, 41, 44, 47, 50 (+ fail-safe auth & parité infra, **hors review** — cf. §8) |
+| ⬜ **À faire**                | 17    | 4-6, 9, 12, 14, 20-24, 28, 30, 32-39, 46, 49, 51                                                                   |
+| 🟦 **Faux positif / vérifié** | 5     | 8, 13, 19, 45, 48                                                                                                  |
+| ℹ️ **Info (rien à corriger)** | 6     | 10, 15, 27, 29, 40, 42, 43                                                                                         |
 
 > Note : seuls **2 lots** sont livrés (branche `fix/infra-parity-and-auth-failsafe`), tous deux issus de l'**incident prod rgesn**, pas de la review. Les **P0/P1/P2** du §7.2 ci-dessous (output_schema, validate_themes, rate limiting, tests analyseur, release.sh…) restent **à faire**.
 
