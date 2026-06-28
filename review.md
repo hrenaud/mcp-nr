@@ -223,12 +223,12 @@
 
 #### Avancement remédiation (2026-06-27)
 
-| Statut                        | Count | #s                                                                                                |
-| ----------------------------- | ----- | ------------------------------------------------------------------------------------------------- |
-| ✅ **Fait**                   | 11    | 1, 2, 3, 7, 9, 11, 17, 18, 41, 44, 47 (+ fail-safe auth & parité infra, **hors review** — cf. §8) |
-| ⬜ **À faire**                | 21    | 4-6, 12, 14, 16, 20-26, 28, 30-39, 46, 49-51                                                      |
-| 🟦 **Faux positif / vérifié** | 5     | 8, 13, 19, 45, 48                                                                                 |
-| ℹ️ **Info (rien à corriger)** | 6     | 10, 15, 27, 29, 40, 42, 43                                                                        |
+| Statut                        | Count | #s                                                                                             |
+| ----------------------------- | ----- | ---------------------------------------------------------------------------------------------- |
+| ✅ **Fait**                   | 10    | 1, 2, 3, 7, 11, 17, 18, 41, 44, 47 (+ fail-safe auth & parité infra, **hors review** — cf. §8) |
+| ⬜ **À faire**                | 22    | 4-6, 9, 12, 14, 16, 20-26, 28, 30-39, 46, 49-51                                                |
+| 🟦 **Faux positif / vérifié** | 5     | 8, 13, 19, 45, 48                                                                              |
+| ℹ️ **Info (rien à corriger)** | 6     | 10, 15, 27, 29, 40, 42, 43                                                                     |
 
 > Note : seuls **2 lots** sont livrés (branche `fix/infra-parity-and-auth-failsafe`), tous deux issus de l'**incident prod rgesn**, pas de la review. Les **P0/P1/P2** du §7.2 ci-dessous (output_schema, validate_themes, rate limiting, tests analyseur, release.sh…) restent **à faire**.
 
