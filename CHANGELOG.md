@@ -26,6 +26,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 ### Ajouté
 
+- **Documentation des limites de l'analyseur RGAA** : le champ `note` des résultats explicite désormais les cas non couverts par l'analyse statique (thème 1 `<input type="image">`/`<svg>`, thème 9 sauts de titre inter-sections) à vérifier manuellement. (review #23/#24)
 - **Couverture de tests analyseur RGAA / RGESN** : tests des chemins NC manquants (thèmes 12 skip links, 5.7 `scope`, 8.5 `<title>` vide, 8.6 charset) et cas limite RGESN (critère inexistant) — comble le manque TDD. (review #25/#26/#31/#50)
 - **`tests/test_infra_parity.py`** : verrouille la parité Dockerfile/compose/résolution des tokens entre les 3 MCP ; échoue à toute divergence non autorisée.
 
