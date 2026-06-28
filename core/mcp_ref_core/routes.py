@@ -710,6 +710,11 @@ async def _http_admin_delete_token(request) -> "Response":
 
 async def _http_install_script(request) -> "Response":
     from starlette.responses import PlainTextResponse
+    import re
+    # Garde-fou : _MCP_ID est injecté dans un script shell ; on interdit tout
+    # caractère hors [a-z0-9-] pour écarter une corruption/injection de remplacement.
+    if not re.fullmatch(r"[a-z][a-z0-9-]*", _MCP_ID or ""):
+        raise ValueError(f"_MCP_ID invalide '{_MCP_ID}' — doit matcher [a-z][a-z0-9-]*")
     base_url = _get_base_url()
     mcp_url = f"{base_url}/mcp"
     token_request_url = _get_token_request_url()

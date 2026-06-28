@@ -64,5 +64,11 @@ jobs:
       - name: Build Docker image
         run: docker build -f ${{ matrix.mcp }}/Dockerfile -t ${{ matrix.image }} .
 
-      - name: Smoke test
-        run: docker run --rm ${{ matrix.image }} --health
+      - name: Smoke test (HTTP)
+        run: |
+          docker run -d --name smoke -e MCP_TRANSPORT=http -e MCP_ALLOW_NO_AUTH=1 -p 8000:8000 ${{ matrix.image }}
+          for i in $(seq 1 15); do
+            curl -fsS http://localhost:8000/ && break || sleep 2
+          done
+          curl -fsS http://localhost:8000/ > /dev/null
+          docker rm -f smoke
