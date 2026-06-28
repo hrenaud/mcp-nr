@@ -1,3 +1,7 @@
+# RGESN MCP Server — Docker Compose
+# Forme canonique partagée par les 3 MCP (greenit/rgaa/rgesn).
+# Divergences permises : nom du service, image, port externe, sous-domaine.
+
 services:
   rgesn:
     build:
@@ -13,28 +17,22 @@ services:
       MCP_BASE_URL: ${MCP_BASE_URL:-http://localhost:8002}
       MCP_TOKEN_REQUEST_URL: ${MCP_TOKEN_REQUEST_URL:-}
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+    # Bind mount des tokens (CRITIQUE : sans tokens présents au boot en HTTP,
+    # le serveur refuse de démarrer — cf. fail-safe auth dans core/factory.py).
     volumes:
-      - rgesn_tokens:/app/tokens
-
-    # Reverse proxy auto-discovery labels
-    # Traefik: enable=true triggers Docker provider discovery
-    # Caddy: uses caddy-docker-proxy (https://github.com/lucaslorentz/caddy-docker-proxy)
+      - ./tokens:/app/tokens
+    restart: unless-stopped
+    # Reverse proxy auto-discovery (Traefik + Caddy via caddy-docker-proxy)
     labels:
-      # Traefik
       - "traefik.enable=true"
       - "traefik.http.routers.rgesn.rule=Host(`rgesn.${DOMAIN}`)"
       - "traefik.http.routers.rgesn.entrypoints=websecure"
       - "traefik.http.routers.rgesn.tls=true"
       - "traefik.http.services.rgesn.loadbalancer.server.port=8000"
-      # Caddy (caddy-docker-proxy)
       - "caddy=rgesn.${DOMAIN}"
       - "caddy.reverse_proxy={{upstreams 8000}}"
-
     networks:
       - proxy
-
-volumes:
-  rgesn_tokens:
 
 networks:
   proxy:

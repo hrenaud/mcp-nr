@@ -18,6 +18,7 @@ import pytest
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 from mcp_ref_core import routes
+import greenit_mcp  # noqa: F401 — injecte les tool defs + sections guide GreenIT dans routes
 
 
 class TestGetToolDefinitions:
@@ -163,6 +164,18 @@ class TestHttpGuideJsonResponse:
         assert "<table>" in body
         assert "greenit_lister_fiches" in body
         assert "greenit_chercher_fiche" in body
+
+    @pytest.mark.asyncio
+    async def test_guide_injects_base_url_sync_script(self):
+        """Le guide corrige l'URL affichée via window.location.origin (JS)."""
+        request = MagicMock()
+        request.headers.get.return_value = "text/html"
+
+        with patch("mcp_ref_core.routes._get_base_url", return_value="http://localhost:8000"):
+            response = await routes._http_guide(request)
+            body = response.body.decode()
+            assert "window.location.origin" in body
+            assert "data-base-url" in body
 
     @pytest.mark.asyncio
     async def test_json_response_content_type(self):
@@ -344,6 +357,16 @@ class TestHttpHomepage:
             assert "2026-04-10" in body
         finally:
             routes._REFERENTIEL_VERSION = original
+
+    @pytest.mark.asyncio
+    async def test_homepage_injects_base_url_sync_script(self):
+        """La homepage corrige l'URL affichée via window.location.origin (JS)."""
+        request = MagicMock()
+        with patch("mcp_ref_core.routes._get_base_url", return_value="http://localhost:8000"):
+            response = await routes._http_homepage(request)
+            body = response.body.decode()
+            assert "window.location.origin" in body
+            assert "data-base-url" in body
 
 
 class TestHttpInstallScript:
@@ -615,3 +638,16 @@ class TestGuideWithTokenRequestUrl:
 
             # Should include the HTTPS URL
             assert "https://secure.example.com/token" in body
+
+
+class TestGuideGreenItEcoIndex:
+    """Le guide GreenIT doit toujours afficher la section EcoIndex (injectée par greenit_mcp)."""
+
+    def test_guide_greenit_contient_ecoindex(self):
+        import asyncio
+        req = MagicMock()
+        req.headers = {"accept": "text/html"}
+        resp = asyncio.run(routes._http_guide(req))
+        body = resp.body.decode()
+        assert "EcoIndex" in body
+        assert "greenit_calculer_ecoindex" in body

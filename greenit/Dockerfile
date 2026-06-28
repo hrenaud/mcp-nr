@@ -1,17 +1,16 @@
 FROM python:3.13-slim
 
-ENV DEBIAN_FRONTEND=noninteractive
-
 WORKDIR /app
 
 RUN pip install --no-cache-dir fastmcp httpx
 
 COPY core/mcp_ref_core/ ./mcp_ref_core/
-COPY greenit/files/greenit_mcp.py .
-COPY greenit/files/data.py .
-COPY greenit/files/greenit_cache.json .
+COPY greenit/files/ ./files/
+COPY greenit/tokens/.gitkeep ./tokens/.gitkeep
 
-ENV PYTHONUNBUFFERED=1
+VOLUME ["/app/tokens"]
+
+ENV PYTHONPATH=/app
 ENV MCP_TRANSPORT=http
 ENV MCP_HOST=0.0.0.0
 ENV MCP_PORT=8000
@@ -19,6 +18,6 @@ ENV MCP_PORT=8000
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD python greenit_mcp.py --health
+  CMD python files/greenit_mcp.py --health || exit 1
 
-ENTRYPOINT ["python", "greenit_mcp.py"]
+ENTRYPOINT ["python", "files/greenit_mcp.py"]

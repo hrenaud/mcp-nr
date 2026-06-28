@@ -7,6 +7,7 @@ _get_tool_definitions) are injected by each MCP after import.
 
 import json
 import os
+import re
 import logging
 from html import escape
 from typing import Any
@@ -60,10 +61,45 @@ def register_version_resource(mcp, charger_cache_fn) -> None:
         }, ensure_ascii=False, indent=2)
 
 
-def _get_base_url() -> str:
+_HOST_RE = re.compile(r"^[A-Za-z0-9.\-]+(:[0-9]+)?$")
+
+
+def _host_autorise(host: str) -> bool:
+    """Le host (issu d'un en-tête contrôlable par le client) est-il autorisé ?
+
+    Si MCP_ALLOWED_HOSTS est défini (liste séparée par virgules), seul un host
+    dont le nom (port exclu) y figure est honoré — défense contre le host header
+    injection / cache poisoning. Sinon (non configuré), pas de restriction.
+    """
+    allow = os.environ.get("MCP_ALLOWED_HOSTS", "").strip()
+    if not allow:
+        return True
+    hostname = host.split(":")[0].lower()
+    allowed = {h.strip().lower() for h in allow.split(",") if h.strip()}
+    return hostname in allowed
+
+
+def _get_base_url(request=None) -> str:
+    # 1. Override explicite de l'opérateur.
     url = os.environ.get("MCP_BASE_URL", "").rstrip("/")
     if url:
         return url
+    # 2. Domaine réel de la requête (derrière un reverse proxy : X-Forwarded-*).
+    if request is not None:
+        fwd_host = request.headers.get("x-forwarded-host")
+        raw_host = fwd_host if isinstance(fwd_host, str) and fwd_host else request.headers.get("host")
+        if isinstance(raw_host, str):
+            host = raw_host.split(",")[0].strip()
+            if host and _HOST_RE.match(host) and _host_autorise(host):
+                fwd_proto = request.headers.get("x-forwarded-proto")
+                scheme = fwd_proto.split(",")[0].strip().lower() if isinstance(fwd_proto, str) and fwd_proto else ""
+                if scheme not in ("http", "https"):
+                    req_scheme = getattr(getattr(request, "url", None), "scheme", "")
+                    scheme = req_scheme.lower() if isinstance(req_scheme, str) else ""
+                    if scheme not in ("http", "https"):
+                        scheme = "https"
+                return f"{scheme}://{host}"
+    # 3. Repli local.
     host = os.environ.get("MCP_HOST", "0.0.0.0")
     port = os.environ.get("MCP_PORT", "8000")
     display_host = "localhost" if host in ("0.0.0.0", "") else host
@@ -72,6 +108,28 @@ def _get_base_url() -> str:
 
 def _get_token_request_url() -> str:
     return os.environ.get("MCP_TOKEN_REQUEST_URL", "")
+
+
+def _base_url_sync_script(server_base_url: str) -> str:
+    """Script client qui aligne les URLs affichées sur le domaine réellement visité.
+
+    Le rendu serveur retombe parfois sur ``localhost`` (reverse proxy sans Host
+    exploitable, ``MCP_ALLOWED_HOSTS`` restrictif). Dans le navigateur,
+    ``window.location.origin`` reflète toujours le domaine de la barre d'adresse :
+    on remplace l'URL serveur par cette origine dans les éléments marqués
+    ``data-base-url``. Sans JS (ex. ``curl``), l'URL serveur reste affichée.
+    """
+    server_js = json.dumps(server_base_url)
+    return f"""<script>
+(function () {{
+  var origin = window.location.origin;
+  var server = {server_js};
+  if (!origin || origin === server) return;
+  document.querySelectorAll("[data-base-url]").forEach(function (el) {{
+    el.innerHTML = el.innerHTML.split(server).join(origin);
+  }});
+}})();
+</script>"""
 
 
 _INSTALL_SCRIPT_TEMPLATE = r"""#!/usr/bin/env bash
@@ -533,7 +591,7 @@ async def _http_homepage(request) -> "Response":
     from data import charger_cache
     cache = charger_cache()
     fiches_count = len(cache.get(_ITEMS_KEY, {}))
-    base_url = escape(_get_base_url())
+    base_url = escape(_get_base_url(request))
     status_html = (
         f'<span class="badge ok">{fiches_count} entrées chargées</span>'
         if fiches_count else
@@ -599,7 +657,7 @@ async def _http_homepage(request) -> "Response":
   </style>
 </head>
 <body>
-  <div class="card">
+  <div class="card" data-base-url>
     <div class="logo">{_LOGO}</div>
     <h1>{_MCP_NAME}</h1>
     <div class="version">v{_VERSION}</div>
@@ -615,6 +673,7 @@ async def _http_homepage(request) -> "Response":
     </div>
     <div class="footer">{base_url}/mcp</div>
   </div>
+  {_base_url_sync_script(base_url)}
 </body>
 </html>"""
     return HTMLResponse(html)
@@ -710,7 +769,11 @@ async def _http_admin_delete_token(request) -> "Response":
 
 async def _http_install_script(request) -> "Response":
     from starlette.responses import PlainTextResponse
-    base_url = _get_base_url()
+    # Garde-fou : _MCP_ID est injecté dans un script shell ; on interdit tout
+    # caractère hors [a-z0-9-] pour écarter une corruption/injection de remplacement.
+    if not re.fullmatch(r"[a-z][a-z0-9-]*", _MCP_ID or ""):
+        raise ValueError(f"_MCP_ID invalide '{_MCP_ID}' — doit matcher [a-z][a-z0-9-]*")
+    base_url = _get_base_url(request)
     mcp_url = f"{base_url}/mcp"
     token_request_url = _get_token_request_url()
     script = (
@@ -724,200 +787,56 @@ async def _http_install_script(request) -> "Response":
     return PlainTextResponse(script, media_type="text/plain; charset=utf-8")
 
 
-def _greenit_tool_definitions() -> list[dict[str, Any]]:
-    """Build tool definitions from tools descriptions and parameter schemas.
+def _default_tool_definitions() -> list[dict[str, Any]]:
+    """Default: no tools. Each MCP injects its own via factory.create_mcp()."""
+    return []
 
-    Returns:
-        list[dict[str, Any]]: Tool definitions with required fields (name, description, inputSchema)
+
+# Référence vers l'instance FastMCP, injectée par factory.create_mcp().
+_mcp_instance = None
+
+
+def _tool_definitions_from_mcp() -> list[dict[str, Any]]:
+    """Dérive la liste d'outils du /guide depuis les outils FastMCP enregistrés.
+
+    Source unique de vérité = les décorateurs @mcp.tool (évite la table manuelle
+    dupliquée dans chaque MCP). Lecture paresseuse : les outils sont enregistrés
+    après create_mcp, donc on lit l'instance au moment du rendu de /guide.
     """
-    # Tool definitions with descriptions and schemas
-    tool_defs = [
+    if _mcp_instance is None:
+        return []
+    try:
+        try:
+            from fastmcp.tools.function_tool import FunctionTool
+        except ImportError:  # compat FastMCP plus anciens
+            from fastmcp.tools.tool import FunctionTool
+        components = _mcp_instance._local_provider._components
+        tools = [c for c in components.values() if isinstance(c, FunctionTool)]
+    except Exception:
+        return []
+    defs = [
         {
-            "name": "greenit_lister_fiches",
-            "description": "Liste toutes les fiches ou filtre par lifecycle, ressource, impact, priorité",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "lifecycle": {"type": ["string", "null"], "description": "Filtrer par phase du cycle de vie"},
-                    "saved_resource": {"type": ["string", "null"], "description": "Filtrer par ressource économisée"},
-                    "impact_min": {"type": ["integer", "null"], "description": "Impact environnemental minimum (1-5)"},
-                    "priorite_min": {"type": ["integer", "null"], "description": "Priorité d'implémentation minimum (1-5)"}
-                }
-            }
-        },
-        {
-            "name": "greenit_fiches_prioritaires",
-            "description": "Retourne les fiches à fort impact et haute priorité",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "impact_min": {"type": ["integer", "null"], "description": "Seuil minimum d'impact (défaut: 4)"},
-                    "priorite_min": {"type": ["integer", "null"], "description": "Seuil minimum de priorité (défaut: 4)"}
-                }
-            }
-        },
-        {
-            "name": "greenit_chercher_fiche",
-            "description": "Recherche des fiches par mot-clé avec scoring de pertinence",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "terme": {"type": "string", "description": "Mot-clé à rechercher"}
-                },
-                "required": ["terme"]
-            }
-        },
-        {
-            "name": "greenit_comparer_fiches",
-            "description": "Compare plusieurs fiches côte à côte avec recommandation",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "fiche_ids": {"type": "array", "items": {"type": "string"}, "description": "Liste d'identifiants de fiches à comparer"}
-                },
-                "required": ["fiche_ids"]
-            }
-        },
-        {
-            "name": "greenit_obtenir_fiche_complete",
-            "description": "Récupère le contenu complet d'une fiche",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "fiche_id": {"type": "string", "description": "Identifiant de la fiche"}
-                },
-                "required": ["fiche_id"]
-            }
-        },
-        {
-            "name": "greenit_obtenir_statistiques",
-            "description": "Statistiques du référentiel (distributions, top fiches)",
-            "inputSchema": {
-                "type": "object",
-                "properties": {}
-            }
-        },
-        {
-            "name": "greenit_lister_lifecycles",
-            "description": "Liste les 7 phases du cycle de vie avec nombre de fiches",
-            "inputSchema": {
-                "type": "object",
-                "properties": {}
-            }
-        },
-        {
-            "name": "greenit_lister_ressources",
-            "description": "Liste les 8 types de ressources avec nombre de fiches",
-            "inputSchema": {
-                "type": "object",
-                "properties": {}
-            }
-        },
-        {
-            "name": "greenit_calculer_ecoindex",
-            "description": "Calcule l'EcoIndex (score + grade) à partir des 3 métriques brutes : nœuds DOM, requêtes HTTP, taille KB",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "dom_nodes": {"type": "integer", "description": "Nombre de nœuds DOM"},
-                    "requests": {"type": "integer", "description": "Nombre de requêtes HTTP"},
-                    "size_kb": {"type": "number", "description": "Taille totale en kilo-octets"},
-                    "url": {"type": ["string", "null"], "description": "URL de la page mesurée (optionnel)"}
-                },
-                "required": ["dom_nodes", "requests", "size_kb"]
-            }
+            "name": t.name,
+            "description": getattr(t, "description", "") or "",
+            "inputSchema": getattr(t, "parameters", {}) or {},
         }
+        for t in tools
     ]
-
-    # Validate all tools have required fields
-    for tool in tool_defs:
-        assert "name" in tool, f"Tool missing 'name': {tool}"
-        assert "description" in tool, f"Tool missing 'description': {tool}"
-        assert "inputSchema" in tool, f"Tool missing 'inputSchema': {tool}"
-
-    return tool_defs
+    return sorted(defs, key=lambda d: d["name"])
 
 
 # Injected by MCPs after import: _routes_mod._get_tool_definitions = custom_tool_definitions
-_get_tool_definitions = _greenit_tool_definitions
+# Défaut : dérivation introspective depuis les outils enregistrés.
+_get_tool_definitions = _tool_definitions_from_mcp
 
 
-def _greenit_guide_extra_sections() -> str:
-    return f"""
-    <h2>5. Prompts MCP</h2>
-    <p>Ces prompts sont des workflows préconfigurés invocables directement depuis Claude&nbsp;Code avec <code>/mcp__greenit__&lt;nom&gt;</code>.</p>
-    <table>
-      <thead><tr><th>Prompt</th><th>Paramètres</th><th>Description</th></tr></thead>
-      <tbody>
-        <tr><td><code>audit_ecoindex</code></td><td><code>url</code>, <code>focus?</code></td><td>Analyse l'impact environnemental d'une page via EcoIndex</td></tr>
-        <tr><td><code>rapport_impact</code></td><td><code>resultats</code></td><td>Rapport d'impact environnemental structuré à partir de résultats d'analyse</td></tr>
-        <tr><td><code>expliquer_fiche</code></td><td><code>fiche_id</code></td><td>Explication pédagogique d'une fiche (objectif, mise en œuvre, exemples)</td></tr>
-        <tr><td><code>fiches_par_lifecycle</code></td><td><code>phase</code>, <code>impact_min?</code></td><td>Bonnes pratiques pour une phase du cycle de vie (ex : développement)</td></tr>
-        <tr><td><code>checklist_ecoindex</code></td><td><code>domaines?</code></td><td>Checklist d'optimisation manuelle par domaine</td></tr>
-        <tr><td><code>ressources_comparaison</code></td><td><code>fiche_ids</code></td><td>Comparaison des économies de ressources entre plusieurs fiches</td></tr>
-        <tr><td><code>audit_rapide_greenit</code></td><td><code>url</code></td><td>Audit express — bonnes pratiques prioritaires en 5 minutes</td></tr>
-        <tr><td><code>audit_par_ressource</code></td><td><code>ressource</code>, <code>budget?</code></td><td>Optimisation par type de ressource (réseau, CPU, mémoire…)</td></tr>
-      </tbody>
-    </table>
-
-    <h2>6. Ressources disponibles</h2>
-    <p>Les ressources MCP exposent les données brutes du référentiel, accessibles directement dans Claude :</p>
-    <table>
-      <thead><tr><th>Ressource</th><th>Description</th></tr></thead>
-      <tbody>
-        <tr><td><code>{_MCP_ID}://version</code></td><td>Version du serveur et des données</td></tr>
-        <tr><td><code>{_MCP_ID}://index</code></td><td>Index de toutes les fiches (id, titre, lifecycle, impact, priorité)</td></tr>
-        <tr><td><code>{_MCP_ID}://fiche/{'{'}fiche_id{'}'}</code></td><td>Contenu complet d'une fiche spécifique (ex : <code>RWEB_0051</code>)</td></tr>
-        <tr><td><code>{_MCP_ID}://metadata</code></td><td>Métadonnées du référentiel (source, nb fiches, nb lifecycles)</td></tr>
-      </tbody>
-    </table>
-
-    <h2>7. Exemples de questions</h2>
-    <div class="note">Quelles fiches GreenIT sont prioritaires pour un site React ?</div>
-    <div class="note">Quelles bonnes pratiques pour réduire les requêtes réseau ?</div>
-    <div class="note">Quelles bonnes pratiques GreenIT s'appliquent à la phase de développement ?</div>
-    <div class="note">Compare les fiches RWEB_0049 et RWEB_0051</div>
-    <div class="note">Compare les fiches RWEB_0042 et RWEB_0050 : laquelle prioriser pour un site e-commerce ?</div>
-    <div class="note">Donne-moi les statistiques du référentiel GreenIT</div>
-    <div class="note">Donne-moi les bonnes pratiques GreenIT à appliquer en priorité pour réduire l'impact écologique de mon site (ex : https://example.com) — utilise Playwright avec Chromium pour mesurer les métriques DOM, requêtes et poids de page</div>
-    <div class="note">J'ai mesuré avec Playwright : 450 nœuds DOM, 38 requêtes, 280 Ko — quel est l'EcoIndex de ma page ?</div>
-    <div class="note">Calcule l'EcoIndex de https://example.com en utilisant Playwright pour mesurer les métriques réelles de la page</div>
-
-    <h2>8. Calculer l'EcoIndex</h2>
-    <p>L'EcoIndex est calculé à partir de 3 métriques mesurées avec Playwright :</p>
-    <div class="note">Le serveur MCP pilote automatiquement Playwright en appliquant le protocole de mesure officiel EcoIndex. Il vous suffit de fournir une URL — Claude se charge du reste.</div>
-    <table>
-      <thead><tr><th>Paramètre</th><th>Description</th></tr></thead>
-      <tbody>
-        <tr><td><code>dom_nodes</code></td><td>Nombre de nœuds dans le DOM</td></tr>
-        <tr><td><code>requests</code></td><td>Nombre de requêtes HTTP</td></tr>
-        <tr><td><code>size_kb</code></td><td>Taille totale transférée en Ko</td></tr>
-      </tbody>
-    </table>
-    <p>Protocole de mesure recommandé avec Playwright :</p>
-    <pre><code>1. Ouvrir un contexte Playwright avec viewport 1920×1080 (spec EcoIndex officielle)
-2. Naviguer vers la page
-3. Attendre 3 secondes
-4. Faire défiler jusqu'en bas progressivement
-5. Attendre 3 secondes
-6. Mesurer DOM, requêtes, taille
-7. Appeler greenit_calculer_ecoindex(dom_nodes, requests, size_kb)</code></pre>
-    <table>
-      <thead><tr><th>Grade</th><th>Score</th></tr></thead>
-      <tbody>
-        <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#349A47;vertical-align:middle;margin-right:6px"></span>A</td><td>&gt; 80</td></tr>
-        <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#51B84B;vertical-align:middle;margin-right:6px"></span>B</td><td>70 – 80</td></tr>
-        <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#CADB2A;vertical-align:middle;margin-right:6px"></span>C</td><td>55 – 70</td></tr>
-        <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#F6EB15;vertical-align:middle;margin-right:6px"></span>D</td><td>40 – 55</td></tr>
-        <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#FECD06;vertical-align:middle;margin-right:6px"></span>E</td><td>25 – 40</td></tr>
-        <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#F99839;vertical-align:middle;margin-right:6px"></span>F</td><td>10 – 25</td></tr>
-        <tr><td><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#ED2124;vertical-align:middle;margin-right:6px"></span>G</td><td>0 – 10</td></tr>
-      </tbody>
-    </table>"""
+def _default_guide_extra_sections() -> str:
+    """Default: no extra sections. Each MCP injects its own via factory.create_mcp()."""
+    return ""
 
 
 # Injected by MCPs after import: _routes_mod._guide_extra_sections = custom_guide_extra_sections
-_guide_extra_sections = _greenit_guide_extra_sections
+_guide_extra_sections = _default_guide_extra_sections
 
 
 async def _http_guide(request) -> "Response":
@@ -934,7 +853,7 @@ async def _http_guide(request) -> "Response":
 
     # Return HTML (default behavior) - get tools once for rendering
     tools = _get_tool_definitions()
-    base_url = escape(_get_base_url())
+    base_url = escape(_get_base_url(request))
     token_request_url = _get_token_request_url()
     if token_request_url and (token_request_url.startswith("http://") or token_request_url.startswith("https://")):
         token_request_url = escape(token_request_url)
@@ -1006,7 +925,7 @@ async def _http_guide(request) -> "Response":
 </head>
 <body>
   <div class="top-bar"></div>
-  <div class="wrap">
+  <div class="wrap" data-base-url>
     <a class="back" href="/">← {_MCP_NAME}</a>
     <h1>Guide d'installation — {_MCP_NAME}</h1>
     <p class="subtitle">Connectez Claude à {_MCP_NAME}</p>
@@ -1058,6 +977,7 @@ curl -sSL {base_url}/install.sh | bash -s -- --uninstall</code></pre>
 
     {_guide_extra_sections()}
   </div>
+  {_base_url_sync_script(base_url)}
 </body>
 </html>"""
     return HTMLResponse(html)

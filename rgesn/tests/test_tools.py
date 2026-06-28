@@ -17,6 +17,7 @@ import json
 import rgesn_mcp as mcp_module
 from fastmcp.exceptions import ToolError
 from mcp_ref_core import factory, routes as routes_mod
+from mcp_ref_core import routes
 
 
 # ============================================================================
@@ -60,13 +61,13 @@ class TestEnvHelpers:
 class TestCreateMcp:
     def test_stdio_mode_no_routes(self, monkeypatch):
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        mcp = factory.create_mcp("RGESN MCP", mcp_module.TOKENS_FILE, mcp_module._rgesn_tool_definitions, mcp_module._rgesn_guide_extra_sections)
+        mcp = factory.create_mcp("RGESN MCP", mcp_module.TOKENS_FILE, guide_extra_sections_fn=mcp_module._rgesn_guide_extra_sections)
         assert mcp.name == "RGESN MCP"
         assert len(mcp._additional_http_routes) == 0
 
     def test_http_mode_registers_routes(self, monkeypatch):
         monkeypatch.setenv("MCP_TRANSPORT", "http")
-        mcp = factory.create_mcp("RGESN MCP", mcp_module.TOKENS_FILE, mcp_module._rgesn_tool_definitions, mcp_module._rgesn_guide_extra_sections)
+        mcp = factory.create_mcp("RGESN MCP", mcp_module.TOKENS_FILE, guide_extra_sections_fn=mcp_module._rgesn_guide_extra_sections)
         assert mcp.name == "RGESN MCP"
         assert len(mcp._additional_http_routes) == 8
         paths = [r.path for r in mcp._additional_http_routes]
@@ -76,7 +77,7 @@ class TestCreateMcp:
 
     def test_no_tokens_no_auth(self, monkeypatch, tmp_path):
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        mcp = factory.create_mcp("RGESN MCP", str(tmp_path / "tokens.json"), mcp_module._rgesn_tool_definitions)
+        mcp = factory.create_mcp("RGESN MCP", str(tmp_path / "tokens.json"))
         assert mcp._auth is None
 
     def test_with_tokens_auth_applied(self, monkeypatch, tmp_path):
@@ -91,7 +92,7 @@ class TestCreateMcp:
             }
         }))
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        mcp = factory.create_mcp("RGESN MCP", str(tokens_file), mcp_module._rgesn_tool_definitions)
+        mcp = factory.create_mcp("RGESN MCP", str(tokens_file))
         assert mcp._auth is not None
 
 
@@ -271,18 +272,18 @@ class TestToolErrorMessages:
 
 class TestToolDefinitions:
     def test_returns_list_of_seven_tools(self):
-        defs = mcp_module._rgesn_tool_definitions()
+        defs = routes._get_tool_definitions()
         assert len(defs) == 7
 
     def test_all_have_required_fields(self):
-        defs = mcp_module._rgesn_tool_definitions()
+        defs = routes._get_tool_definitions()
         for d in defs:
             assert "name" in d
             assert "description" in d
             assert "inputSchema" in d
 
     def test_expected_tool_names(self):
-        defs = mcp_module._rgesn_tool_definitions()
+        defs = routes._get_tool_definitions()
         names = [d["name"] for d in defs]
         assert "rgesn_lister_criteres" in names
         assert "rgesn_obtenir_critere" in names
@@ -293,12 +294,12 @@ class TestToolDefinitions:
         assert "rgesn_criteres_prioritaires" in names
 
     def test_no_duplicate_tool_names(self):
-        defs = mcp_module._rgesn_tool_definitions()
+        defs = routes._get_tool_definitions()
         names = [d["name"] for d in defs]
         assert len(names) == len(set(names))
 
     def test_descriptions_non_empty(self):
-        defs = mcp_module._rgesn_tool_definitions()
+        defs = routes._get_tool_definitions()
         for d in defs:
             assert len(d["description"]) > 10, f"{d['name']} has short description"
 

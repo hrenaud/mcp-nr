@@ -8,6 +8,38 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 ---
 
+## [2.2.0] — 2026-06-28
+
+### Sécurité
+
+- **Durcissement outillage release/build/CI** : `release.sh` refuse de tourner hors `main` (#35), exige une entrée CHANGELOG pour la version (#34/#49), et utilise un `git add` explicite (#33) ; `build.sh` lance les tests avant le build (#37) ; le smoke test CI vérifie une vraie réponse HTTP sur le port 8000 au lieu de l'argument CLI `--health` (#39) ; `_http_install_script` valide `_MCP_ID` (`[a-z][a-z0-9-]*`) avant injection dans le script shell (#6).
+- **Robustesse `auth.py` (core)** : `verify_token` lève une `RuntimeError` explicite si `fastmcp.AccessToken` est indisponible au runtime (au lieu d'un `TypeError` opaque) ; `update()` valide ses entrées (`name` non vide, `expires_days > 0`). (review #2/#3)
+- **Rate limiting `rgaa_analyser`** : limiteur en mémoire (fenêtre glissante, 10 req/60 s) sur l'outil qui effectue une requête HTTP vers une URL arbitraire — atténue le vecteur DoS. Timeout réseau de `fetcher_html` ramené de 30 s à 10 s (paramétrable). (review #17/#18)
+- **Fail-safe auth** (`core/factory.py`, `run_main`) : en transport HTTP, le serveur refuse désormais de **servir** si aucun token valide n'est présent, au lieu de basculer silencieusement en mode sans authentification. Override explicite via `MCP_ALLOW_NO_AUTH=1` (avec WARNING). Le contrôle est au moment de servir (pas à l'import) pour ne pas casser `--health` ni les commandes CLI de gestion des tokens. Évite qu'un volume de tokens vide/mal monté n'expose un MCP sans auth (cf. incident prod rgesn).
+
+### Refactorisé
+
+- **Liste d'outils du `/guide` dérivée des décorateurs `@mcp.tool`** : suppression des tables manuelles `_greenit/_rgaa/_rgesn_tool_definitions()` (name + description + inputSchema dupliqués). `core/routes.py` introspecte désormais les outils FastMCP enregistrés (`_tool_definitions_from_mcp`), source unique de vérité ; `factory.create_mcp` injecte l'instance et rend `tool_definitions_fn` optionnel. Verrouillé par `test_infra_parity.py`. (review #14/#21/#46/#51)
+- **Code spécifique GreenIT sorti de `core/routes.py`** : `_greenit_tool_definitions` et `_greenit_guide_extra_sections` déplacés dans `greenit/files/greenit_mcp.py` (parité avec RGAA/RGESN qui définissent leurs fonctions localement). `core/routes.py` expose désormais des défauts neutres (`_default_tool_definitions → []`, `_default_guide_extra_sections → ""`). Le guide GreenIT (section EcoIndex) est injecté explicitement via `factory.create_mcp(...)`. (review #7/#8/#13/#48, #46 partiel)
+
+### Corrigé
+
+- **URL de base détectée depuis la requête** : les routes `/`, `/guide` et `/install.sh` utilisent désormais le domaine réel de la requête (`X-Forwarded-Host`/`X-Forwarded-Proto` derrière un reverse proxy, sinon en-tête `Host`) au lieu de retomber sur `http://localhost:<port>`. `MCP_BASE_URL` reste prioritaire ; le host est validé (`[A-Za-z0-9.\-]`, port optionnel) et le schéma restreint à `http`/`https`. Défense host-header injection / cache poisoning : `MCP_ALLOWED_HOSTS` (liste séparée par virgules) restreint, si défini, les hosts honorés.
+- **Correction client de l'URL affichée dans les pages HTML** (`/`, `/guide`) : un petit script aligne les URLs montrées (commande `curl`, `claude mcp add`, config JSON, lien `/mcp`) sur `window.location.origin`, c.-à-d. le domaine réellement présent dans la barre d'adresse. Couvre les cas où la détection serveur retombe sur `localhost` (reverse proxy sans `Host` exploitable, `MCP_ALLOWED_HOSTS` restrictif). Sans JavaScript (ex. `curl` de `install.sh`, qui reste rendu côté serveur), l'URL serveur est conservée.
+- **`data.charger_cache` thread-safe** (greenit, rgaa, rgesn) : verrou double-checked sur le cache mémoire — évite le rechargement concurrent redondant en HTTP multithread (idem `charger_audit_types` côté rgaa). Appliqué identiquement aux 3 MCP (règle d'or). (review #16)
+- **`test_metadata.py` (greenit)** : `test_calculer_taux_ecoindex_moyen_with_real_cache` lisait les valeurs de premier niveau du cache (`meta` + `fiches`) au lieu de la sous-clé `fiches` — bug de test latent masqué par la pollution d'état entre tests.
+- **`_helpers.validate_themes` (core)** : le message d'erreur ne cite plus `rgaa_statistiques` (nom d'outil spécifique à RGAA). `core` ne doit connaître aucun MCP — docstring du module généralisé. (review #11/#47)
+- **Convergence du périmètre infra** : `Dockerfile` et `docker-compose.yml` des 3 MCP rendus identiques (modulo nom/port/deps). `greenit/Dockerfile` aligné sur la forme canonique (fichiers sous `/app/files`, `VOLUME /app/tokens`, `PYTHONPATH=/app`) ; `shm_size`/Playwright supprimés (le serveur ne lance pas de navigateur). `rgesn/docker-compose.yml` : volume nommé vide remplacé par le **bind mount** `./tokens:/app/tokens` (cause racine de l'auth désactivée en prod). `greenit_mcp.py` : `TOKENS_FILE` résolu via `_BASE_DIR.parent / "tokens"` comme rgaa/rgesn.
+
+### Ajouté
+
+- **Outil RGAA `rgaa_criteres_prioritaires`** : liste les critères classés par niveau de priorité WCAG (A le plus prioritaire > AA > AAA). Chaque critère reçoit le niveau le plus contraignant qu'il référence — partition sans double comptage (83 A + 23 AA = 106), contrairement au filtre `niveau_wcag` de `rgaa_lister_criteres`. Filtre optionnel par palier ; `repartition` globale incluse. (RGAA : 10 → 11 outils)
+- **Documentation des limites de l'analyseur RGAA** : le champ `note` des résultats explicite désormais les cas non couverts par l'analyse statique (thème 1 `<input type="image">`/`<svg>`, thème 9 sauts de titre inter-sections) à vérifier manuellement. (review #23/#24)
+- **Couverture de tests analyseur RGAA / RGESN** : tests des chemins NC manquants (thèmes 12 skip links, 5.7 `scope`, 8.5 `<title>` vide, 8.6 charset) et cas limite RGESN (critère inexistant) — comble le manque TDD. (review #25/#26/#31/#50)
+- **`tests/test_infra_parity.py`** : verrouille la parité Dockerfile/compose/résolution des tokens entre les 3 MCP ; échoue à toute divergence non autorisée.
+
+---
+
 ## [2.1.3] — 2026-06-27
 
 ### Ajouté

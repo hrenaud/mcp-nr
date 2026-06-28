@@ -77,13 +77,13 @@ class TestEnvHelpers:
 class TestCreateMcp:
     def test_stdio_mode_no_routes(self, monkeypatch):
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        mcp = factory.create_mcp("RGAA MCP", mcp_module.TOKENS_FILE, mcp_module._rgaa_tool_definitions, mcp_module._rgaa_guide_extra_sections)
+        mcp = factory.create_mcp("RGAA MCP", mcp_module.TOKENS_FILE, guide_extra_sections_fn=mcp_module._rgaa_guide_extra_sections)
         assert mcp.name == "RGAA MCP"
         assert len(mcp._additional_http_routes) == 0
 
     def test_http_mode_registers_routes(self, monkeypatch):
         monkeypatch.setenv("MCP_TRANSPORT", "http")
-        mcp = factory.create_mcp("RGAA MCP", mcp_module.TOKENS_FILE, mcp_module._rgaa_tool_definitions, mcp_module._rgaa_guide_extra_sections)
+        mcp = factory.create_mcp("RGAA MCP", mcp_module.TOKENS_FILE, guide_extra_sections_fn=mcp_module._rgaa_guide_extra_sections)
         assert mcp.name == "RGAA MCP"
         assert len(mcp._additional_http_routes) == 8
         paths = [r.path for r in mcp._additional_http_routes]
@@ -93,7 +93,7 @@ class TestCreateMcp:
 
     def test_no_tokens_no_auth(self, monkeypatch, tmp_path):
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        mcp = factory.create_mcp("RGAA MCP", str(tmp_path / "tokens.json"), mcp_module._rgaa_tool_definitions)
+        mcp = factory.create_mcp("RGAA MCP", str(tmp_path / "tokens.json"))
         assert mcp._auth is None
 
     def test_with_tokens_auth_applied(self, monkeypatch, tmp_path):
@@ -108,7 +108,7 @@ class TestCreateMcp:
             }
         }))
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        mcp = factory.create_mcp("RGAA MCP", str(tokens_file), mcp_module._rgaa_tool_definitions)
+        mcp = factory.create_mcp("RGAA MCP", str(tokens_file))
         assert mcp._auth is not None
 
 
@@ -234,7 +234,7 @@ class TestHttpRoutes:
         """Test JSON response contains correct number of tools (10)"""
         r = client.get("/guide", headers={"Accept": "application/json"})
         data = r.json()
-        assert len(data["tools"]) == 10, f"Expected 10 tools, got {len(data['tools'])}"
+        assert len(data["tools"]) == 11, f"Expected 11 tools, got {len(data['tools'])}"
 
     def test_guide_json_tool_structure(self, client):
         """Test each tool in JSON has required fields"""
@@ -257,7 +257,7 @@ class TestHttpRoutes:
             "rgaa_lister_criteres", "rgaa_obtenir_critere", "rgaa_chercher",
             "rgaa_glossaire", "rgaa_statistiques", "rgaa_analyser",
             "rgaa_checklist", "rgaa_taux_conformite", "rgaa_types_audit",
-            "rgaa_criteres_audit"
+            "rgaa_criteres_audit", "rgaa_criteres_prioritaires"
         }
         assert names == expected, f"Tool names mismatch. Got: {names}, Expected: {expected}"
 
@@ -288,12 +288,12 @@ class TestHttpRoutes:
         assert "text/html" in r.headers["content-type"]
 
     def test_guide_html_contains_all_tools(self, client):
-        """Test HTML guide contains all 10 tools"""
+        """Test HTML guide contains all 11 tools"""
         r = client.get("/guide")
         for tool_name in ("rgaa_lister_criteres", "rgaa_obtenir_critere", "rgaa_chercher",
                           "rgaa_glossaire", "rgaa_statistiques", "rgaa_analyser",
                           "rgaa_checklist", "rgaa_taux_conformite", "rgaa_types_audit",
-                          "rgaa_criteres_audit"):
+                          "rgaa_criteres_audit", "rgaa_criteres_prioritaires"):
             assert tool_name in r.text, f"Tool '{tool_name}' missing from HTML guide"
 
 
@@ -509,6 +509,57 @@ class TestCriteresAudit:
         result = mcp_module.rgaa_criteres_audit("rapide")
         assert result["type"] == "rapide"
         assert "nom" in result
+
+
+# ============================================================================
+# rgaa_criteres_prioritaires
+# ============================================================================
+
+class TestCriteresPrioritaires:
+    def test_retourne_total_repartition_et_criteres(self):
+        result = mcp_module.rgaa_criteres_prioritaires()
+        assert "total" in result
+        assert "repartition" in result
+        assert "criteres" in result
+        assert result["total"] == len(result["criteres"])
+
+    def test_chaque_critere_a_un_niveau_de_priorite(self):
+        result = mcp_module.rgaa_criteres_prioritaires()
+        for c in result["criteres"]:
+            assert c["niveau"] in ("A", "AA", "AAA")
+
+    def test_repartition_partitionne_le_referentiel(self):
+        result = mcp_module.rgaa_criteres_prioritaires()
+        rep = result["repartition"]
+        assert set(rep.keys()) == {"A", "AA", "AAA"}
+        assert rep["A"] + rep["AA"] + rep["AAA"] == result["total"]
+
+    def test_un_seul_niveau_par_critere_pas_de_double_comptage(self):
+        # 106 critères au total, chacun compté une seule fois.
+        result = mcp_module.rgaa_criteres_prioritaires()
+        ids = [c["id"] for c in result["criteres"]]
+        assert len(ids) == len(set(ids))
+        assert result["total"] == 106
+
+    def test_par_defaut_trie_du_plus_prioritaire_au_moins(self):
+        result = mcp_module.rgaa_criteres_prioritaires()
+        ordre = {"A": 0, "AA": 1, "AAA": 2}
+        rangs = [ordre[c["niveau"]] for c in result["criteres"]]
+        assert rangs == sorted(rangs)
+
+    def test_filtre_niveau_AA_ne_renvoie_que_AA(self):
+        result = mcp_module.rgaa_criteres_prioritaires(niveau="AA")
+        assert all(c["niveau"] == "AA" for c in result["criteres"])
+        assert result["total"] == result["repartition"]["AA"]
+
+    def test_filtre_niveau_A_correspond_a_la_repartition(self):
+        result = mcp_module.rgaa_criteres_prioritaires(niveau="A")
+        assert result["total"] == result["repartition"]["A"]
+        assert all(c["niveau"] == "A" for c in result["criteres"])
+
+    def test_niveau_invalide_leve_erreur(self):
+        with pytest.raises(ToolError):
+            mcp_module.rgaa_criteres_prioritaires(niveau="B")
 
 
 # ============================================================================
@@ -1621,7 +1672,7 @@ class TestConfigureMcp:
 
     def test_configure_mcp_without_tokens(self, monkeypatch, tmp_path):
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        test_mcp = factory.create_mcp("RGAA MCP", str(tmp_path / "tokens.json"), mcp_module._rgaa_tool_definitions)
+        test_mcp = factory.create_mcp("RGAA MCP", str(tmp_path / "tokens.json"))
         assert test_mcp._auth is None
 
     def test_configure_mcp_with_tokens_stdio(self, monkeypatch, tmp_path):
@@ -1634,12 +1685,12 @@ class TestConfigureMcp:
             }
         }))
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        test_mcp = factory.create_mcp("RGAA MCP", str(tokens_file), mcp_module._rgaa_tool_definitions)
+        test_mcp = factory.create_mcp("RGAA MCP", str(tokens_file))
         assert test_mcp._auth is not None
 
     def test_configure_mcp_http_mode_routes(self, monkeypatch, tmp_path):
         monkeypatch.setenv("MCP_TRANSPORT", "http")
-        test_mcp = factory.create_mcp("RGAA MCP", str(tmp_path / "tokens.json"), mcp_module._rgaa_tool_definitions)
+        test_mcp = factory.create_mcp("RGAA MCP", str(tmp_path / "tokens.json"))
         paths = [r.path for r in test_mcp._additional_http_routes]
         assert "/" in paths
         assert "/install.sh" in paths

@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
-# Build et lance greenit + rgaa en local (depuis la racine du monorepo).
-# Usage : ./local-build.sh
+# Build et lance les 3 MCPs en local (depuis la racine du monorepo).
+# Usage : ./build.sh
+set -euo pipefail
+
+MCPS=(greenit rgaa rgesn)
+echo "Exécution des tests (hors Docker) avant build..."
+for MCP in "${MCPS[@]}"; do
+  (cd "${MCP}/files" && pytest ../tests/ -q --ignore=../tests/test_docker_integration.py) || {
+    echo "Erreur: tests $MCP échoués. Build annulé."; exit 1; }
+done
 
 docker buildx build -f greenit/Dockerfile -t greenit-mcp .
 docker buildx build -f rgaa/Dockerfile    -t rgaa-mcp .

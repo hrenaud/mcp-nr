@@ -36,6 +36,31 @@ logging.basicConfig(
 )
 logger = logging.getLogger("rgaa-mcp")
 
+import time as _time
+import threading as _threading
+
+# Rate limiting en mémoire pour rgaa_analyser (fenêtre glissante).
+_RATE_LIMIT_MAX = 10           # requêtes
+_RATE_LIMIT_WINDOW = 60.0      # secondes
+_rate_lock = _threading.Lock()
+_rate_hits: list[float] = []
+
+
+def _reset_rate_limit() -> None:
+    with _rate_lock:
+        _rate_hits.clear()
+
+
+def _check_rate_limit() -> None:
+    now = _time.time()
+    with _rate_lock:
+        cutoff = now - _RATE_LIMIT_WINDOW
+        _rate_hits[:] = [t for t in _rate_hits if t > cutoff]
+        if len(_rate_hits) >= _RATE_LIMIT_MAX:
+            raise ToolError("Trop de requêtes vers rgaa_analyser. Réessayez dans une minute.")
+        _rate_hits.append(now)
+
+
 _BASE_DIR = Path(__file__).parent
 TOKENS_FILE = str(_BASE_DIR.parent / "tokens" / "tokens.json")
 
@@ -54,130 +79,6 @@ _routes_mod._TAGLINE = "Référentiel d'accessibilité des services web"
 
 _get_base_url = _routes_mod._get_base_url
 _get_token_request_url = _routes_mod._get_token_request_url
-
-
-def _rgaa_tool_definitions() -> list[dict[str, Any]]:
-    """Build tool definitions for RGAA MCP.
-
-    Returns:
-        list[dict[str, Any]]: Tool definitions with required fields (name, description, inputSchema)
-    """
-    tool_defs = [
-        {
-            "name": "rgaa_lister_criteres",
-            "description": "Liste les critères RGAA, filtrables par thème",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "theme": {"type": ["integer", "null"], "description": "Numéro de thème (1-13)"},
-                    "niveau_wcag": {"type": ["string", "null"], "description": "Niveau WCAG à filtrer (A, AA, AAA)"}
-                }
-            }
-        },
-        {
-            "name": "rgaa_obtenir_critere",
-            "description": "Retourne le détail d'un critère (tests, WCAG, niveau)",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "id": {"type": "string", "description": "Identifiant du critère (ex: 1.1, 11.3)"}
-                },
-                "required": ["id"]
-            }
-        },
-        {
-            "name": "rgaa_chercher",
-            "description": "Recherche dans les critères et le glossaire par mot-clé",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string", "description": "Terme à rechercher"},
-                    "scope": {"type": ["string", "null"], "description": "Périmètre de recherche (criteres, glossaire)"}
-                },
-                "required": ["query"]
-            }
-        },
-        {
-            "name": "rgaa_glossaire",
-            "description": "Retourne la définition d'un terme du glossaire RGAA",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "terme": {"type": "string", "description": "Terme à rechercher (insensible à la casse)"}
-                },
-                "required": ["terme"]
-            }
-        },
-        {
-            "name": "rgaa_statistiques",
-            "description": "Statistiques du référentiel (niveaux, thèmes, tests)",
-            "inputSchema": {
-                "type": "object",
-                "properties": {}
-            }
-        },
-        {
-            "name": "rgaa_analyser",
-            "description": "Analyse statique d'une URL (thèmes 1,2,5,6,8,9,11,12)",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "url": {"type": "string", "description": "URL de la page à analyser"},
-                    "themes": {"type": ["array", "null"], "description": "Liste de thèmes à cibler (1-13)"}
-                },
-                "required": ["url"]
-            }
-        },
-        {
-            "name": "rgaa_checklist",
-            "description": "Checklist de tests manuels par thème ou critère",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "themes": {"type": ["array", "null"], "description": "Liste de thèmes (1-13)"},
-                    "criteres": {"type": ["array", "null"], "description": "Liste d'identifiants de critères"}
-                }
-            }
-        },
-        {
-            "name": "rgaa_taux_conformite",
-            "description": "Calcule le taux de conformité RGAA à partir des résultats",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "resultats": {"type": "object", "description": "Dict {id_critere: statut} avec statuts C, NC, NA"}
-                },
-                "required": ["resultats"]
-            }
-        },
-        {
-            "name": "rgaa_types_audit",
-            "description": "Liste les 3 types d'audit RGAA et indique lequel répond à l'obligation légale",
-            "inputSchema": {
-                "type": "object",
-                "properties": {}
-            }
-        },
-        {
-            "name": "rgaa_criteres_audit",
-            "description": "Retourne la liste des critères pour un type d'audit (complet, rapide, complémentaire)",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "type": {"type": "string", "description": "Type d'audit (complet, rapide, complementaire)", "enum": ["complet", "rapide", "complementaire"]}
-                },
-                "required": ["type"]
-            }
-        }
-    ]
-
-    # Validate all tools have required fields
-    for tool in tool_defs:
-        assert "name" in tool, f"Tool missing 'name': {tool}"
-        assert "description" in tool, f"Tool missing 'description': {tool}"
-        assert "inputSchema" in tool, f"Tool missing 'inputSchema': {tool}"
-
-    return tool_defs
 
 
 def _rgaa_guide_extra_sections() -> str:
@@ -222,12 +123,30 @@ def _rgaa_guide_extra_sections() -> str:
     <div class="note">Donne-moi les statistiques du référentiel RGAA</div>"""
 
 
-mcp = factory.create_mcp("RGAA MCP", TOKENS_FILE, _rgaa_tool_definitions, _rgaa_guide_extra_sections)
+mcp = factory.create_mcp("RGAA MCP", TOKENS_FILE, guide_extra_sections_fn=_rgaa_guide_extra_sections)
 
 
 # ============================================================================
 # OUTILS : Référentiel
 # ============================================================================
+
+# Niveaux WCAG du plus prioritaire au moins prioritaire (A > AA > AAA).
+_NIVEAUX_PRIORITE = ("A", "AA", "AAA")
+
+
+def _niveau_prioritaire(critere: dict) -> Optional[str]:
+    """Niveau WCAG le plus contraignant (= le plus prioritaire) référencé par le critère.
+
+    Un critère RGAA peut renvoyer vers plusieurs critères WCAG de niveaux différents ;
+    sa priorité est celle du niveau le plus exigeant rencontré (A avant AA avant AAA).
+    """
+    refs = critere.get("wcag", [])
+    for niveau in _NIVEAUX_PRIORITE:
+        token = f"({niveau})"
+        if any(token in ref for ref in refs):
+            return niveau
+    return None
+
 
 @mcp.tool(
     output_schema={
@@ -299,6 +218,102 @@ def rgaa_lister_criteres(theme: Optional[int] = None, niveau_wcag: Optional[Lite
                 "niveau": c.get("niveau"),
             }
             for c in criteres
+        ],
+    }
+
+
+@mcp.tool(
+    output_schema={
+        "type": "object",
+        "properties": {
+            "total": {"type": "integer"},
+            "repartition": {
+                "type": "object",
+                "properties": {
+                    "A": {"type": "integer"},
+                    "AA": {"type": "integer"},
+                    "AAA": {"type": "integer"},
+                },
+                "required": ["A", "AA", "AAA"],
+            },
+            "criteres": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "theme": {"type": "integer"},
+                        "titre": {"type": "string"},
+                        "niveau": {"type": "string"},
+                        "automatisable": {"type": "boolean"},
+                    },
+                    "required": ["id", "theme", "titre", "niveau", "automatisable"],
+                },
+            },
+        },
+        "required": ["total", "repartition", "criteres"],
+    },
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+    },
+)
+def rgaa_criteres_prioritaires(niveau: Optional[Literal["A", "AA", "AAA"]] = None) -> dict:
+    """
+    Liste les critères RGAA classés par niveau de priorité WCAG.
+
+    La priorité décroît avec le niveau : A (le plus prioritaire) > AA > AAA. Chaque
+    critère reçoit le niveau le plus contraignant qu'il référence. Sans filtre, les
+    critères sont triés du plus prioritaire au moins prioritaire ; `repartition`
+    donne le décompte global par niveau (toujours sur tout le référentiel).
+
+    Args:
+        niveau: Restreint à un palier de priorité (A, AA ou AAA). None = tous.
+
+    Returns:
+        {"total": N, "repartition": {"A": .., "AA": .., "AAA": ..}, "criteres": [...]}
+    """
+    if niveau is not None and niveau not in _NIVEAUX_PRIORITE:
+        raise ToolError(
+            f"Niveau '{niveau}' invalide. Les niveaux acceptés sont : A, AA, AAA. "
+            f"Utilise rgaa_criteres_prioritaires() sans filtre pour tous les critères."
+        )
+
+    cache = charger_cache()
+    repartition = {n: 0 for n in _NIVEAUX_PRIORITE}
+    enrichis = []
+    for c in cache["criteres"].values():
+        n = _niveau_prioritaire(c)
+        if n is None:
+            continue
+        repartition[n] += 1
+        enrichis.append((n, c))
+
+    ordre = {n: i for i, n in enumerate(_NIVEAUX_PRIORITE)}
+
+    def _tri(item):
+        n, c = item
+        parts = tuple(int(p) for p in c["id"].split(".") if p.isdigit())
+        return (ordre[n], parts)
+
+    enrichis.sort(key=_tri)
+    if niveau is not None:
+        enrichis = [(n, c) for n, c in enrichis if n == niveau]
+
+    return {
+        "total": len(enrichis),
+        "repartition": repartition,
+        "criteres": [
+            {
+                "id": c["id"],
+                "theme": c["theme"],
+                "titre": c["titre"],
+                "niveau": n,
+                "automatisable": c["automatisable"],
+            }
+            for n, c in enrichis
         ],
     }
 
@@ -708,6 +723,8 @@ def rgaa_analyser(url: str, themes: list[int] = None) -> dict:
     Returns:
         {"url": "...", "date": "...", "themes_analyses": [...], "nb_violations": N, "criteres": [...], "note": "..."}
     """
+    _check_rate_limit()
+
     if not url or not url.strip():
         raise ToolError(
             "L'URL ne peut pas être vide. "

@@ -9,11 +9,19 @@ from typing import Optional
 
 
 THEMES_ANALYSES = [1, 2, 5, 6, 8, 9, 11, 12]
-NOTE = "Analyse statique uniquement. Utiliser Playwright MCP pour l'analyse DOM rendu (contrastes, ARIA dynamique, focus visible)."
+NOTE = (
+    "Analyse statique uniquement. Utiliser Playwright MCP pour l'analyse DOM rendu "
+    "(contrastes, ARIA dynamique, focus visible). "
+    "Limites connues de l'analyse statique : thème 1 ne détecte que l'attribut alt "
+    "manquant sur <img> (pas <input type=\"image\"> sans alt, ni <svg> sans <title>) ; "
+    "thème 9 évalue les sauts de niveau de titre sur l'ensemble du document, ce qui "
+    "peut produire des faux-NC sur des pages multi-sections (aside, nav). "
+    "Vérifier manuellement ces points."
+)
 
 
-def fetcher_html(url: str) -> str:
-    with httpx.Client(timeout=30, follow_redirects=True) as client:
+def fetcher_html(url: str, timeout: float = 10.0) -> str:
+    with httpx.Client(timeout=timeout, follow_redirects=True) as client:
         r = client.get(url, headers={"User-Agent": "Mozilla/5.0 RGAA-MCP/1.0"})
         r.raise_for_status()
         return r.text

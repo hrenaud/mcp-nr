@@ -64,94 +64,6 @@ def _validate_theme(theme: int) -> None:
         )
 
 
-def _rgesn_tool_definitions() -> list[dict[str, Any]]:
-    tool_defs = [
-        {
-            "name": "rgesn_lister_criteres",
-            "description": "Liste les critères RGESN, filtrables par thème, priorité et/ou difficulté",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "theme": {"type": ["integer", "null"], "description": "Numéro de thème (1-9)"},
-                    "priorite": {"type": ["string", "null"], "description": "Priorité (Prioritaire, Recommandé, Modéré)"},
-                    "difficulte": {"type": ["string", "null"], "description": "Difficulté (Faible, Moyen, Fort)"}
-                }
-            }
-        },
-        {
-            "name": "rgesn_obtenir_critere",
-            "description": "Retourne le détail complet d'un critère RGESN (objectif, mise en œuvre, moyen de contrôle)",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "id": {"type": "string", "description": "Identifiant du critère (ex: 1.1, 8.3)"}
-                },
-                "required": ["id"]
-            }
-        },
-        {
-            "name": "rgesn_chercher",
-            "description": "Recherche par mot-clé dans les critères RGESN",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string", "description": "Terme à rechercher"},
-                    "theme": {"type": ["integer", "null"], "description": "Restreindre la recherche à un thème (1-9)"}
-                },
-                "required": ["query"]
-            }
-        },
-        {
-            "name": "rgesn_statistiques",
-            "description": "Statistiques du référentiel RGESN (priorités, thèmes, difficultés)",
-            "inputSchema": {
-                "type": "object",
-                "properties": {}
-            }
-        },
-        {
-            "name": "rgesn_taux_conformite",
-            "description": "Calcule le taux de conformité RGESN pondéré par priorité à partir des résultats d'audit",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "resultats": {
-                        "type": "object",
-                        "description": "Dict {id_critere: statut} avec statuts C (conforme), NC (non-conforme), NA (non-applicable)"
-                    }
-                },
-                "required": ["resultats"]
-            }
-        },
-        {
-            "name": "rgesn_checklist",
-            "description": "Génère une checklist RGESN prête à l'emploi, filtrable par thème et/ou priorité",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "themes": {"type": ["array", "null"], "description": "Liste de thèmes (1-9)"},
-                    "priorites": {"type": ["array", "null"], "description": "Liste de priorités (Prioritaire, Recommandé, Modéré)"}
-                }
-            }
-        },
-        {
-            "name": "rgesn_criteres_prioritaires",
-            "description": "Retourne les 30 critères RGESN de priorité Prioritaire (poids ×1.5 dans le score de conformité)",
-            "inputSchema": {
-                "type": "object",
-                "properties": {}
-            }
-        }
-    ]
-
-    for tool in tool_defs:
-        assert "name" in tool
-        assert "description" in tool
-        assert "inputSchema" in tool
-
-    return tool_defs
-
-
 def _rgesn_guide_extra_sections() -> str:
     return """
     <h2>5. Prompts MCP</h2>
@@ -192,7 +104,7 @@ def _rgesn_guide_extra_sections() -> str:
     <div class="note">Donne-moi les statistiques du référentiel RGESN</div>"""
 
 
-mcp = factory.create_mcp("RGESN MCP", TOKENS_FILE, _rgesn_tool_definitions, _rgesn_guide_extra_sections)
+mcp = factory.create_mcp("RGESN MCP", TOKENS_FILE, guide_extra_sections_fn=_rgesn_guide_extra_sections)
 
 
 # ============================================================================

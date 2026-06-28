@@ -1,5 +1,6 @@
 import json
 import logging
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -9,20 +10,24 @@ _BASE_DIR = Path(__file__).parent
 CACHE_FILE = str(_BASE_DIR / "greenit_cache.json")
 
 _cache: Optional[dict] = None
+_cache_lock = threading.Lock()
 
 
 def charger_cache() -> dict:
     global _cache
-    if _cache is None:
-        if Path(CACHE_FILE).exists():
-            try:
-                with open(CACHE_FILE, "r", encoding="utf-8") as f:
-                    _cache = json.load(f)
-            except Exception as e:
-                logger.error("Erreur lors du chargement du cache: %s", e)
+    if _cache is not None:
+        return _cache
+    with _cache_lock:
+        if _cache is None:
+            if Path(CACHE_FILE).exists():
+                try:
+                    with open(CACHE_FILE, "r", encoding="utf-8") as f:
+                        _cache = json.load(f)
+                except Exception as e:
+                    logger.error("Erreur lors du chargement du cache: %s", e)
+                    _cache = {}
+            else:
                 _cache = {}
-        else:
-            _cache = {}
     return _cache
 
 

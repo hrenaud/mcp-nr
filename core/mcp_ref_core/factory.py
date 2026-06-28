@@ -10,18 +10,24 @@ from fastmcp import FastMCP
 logger = logging.getLogger("mcp-ref-core")
 
 
-def create_mcp(name: str, tokens_file: str, tool_definitions_fn, guide_extra_sections_fn=None) -> FastMCP:
-    """Create and configure a FastMCP instance with shared setup."""
+def create_mcp(name: str, tokens_file: str, tool_definitions_fn=None, guide_extra_sections_fn=None) -> FastMCP:
+    """Create and configure a FastMCP instance with shared setup.
+
+    tool_definitions_fn est optionnel : s'il est omis, la liste d'outils du /guide
+    est dérivée par introspection des outils @mcp.tool enregistrés (défaut).
+    """
     from mcp_ref_core.auth import DynamicTokenVerifier
     from mcp_ref_core import routes as _routes_mod
 
     token_path = Path(tokens_file)
     verifier = DynamicTokenVerifier(token_path)
     _routes_mod._token_verifier = verifier
-    _routes_mod._get_tool_definitions = tool_definitions_fn
+    if tool_definitions_fn is not None:
+        _routes_mod._get_tool_definitions = tool_definitions_fn
     if guide_extra_sections_fn is not None:
         _routes_mod._guide_extra_sections = guide_extra_sections_fn
 
+    transport = os.environ.get("MCP_TRANSPORT", "stdio")
     if verifier.tokens:
         mcp_instance = FastMCP(name, auth=verifier)
         mcp_instance._auth = verifier
@@ -29,7 +35,9 @@ def create_mcp(name: str, tokens_file: str, tool_definitions_fn, guide_extra_sec
         mcp_instance = FastMCP(name)
         mcp_instance._auth = None
 
-    transport = os.environ.get("MCP_TRANSPORT", "stdio")
+    # Injecte l'instance pour la dérivation introspective de la liste d'outils (/guide).
+    _routes_mod._mcp_instance = mcp_instance
+
     if transport == "http":
         from mcp_ref_core.routes import (
             _http_admin_create_token,
@@ -99,6 +107,17 @@ def run_main(mcp, version: str, mcp_name: str, cache_fn, items_key: str, tokens_
         host = os.environ.get("MCP_HOST", "0.0.0.0")
         port = int(os.environ.get("MCP_PORT", "8000"))
         active_tokens = tokens_pour_auth(tokens_path)
+        # Fail-safe : ne jamais SERVIR en HTTP sans authentification de façon silencieuse.
+        if not active_tokens and os.environ.get("MCP_ALLOW_NO_AUTH") != "1":
+            raise RuntimeError(
+                f"{mcp_name}: transport HTTP mais aucun token valide dans {tokens_file}. "
+                "Générez un token, ou forcez MCP_ALLOW_NO_AUTH=1 pour démarrer sans auth."
+            )
+        if not active_tokens:
+            logger.warning(
+                "%s: ⚠️ AUTH DÉSACTIVÉE (MCP_ALLOW_NO_AUTH=1) — serveur HTTP ouvert sans token.",
+                mcp_name,
+            )
         auth_info = f"activée ({len(active_tokens)} token(s))" if active_tokens else "désactivée"
         logger.info("Auth: %s", auth_info)
         logger.info("HTTP: %s:%d", host, port)
