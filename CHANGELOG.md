@@ -18,6 +18,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 ### Corrigé
 
+- **`data.charger_cache` thread-safe** (greenit, rgaa, rgesn) : verrou double-checked sur le cache mémoire — évite le rechargement concurrent redondant en HTTP multithread (idem `charger_audit_types` côté rgaa). Appliqué identiquement aux 3 MCP (règle d'or). (review #16)
+- **`test_metadata.py` (greenit)** : `test_calculer_taux_ecoindex_moyen_with_real_cache` lisait les valeurs de premier niveau du cache (`meta` + `fiches`) au lieu de la sous-clé `fiches` — bug de test latent masqué par la pollution d'état entre tests.
 - **`_helpers.validate_themes` (core)** : le message d'erreur ne cite plus `rgaa_statistiques` (nom d'outil spécifique à RGAA). `core` ne doit connaître aucun MCP — docstring du module généralisé. (review #11/#47)
 - **Convergence du périmètre infra** : `Dockerfile` et `docker-compose.yml` des 3 MCP rendus identiques (modulo nom/port/deps). `greenit/Dockerfile` aligné sur la forme canonique (fichiers sous `/app/files`, `VOLUME /app/tokens`, `PYTHONPATH=/app`) ; `shm_size`/Playwright supprimés (le serveur ne lance pas de navigateur). `rgesn/docker-compose.yml` : volume nommé vide remplacé par le **bind mount** `./tokens:/app/tokens` (cause racine de l'auth désactivée en prod). `greenit_mcp.py` : `TOKENS_FILE` résolu via `_BASE_DIR.parent / "tokens"` comme rgaa/rgesn.
 

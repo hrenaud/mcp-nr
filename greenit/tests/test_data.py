@@ -493,3 +493,22 @@ class TestComputeQuantileBoundaries:
         result = _compute_quantile(quantiles, 150.6)
         # Should interpolate between 100.5 and 200.7
         assert 1.0 < result < 2.0
+
+
+def test_charger_cache_concurrent():
+    """#16 — accès concurrent : tous les threads partagent le même objet cache."""
+    import threading
+    import data
+    data._cache = None
+    results = []
+
+    def w():
+        results.append(data.charger_cache())
+
+    ts = [threading.Thread(target=w) for _ in range(8)]
+    for t in ts:
+        t.start()
+    for t in ts:
+        t.join()
+    first = results[0]
+    assert all(r is first for r in results)

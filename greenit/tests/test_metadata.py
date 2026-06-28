@@ -76,7 +76,7 @@ def test_calculer_taux_ecoindex_moyen_with_real_cache():
     from data import charger_cache
 
     cache = charger_cache()
-    fiches = cache
+    fiches = cache.get("fiches", {})
 
     if fiches:  # Only test if cache has data
         result = calculer_taux_ecoindex_moyen()
