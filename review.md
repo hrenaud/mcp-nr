@@ -61,10 +61,10 @@
 
 <!-- INVALID_SECTION [CWAQ] category=stock name=pour-gagner-du-temps -->
 
-| #     | Fichier:Ligne    | Problème                                                                                                                                                                                  | Gravité |
-| ----- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| ⬜ 9  | factory.py:18-20 | **`DynamicTokenVerifier` créé à chaque `create_mcp()`** : si un process recrée l'instance (reload, reimport), les token loaders sont recréés. **Pas de singleton**.                       | Faible  |
-| ℹ️ 10 | factory.py:33-51 | **Routes HTTP non注册 si `MCP_TRANSPORT != "http"`** : le transport stdio ne expose **aucune** route HTTP. `--health` marche mais `/guide` et `/` non. **C'est le comportement attendu**. | Info    |
+| #     | Fichier:Ligne    | Problème                                                                                                                                                                                                                                            | Gravité |
+| ----- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| 🟦 9  | factory.py:18-20 | **`DynamicTokenVerifier` créé à chaque `create_mcp()`** : si un process recrée l'instance (reload, reimport), les token loaders sont recréés. **Pas de singleton**. _(Non-action : voulu — un seul `create_mcp()` par process en pratique. YAGNI.)_ | Faible  |
+| ℹ️ 10 | factory.py:33-51 | **Routes HTTP non注册 si `MCP_TRANSPORT != "http"`** : le transport stdio ne expose **aucune** route HTTP. `--health` marche mais `/guide` et `/` non. **C'est le comportement attendu**.                                                           | Info    |
 
 <!-- INVALID_SECTION_END -->
 
