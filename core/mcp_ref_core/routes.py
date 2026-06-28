@@ -110,6 +110,28 @@ def _get_token_request_url() -> str:
     return os.environ.get("MCP_TOKEN_REQUEST_URL", "")
 
 
+def _base_url_sync_script(server_base_url: str) -> str:
+    """Script client qui aligne les URLs affichées sur le domaine réellement visité.
+
+    Le rendu serveur retombe parfois sur ``localhost`` (reverse proxy sans Host
+    exploitable, ``MCP_ALLOWED_HOSTS`` restrictif). Dans le navigateur,
+    ``window.location.origin`` reflète toujours le domaine de la barre d'adresse :
+    on remplace l'URL serveur par cette origine dans les éléments marqués
+    ``data-base-url``. Sans JS (ex. ``curl``), l'URL serveur reste affichée.
+    """
+    server_js = json.dumps(server_base_url)
+    return f"""<script>
+(function () {{
+  var origin = window.location.origin;
+  var server = {server_js};
+  if (!origin || origin === server) return;
+  document.querySelectorAll("[data-base-url]").forEach(function (el) {{
+    el.innerHTML = el.innerHTML.split(server).join(origin);
+  }});
+}})();
+</script>"""
+
+
 _INSTALL_SCRIPT_TEMPLATE = r"""#!/usr/bin/env bash
 # __MCP_NAME__ — Script d'installation multi-clients
 # Usage: curl -sSL __BASE_URL__/install.sh | bash -s -- <TOKEN> [options]
@@ -635,7 +657,7 @@ async def _http_homepage(request) -> "Response":
   </style>
 </head>
 <body>
-  <div class="card">
+  <div class="card" data-base-url>
     <div class="logo">{_LOGO}</div>
     <h1>{_MCP_NAME}</h1>
     <div class="version">v{_VERSION}</div>
@@ -651,6 +673,7 @@ async def _http_homepage(request) -> "Response":
     </div>
     <div class="footer">{base_url}/mcp</div>
   </div>
+  {_base_url_sync_script(base_url)}
 </body>
 </html>"""
     return HTMLResponse(html)
@@ -902,7 +925,7 @@ async def _http_guide(request) -> "Response":
 </head>
 <body>
   <div class="top-bar"></div>
-  <div class="wrap">
+  <div class="wrap" data-base-url>
     <a class="back" href="/">← {_MCP_NAME}</a>
     <h1>Guide d'installation — {_MCP_NAME}</h1>
     <p class="subtitle">Connectez Claude à {_MCP_NAME}</p>
@@ -954,6 +977,7 @@ curl -sSL {base_url}/install.sh | bash -s -- --uninstall</code></pre>
 
     {_guide_extra_sections()}
   </div>
+  {_base_url_sync_script(base_url)}
 </body>
 </html>"""
     return HTMLResponse(html)

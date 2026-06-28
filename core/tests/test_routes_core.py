@@ -113,6 +113,38 @@ class TestToolDefinitionsFromMcp:
         assert "properties" in d["inputSchema"]
 
 
+class TestBaseUrlSyncScript:
+    """Le guide/homepage corrige l'URL affichée via window.location.origin (côté client)."""
+
+    def test_function_exists(self):
+        assert hasattr(routes, "_base_url_sync_script")
+        assert callable(routes._base_url_sync_script)
+
+    def test_script_uses_window_location_origin(self):
+        script = routes._base_url_sync_script("http://localhost:8000")
+        assert "window.location.origin" in script
+        assert "<script>" in script and "</script>" in script
+
+    def test_script_embeds_server_url_as_js_literal(self):
+        script = routes._base_url_sync_script("http://localhost:8000")
+        # URL encodée en littéral JS (JSON), pour comparer avec l'origine réelle.
+        assert '"http://localhost:8000"' in script
+
+    def test_script_targets_data_base_url_elements(self):
+        script = routes._base_url_sync_script("http://localhost:8000")
+        assert "data-base-url" in script
+
+    def test_script_noop_when_origin_matches(self):
+        script = routes._base_url_sync_script("http://localhost:8000")
+        # Garde : si l'origine == valeur serveur, on ne fait rien.
+        assert "origin === server" in script
+
+    def test_script_escapes_quotes_in_url(self):
+        # Une URL contenant un guillemet ne doit pas casser le littéral JS.
+        script = routes._base_url_sync_script('http://x"y')
+        assert 'http://x"y' not in script.replace('\\"', "")  # le guillemet brut est échappé
+
+
 class TestGetBaseUrlFromRequest:
     """Le /guide (et homepage/install) doit refléter le domaine réel de la requête."""
 
