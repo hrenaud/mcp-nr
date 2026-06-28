@@ -177,7 +177,7 @@ class TestRgaaMcpWiring:
             }
         }))
         monkeypatch.setenv("MCP_TRANSPORT", "http")
-        mcp_instance = factory.create_mcp("RGAA MCP", str(path), mod._rgaa_tool_definitions, mod._rgaa_guide_extra_sections)
+        mcp_instance = factory.create_mcp("RGAA MCP", str(path), guide_extra_sections_fn=mod._rgaa_guide_extra_sections)
         assert isinstance(mcp_instance._auth, DynamicTokenVerifier)
 
     def test_create_mcp_no_auth_when_no_tokens(self, monkeypatch, tmp_path):
@@ -185,7 +185,7 @@ class TestRgaaMcpWiring:
         from mcp_ref_core import factory
         path = tmp_path / "tokens.json"
         monkeypatch.setenv("MCP_TRANSPORT", "http")
-        mcp_instance = factory.create_mcp("RGAA MCP", str(path), mod._rgaa_tool_definitions, mod._rgaa_guide_extra_sections)
+        mcp_instance = factory.create_mcp("RGAA MCP", str(path), guide_extra_sections_fn=mod._rgaa_guide_extra_sections)
         assert mcp_instance._auth is None
 
     def test_verifier_injected_in_routes(self, monkeypatch, tmp_path):
@@ -206,7 +206,7 @@ class TestRgaaMcpWiring:
             }
         }))
         monkeypatch.setenv("MCP_TRANSPORT", "http")
-        factory.create_mcp("RGAA MCP", str(path), mod._rgaa_tool_definitions, mod._rgaa_guide_extra_sections)
+        factory.create_mcp("RGAA MCP", str(path), guide_extra_sections_fn=mod._rgaa_guide_extra_sections)
         assert isinstance(routes._token_verifier, DynamicTokenVerifier)
 
 

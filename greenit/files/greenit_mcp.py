@@ -70,118 +70,6 @@ routes._ACCENT_LIGHT = "#4ade80"
 routes._ACCENT_BTN_TEXT = "#000"
 routes._TAGLINE = "Bonnes pratiques d'écoconception web"
 
-def _greenit_tool_definitions() -> list[dict[str, Any]]:
-    """Build tool definitions from tools descriptions and parameter schemas.
-
-    Returns:
-        list[dict[str, Any]]: Tool definitions with required fields (name, description, inputSchema)
-    """
-    tool_defs = [
-        {
-            "name": "greenit_lister_fiches",
-            "description": "Liste toutes les fiches ou filtre par lifecycle, ressource, impact, priorité",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "lifecycle": {"type": ["string", "null"], "description": "Filtrer par phase du cycle de vie"},
-                    "saved_resource": {"type": ["string", "null"], "description": "Filtrer par ressource économisée"},
-                    "impact_min": {"type": ["integer", "null"], "description": "Impact environnemental minimum (1-5)"},
-                    "priorite_min": {"type": ["integer", "null"], "description": "Priorité d'implémentation minimum (1-5)"}
-                }
-            }
-        },
-        {
-            "name": "greenit_fiches_prioritaires",
-            "description": "Retourne les fiches à fort impact et haute priorité",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "impact_min": {"type": ["integer", "null"], "description": "Seuil minimum d'impact (défaut: 4)"},
-                    "priorite_min": {"type": ["integer", "null"], "description": "Seuil minimum de priorité (défaut: 4)"}
-                }
-            }
-        },
-        {
-            "name": "greenit_chercher_fiche",
-            "description": "Recherche des fiches par mot-clé avec scoring de pertinence",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "terme": {"type": "string", "description": "Mot-clé à rechercher"}
-                },
-                "required": ["terme"]
-            }
-        },
-        {
-            "name": "greenit_comparer_fiches",
-            "description": "Compare plusieurs fiches côte à côte avec recommandation",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "fiche_ids": {"type": "array", "items": {"type": "string"}, "description": "Liste d'identifiants de fiches à comparer"}
-                },
-                "required": ["fiche_ids"]
-            }
-        },
-        {
-            "name": "greenit_obtenir_fiche_complete",
-            "description": "Récupère le contenu complet d'une fiche",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "fiche_id": {"type": "string", "description": "Identifiant de la fiche"}
-                },
-                "required": ["fiche_id"]
-            }
-        },
-        {
-            "name": "greenit_obtenir_statistiques",
-            "description": "Statistiques du référentiel (distributions, top fiches)",
-            "inputSchema": {
-                "type": "object",
-                "properties": {}
-            }
-        },
-        {
-            "name": "greenit_lister_lifecycles",
-            "description": "Liste les 7 phases du cycle de vie avec nombre de fiches",
-            "inputSchema": {
-                "type": "object",
-                "properties": {}
-            }
-        },
-        {
-            "name": "greenit_lister_ressources",
-            "description": "Liste les 8 types de ressources avec nombre de fiches",
-            "inputSchema": {
-                "type": "object",
-                "properties": {}
-            }
-        },
-        {
-            "name": "greenit_calculer_ecoindex",
-            "description": "Calcule l'EcoIndex (score + grade) à partir des 3 métriques brutes : nœuds DOM, requêtes HTTP, taille KB",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "dom_nodes": {"type": "integer", "description": "Nombre de nœuds DOM"},
-                    "requests": {"type": "integer", "description": "Nombre de requêtes HTTP"},
-                    "size_kb": {"type": "number", "description": "Taille totale en kilo-octets"},
-                    "url": {"type": ["string", "null"], "description": "URL de la page mesurée (optionnel)"}
-                },
-                "required": ["dom_nodes", "requests", "size_kb"]
-            }
-        }
-    ]
-
-    for tool in tool_defs:
-        assert "name" in tool, f"Tool missing 'name': {tool}"
-        assert "description" in tool, f"Tool missing 'description': {tool}"
-        assert "inputSchema" in tool, f"Tool missing 'inputSchema': {tool}"
-
-    return tool_defs
-
-
 def _greenit_guide_extra_sections() -> str:
     return """
     <h2>5. Prompts MCP</h2>
@@ -259,8 +147,7 @@ def _greenit_guide_extra_sections() -> str:
 mcp = factory.create_mcp(
     "GreenIT-Referentiel",
     TOKENS_FILE,
-    _greenit_tool_definitions,
-    _greenit_guide_extra_sections,
+    guide_extra_sections_fn=_greenit_guide_extra_sections,
 )
 
 

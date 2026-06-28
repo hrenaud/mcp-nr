@@ -10,15 +10,20 @@ from fastmcp import FastMCP
 logger = logging.getLogger("mcp-ref-core")
 
 
-def create_mcp(name: str, tokens_file: str, tool_definitions_fn, guide_extra_sections_fn=None) -> FastMCP:
-    """Create and configure a FastMCP instance with shared setup."""
+def create_mcp(name: str, tokens_file: str, tool_definitions_fn=None, guide_extra_sections_fn=None) -> FastMCP:
+    """Create and configure a FastMCP instance with shared setup.
+
+    tool_definitions_fn est optionnel : s'il est omis, la liste d'outils du /guide
+    est dérivée par introspection des outils @mcp.tool enregistrés (défaut).
+    """
     from mcp_ref_core.auth import DynamicTokenVerifier
     from mcp_ref_core import routes as _routes_mod
 
     token_path = Path(tokens_file)
     verifier = DynamicTokenVerifier(token_path)
     _routes_mod._token_verifier = verifier
-    _routes_mod._get_tool_definitions = tool_definitions_fn
+    if tool_definitions_fn is not None:
+        _routes_mod._get_tool_definitions = tool_definitions_fn
     if guide_extra_sections_fn is not None:
         _routes_mod._guide_extra_sections = guide_extra_sections_fn
 
@@ -29,6 +34,9 @@ def create_mcp(name: str, tokens_file: str, tool_definitions_fn, guide_extra_sec
     else:
         mcp_instance = FastMCP(name)
         mcp_instance._auth = None
+
+    # Injecte l'instance pour la dérivation introspective de la liste d'outils (/guide).
+    _routes_mod._mcp_instance = mcp_instance
 
     if transport == "http":
         from mcp_ref_core.routes import (

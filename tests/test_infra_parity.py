@@ -44,6 +44,20 @@ def test_compose_invariants_communs():
         assert "context: .." in txt, f"{m}: build context doit être la racine du monorepo"
 
 
+def test_aucune_table_d_outils_manuelle():
+    """Task 3 : la liste du /guide est dérivée des décorateurs @mcp.tool.
+
+    Garde contre la réapparition d'une table `_<mcp>_tool_definitions()` maintenue à
+    la main (duplication name/description/inputSchema déjà portée par les décorateurs).
+    """
+    for m in MCPS:
+        src = (ROOT / m / "files" / f"{m}_mcp.py").read_text()
+        assert "_tool_definitions" not in src, (
+            f"{m}_mcp.py: table d'outils manuelle détectée — la liste /guide doit être "
+            "dérivée des outils enregistrés (routes._tool_definitions_from_mcp)."
+        )
+
+
 def test_tokens_file_resolu_identiquement():
     """Les 3 *_mcp.py doivent résoudre TOKENS_FILE depuis ../tokens (parent de files/)."""
     canonical = '_BASE_DIR.parent / "tokens" / "tokens.json"'

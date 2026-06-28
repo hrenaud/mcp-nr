@@ -20,7 +20,7 @@ from mcp_ref_core import routes
 class TestGetToolDefinitions:
     def test_returns_list_of_dicts(self):
         import rgesn_mcp
-        tools = rgesn_mcp._rgesn_tool_definitions()
+        tools = routes._get_tool_definitions()
         assert isinstance(tools, list)
         assert len(tools) > 0
         assert all(isinstance(t, dict) for t in tools)
@@ -32,19 +32,19 @@ class TestGetToolDefinitions:
 
     def test_all_tools_have_required_fields(self):
         import rgesn_mcp
-        for tool in rgesn_mcp._rgesn_tool_definitions():
+        for tool in routes._get_tool_definitions():
             assert "name" in tool
             assert "description" in tool
             assert "inputSchema" in tool
 
     def test_expected_tool_count(self):
         import rgesn_mcp
-        tools = rgesn_mcp._rgesn_tool_definitions()
+        tools = routes._get_tool_definitions()
         assert len(tools) == 7
 
     def test_all_tools_have_unique_names(self):
         import rgesn_mcp
-        names = [t["name"] for t in rgesn_mcp._rgesn_tool_definitions()]
+        names = [t["name"] for t in routes._get_tool_definitions()]
         assert len(names) == len(set(names))
 
 
@@ -160,11 +160,11 @@ class TestHttpHomepage:
 class TestToolDefinitionsConsistency:
     def test_tool_definitions_stable_across_calls(self):
         import rgesn_mcp
-        first = rgesn_mcp._rgesn_tool_definitions()
-        second = rgesn_mcp._rgesn_tool_definitions()
+        first = routes._get_tool_definitions()
+        second = routes._get_tool_definitions()
         assert [t["name"] for t in first] == [t["name"] for t in second]
 
     def test_schemas_have_type_field(self):
         import rgesn_mcp
-        for tool in rgesn_mcp._rgesn_tool_definitions():
+        for tool in routes._get_tool_definitions():
             assert "type" in tool["inputSchema"], f"{tool['name']} missing type in inputSchema"

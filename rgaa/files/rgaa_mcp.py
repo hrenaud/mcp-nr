@@ -81,130 +81,6 @@ _get_base_url = _routes_mod._get_base_url
 _get_token_request_url = _routes_mod._get_token_request_url
 
 
-def _rgaa_tool_definitions() -> list[dict[str, Any]]:
-    """Build tool definitions for RGAA MCP.
-
-    Returns:
-        list[dict[str, Any]]: Tool definitions with required fields (name, description, inputSchema)
-    """
-    tool_defs = [
-        {
-            "name": "rgaa_lister_criteres",
-            "description": "Liste les critères RGAA, filtrables par thème",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "theme": {"type": ["integer", "null"], "description": "Numéro de thème (1-13)"},
-                    "niveau_wcag": {"type": ["string", "null"], "description": "Niveau WCAG à filtrer (A, AA, AAA)"}
-                }
-            }
-        },
-        {
-            "name": "rgaa_obtenir_critere",
-            "description": "Retourne le détail d'un critère (tests, WCAG, niveau)",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "id": {"type": "string", "description": "Identifiant du critère (ex: 1.1, 11.3)"}
-                },
-                "required": ["id"]
-            }
-        },
-        {
-            "name": "rgaa_chercher",
-            "description": "Recherche dans les critères et le glossaire par mot-clé",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string", "description": "Terme à rechercher"},
-                    "scope": {"type": ["string", "null"], "description": "Périmètre de recherche (criteres, glossaire)"}
-                },
-                "required": ["query"]
-            }
-        },
-        {
-            "name": "rgaa_glossaire",
-            "description": "Retourne la définition d'un terme du glossaire RGAA",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "terme": {"type": "string", "description": "Terme à rechercher (insensible à la casse)"}
-                },
-                "required": ["terme"]
-            }
-        },
-        {
-            "name": "rgaa_statistiques",
-            "description": "Statistiques du référentiel (niveaux, thèmes, tests)",
-            "inputSchema": {
-                "type": "object",
-                "properties": {}
-            }
-        },
-        {
-            "name": "rgaa_analyser",
-            "description": "Analyse statique d'une URL (thèmes 1,2,5,6,8,9,11,12)",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "url": {"type": "string", "description": "URL de la page à analyser"},
-                    "themes": {"type": ["array", "null"], "description": "Liste de thèmes à cibler (1-13)"}
-                },
-                "required": ["url"]
-            }
-        },
-        {
-            "name": "rgaa_checklist",
-            "description": "Checklist de tests manuels par thème ou critère",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "themes": {"type": ["array", "null"], "description": "Liste de thèmes (1-13)"},
-                    "criteres": {"type": ["array", "null"], "description": "Liste d'identifiants de critères"}
-                }
-            }
-        },
-        {
-            "name": "rgaa_taux_conformite",
-            "description": "Calcule le taux de conformité RGAA à partir des résultats",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "resultats": {"type": "object", "description": "Dict {id_critere: statut} avec statuts C, NC, NA"}
-                },
-                "required": ["resultats"]
-            }
-        },
-        {
-            "name": "rgaa_types_audit",
-            "description": "Liste les 3 types d'audit RGAA et indique lequel répond à l'obligation légale",
-            "inputSchema": {
-                "type": "object",
-                "properties": {}
-            }
-        },
-        {
-            "name": "rgaa_criteres_audit",
-            "description": "Retourne la liste des critères pour un type d'audit (complet, rapide, complémentaire)",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "type": {"type": "string", "description": "Type d'audit (complet, rapide, complementaire)", "enum": ["complet", "rapide", "complementaire"]}
-                },
-                "required": ["type"]
-            }
-        }
-    ]
-
-    # Validate all tools have required fields
-    for tool in tool_defs:
-        assert "name" in tool, f"Tool missing 'name': {tool}"
-        assert "description" in tool, f"Tool missing 'description': {tool}"
-        assert "inputSchema" in tool, f"Tool missing 'inputSchema': {tool}"
-
-    return tool_defs
-
-
 def _rgaa_guide_extra_sections() -> str:
     return """
     <h2>5. Prompts MCP</h2>
@@ -247,7 +123,7 @@ def _rgaa_guide_extra_sections() -> str:
     <div class="note">Donne-moi les statistiques du référentiel RGAA</div>"""
 
 
-mcp = factory.create_mcp("RGAA MCP", TOKENS_FILE, _rgaa_tool_definitions, _rgaa_guide_extra_sections)
+mcp = factory.create_mcp("RGAA MCP", TOKENS_FILE, guide_extra_sections_fn=_rgaa_guide_extra_sections)
 
 
 # ============================================================================

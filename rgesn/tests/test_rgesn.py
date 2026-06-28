@@ -343,7 +343,8 @@ def test_mcp_instance_exists():
 
 def test_tool_definitions_non_vides():
     import rgesn_mcp
-    defs = rgesn_mcp._rgesn_tool_definitions()
+    from mcp_ref_core import routes
+    defs = routes._get_tool_definitions()
     assert len(defs) >= 6
     noms = [d["name"] for d in defs]
     assert "rgesn_lister_criteres" in noms

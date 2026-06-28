@@ -734,8 +734,39 @@ def _default_tool_definitions() -> list[dict[str, Any]]:
     return []
 
 
+# Référence vers l'instance FastMCP, injectée par factory.create_mcp().
+_mcp_instance = None
+
+
+def _tool_definitions_from_mcp() -> list[dict[str, Any]]:
+    """Dérive la liste d'outils du /guide depuis les outils FastMCP enregistrés.
+
+    Source unique de vérité = les décorateurs @mcp.tool (évite la table manuelle
+    dupliquée dans chaque MCP). Lecture paresseuse : les outils sont enregistrés
+    après create_mcp, donc on lit l'instance au moment du rendu de /guide.
+    """
+    if _mcp_instance is None:
+        return []
+    try:
+        from fastmcp.tools.tool import FunctionTool
+        components = _mcp_instance._local_provider._components
+        tools = [c for c in components.values() if isinstance(c, FunctionTool)]
+    except Exception:
+        return []
+    defs = [
+        {
+            "name": t.name,
+            "description": getattr(t, "description", "") or "",
+            "inputSchema": getattr(t, "parameters", {}) or {},
+        }
+        for t in tools
+    ]
+    return sorted(defs, key=lambda d: d["name"])
+
+
 # Injected by MCPs after import: _routes_mod._get_tool_definitions = custom_tool_definitions
-_get_tool_definitions = _default_tool_definitions
+# Défaut : dérivation introspective depuis les outils enregistrés.
+_get_tool_definitions = _tool_definitions_from_mcp
 
 
 def _default_guide_extra_sections() -> str:

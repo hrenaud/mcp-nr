@@ -77,13 +77,13 @@ class TestEnvHelpers:
 class TestCreateMcp:
     def test_stdio_mode_no_routes(self, monkeypatch):
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        mcp = factory.create_mcp("RGAA MCP", mcp_module.TOKENS_FILE, mcp_module._rgaa_tool_definitions, mcp_module._rgaa_guide_extra_sections)
+        mcp = factory.create_mcp("RGAA MCP", mcp_module.TOKENS_FILE, guide_extra_sections_fn=mcp_module._rgaa_guide_extra_sections)
         assert mcp.name == "RGAA MCP"
         assert len(mcp._additional_http_routes) == 0
 
     def test_http_mode_registers_routes(self, monkeypatch):
         monkeypatch.setenv("MCP_TRANSPORT", "http")
-        mcp = factory.create_mcp("RGAA MCP", mcp_module.TOKENS_FILE, mcp_module._rgaa_tool_definitions, mcp_module._rgaa_guide_extra_sections)
+        mcp = factory.create_mcp("RGAA MCP", mcp_module.TOKENS_FILE, guide_extra_sections_fn=mcp_module._rgaa_guide_extra_sections)
         assert mcp.name == "RGAA MCP"
         assert len(mcp._additional_http_routes) == 8
         paths = [r.path for r in mcp._additional_http_routes]
@@ -93,7 +93,7 @@ class TestCreateMcp:
 
     def test_no_tokens_no_auth(self, monkeypatch, tmp_path):
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        mcp = factory.create_mcp("RGAA MCP", str(tmp_path / "tokens.json"), mcp_module._rgaa_tool_definitions)
+        mcp = factory.create_mcp("RGAA MCP", str(tmp_path / "tokens.json"))
         assert mcp._auth is None
 
     def test_with_tokens_auth_applied(self, monkeypatch, tmp_path):
@@ -108,7 +108,7 @@ class TestCreateMcp:
             }
         }))
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        mcp = factory.create_mcp("RGAA MCP", str(tokens_file), mcp_module._rgaa_tool_definitions)
+        mcp = factory.create_mcp("RGAA MCP", str(tokens_file))
         assert mcp._auth is not None
 
 
@@ -1621,7 +1621,7 @@ class TestConfigureMcp:
 
     def test_configure_mcp_without_tokens(self, monkeypatch, tmp_path):
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        test_mcp = factory.create_mcp("RGAA MCP", str(tmp_path / "tokens.json"), mcp_module._rgaa_tool_definitions)
+        test_mcp = factory.create_mcp("RGAA MCP", str(tmp_path / "tokens.json"))
         assert test_mcp._auth is None
 
     def test_configure_mcp_with_tokens_stdio(self, monkeypatch, tmp_path):
@@ -1634,12 +1634,12 @@ class TestConfigureMcp:
             }
         }))
         monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-        test_mcp = factory.create_mcp("RGAA MCP", str(tokens_file), mcp_module._rgaa_tool_definitions)
+        test_mcp = factory.create_mcp("RGAA MCP", str(tokens_file))
         assert test_mcp._auth is not None
 
     def test_configure_mcp_http_mode_routes(self, monkeypatch, tmp_path):
         monkeypatch.setenv("MCP_TRANSPORT", "http")
-        test_mcp = factory.create_mcp("RGAA MCP", str(tmp_path / "tokens.json"), mcp_module._rgaa_tool_definitions)
+        test_mcp = factory.create_mcp("RGAA MCP", str(tmp_path / "tokens.json"))
         paths = [r.path for r in test_mcp._additional_http_routes]
         assert "/" in paths
         assert "/install.sh" in paths

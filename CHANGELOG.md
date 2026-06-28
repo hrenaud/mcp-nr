@@ -15,6 +15,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 ### Refactorisé
 
+- **Liste d'outils du `/guide` dérivée des décorateurs `@mcp.tool`** : suppression des tables manuelles `_greenit/_rgaa/_rgesn_tool_definitions()` (name + description + inputSchema dupliqués). `core/routes.py` introspecte désormais les outils FastMCP enregistrés (`_tool_definitions_from_mcp`), source unique de vérité ; `factory.create_mcp` injecte l'instance et rend `tool_definitions_fn` optionnel. Verrouillé par `test_infra_parity.py`. (review #14/#21/#46/#51)
 - **Code spécifique GreenIT sorti de `core/routes.py`** : `_greenit_tool_definitions` et `_greenit_guide_extra_sections` déplacés dans `greenit/files/greenit_mcp.py` (parité avec RGAA/RGESN qui définissent leurs fonctions localement). `core/routes.py` expose désormais des défauts neutres (`_default_tool_definitions → []`, `_default_guide_extra_sections → ""`). Le guide GreenIT (section EcoIndex) est injecté explicitement via `factory.create_mcp(...)`. (review #7/#8/#13/#48, #46 partiel)
 
 ### Corrigé

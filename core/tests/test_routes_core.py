@@ -85,3 +85,29 @@ class TestNoMcpSpecificsInCore:
         assert "_greenit_tool_definitions" not in src
         assert "greenit_calculer_ecoindex" not in src
         assert "EcoIndex" not in src
+
+
+class TestToolDefinitionsFromMcp:
+    """Task 3 — la liste /guide est dérivée des outils FastMCP enregistrés (#14/#21/#46/#51)."""
+
+    def test_returns_empty_when_no_instance(self):
+        routes._mcp_instance = None
+        assert routes._tool_definitions_from_mcp() == []
+
+    def test_derives_from_registered_tools(self):
+        from fastmcp import FastMCP
+        m = FastMCP("t")
+
+        @m.tool
+        def sample_tool(x: int) -> dict:
+            """desc sample"""
+            return {}
+
+        routes._mcp_instance = m
+        defs = routes._tool_definitions_from_mcp()
+        names = {d["name"] for d in defs}
+        assert "sample_tool" in names
+        d = next(d for d in defs if d["name"] == "sample_tool")
+        assert "desc sample" in (d["description"] or "")
+        assert isinstance(d["inputSchema"], dict)
+        assert "properties" in d["inputSchema"]
