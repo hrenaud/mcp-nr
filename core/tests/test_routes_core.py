@@ -157,3 +157,25 @@ class TestGetBaseUrlFromRequest:
         monkeypatch.setenv("MCP_PORT", "8000")
         monkeypatch.setenv("MCP_HOST", "0.0.0.0")
         assert routes._get_base_url() == "http://localhost:8000"
+
+    def test_allowlist_rejette_host_non_liste(self, monkeypatch):
+        monkeypatch.delenv("MCP_BASE_URL", raising=False)
+        monkeypatch.setenv("MCP_ALLOWED_HOSTS", "mcp.example.org")
+        monkeypatch.setenv("MCP_PORT", "8000")
+        monkeypatch.setenv("MCP_HOST", "0.0.0.0")
+        req = self._req({"host": "evil.com"})
+        assert routes._get_base_url(req) == "http://localhost:8000"
+
+    def test_allowlist_accepte_host_liste(self, monkeypatch):
+        monkeypatch.delenv("MCP_BASE_URL", raising=False)
+        monkeypatch.setenv("MCP_ALLOWED_HOSTS", "mcp.example.org, autre.example")
+        req = self._req({"host": "mcp.example.org:8002"}, scheme="https")
+        assert routes._get_base_url(req) == "https://mcp.example.org:8002"
+
+    def test_scheme_invalide_ecarte(self, monkeypatch):
+        monkeypatch.delenv("MCP_BASE_URL", raising=False)
+        monkeypatch.delenv("MCP_ALLOWED_HOSTS", raising=False)
+        req = self._req({"x-forwarded-host": "mcp.example.org", "x-forwarded-proto": "javascript"}, scheme="https")
+        url = routes._get_base_url(req)
+        assert "javascript" not in url
+        assert url in ("https://mcp.example.org", "http://mcp.example.org")

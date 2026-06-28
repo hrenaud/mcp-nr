@@ -64,6 +64,21 @@ def register_version_resource(mcp, charger_cache_fn) -> None:
 _HOST_RE = re.compile(r"^[A-Za-z0-9.\-]+(:[0-9]+)?$")
 
 
+def _host_autorise(host: str) -> bool:
+    """Le host (issu d'un en-tête contrôlable par le client) est-il autorisé ?
+
+    Si MCP_ALLOWED_HOSTS est défini (liste séparée par virgules), seul un host
+    dont le nom (port exclu) y figure est honoré — défense contre le host header
+    injection / cache poisoning. Sinon (non configuré), pas de restriction.
+    """
+    allow = os.environ.get("MCP_ALLOWED_HOSTS", "").strip()
+    if not allow:
+        return True
+    hostname = host.split(":")[0].lower()
+    allowed = {h.strip().lower() for h in allow.split(",") if h.strip()}
+    return hostname in allowed
+
+
 def _get_base_url(request=None) -> str:
     # 1. Override explicite de l'opérateur.
     url = os.environ.get("MCP_BASE_URL", "").rstrip("/")
@@ -75,13 +90,14 @@ def _get_base_url(request=None) -> str:
         raw_host = fwd_host if isinstance(fwd_host, str) and fwd_host else request.headers.get("host")
         if isinstance(raw_host, str):
             host = raw_host.split(",")[0].strip()
-            if host and _HOST_RE.match(host):
+            if host and _HOST_RE.match(host) and _host_autorise(host):
                 fwd_proto = request.headers.get("x-forwarded-proto")
-                scheme = fwd_proto.split(",")[0].strip() if isinstance(fwd_proto, str) and fwd_proto else None
-                if not scheme:
-                    scheme = getattr(getattr(request, "url", None), "scheme", "http") or "http"
-                    if not isinstance(scheme, str):
-                        scheme = "http"
+                scheme = fwd_proto.split(",")[0].strip().lower() if isinstance(fwd_proto, str) and fwd_proto else ""
+                if scheme not in ("http", "https"):
+                    req_scheme = getattr(getattr(request, "url", None), "scheme", "")
+                    scheme = req_scheme.lower() if isinstance(req_scheme, str) else ""
+                    if scheme not in ("http", "https"):
+                        scheme = "https"
                 return f"{scheme}://{host}"
     # 3. Repli local.
     host = os.environ.get("MCP_HOST", "0.0.0.0")
