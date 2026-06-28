@@ -49,3 +49,14 @@ class TestAuthRobustesse:
             v.update(created["id"], expires_days=0)
         with pytest.raises(ValueError):
             v.update(created["id"], name="")
+
+
+def test_charger_tokens_corrompu_loggue(tmp_path, caplog):
+    """#1 — un fichier corrompu retourne {} ET loggue une erreur visible (régression-guard)."""
+    import logging
+    from mcp_ref_core import auth
+    p = tmp_path / "tokens.json"
+    p.write_text("{ pas du json")
+    with caplog.at_level(logging.ERROR, logger="mcp-ref-core"):
+        assert auth.charger_tokens(p) == {}
+    assert any("tokens.json" in r.message for r in caplog.records)
