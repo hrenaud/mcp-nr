@@ -25,3 +25,27 @@ def test_validate_score_range_rejects_negative():
     from fastmcp.exceptions import ToolError
     with pytest.raises(ToolError):
         validate_score_range(-1, 0, 100, "score")
+
+
+class TestAuthRobustesse:
+    """#2 AccessToken indisponible ; #3 validation des entrées de update()."""
+
+    def test_verify_token_sans_AccessToken(self, tmp_path, monkeypatch):
+        import asyncio
+        import pytest
+        from mcp_ref_core import auth
+        v = auth.DynamicTokenVerifier(tmp_path / "tokens.json")
+        v._tokens = {"tok": {"client_id": "c", "scopes": ["read"]}}
+        monkeypatch.setattr(auth, "AccessToken", None)
+        with pytest.raises(RuntimeError, match="AccessToken"):
+            asyncio.run(v.verify_token("tok"))
+
+    def test_update_rejette_expires_days_invalide(self, tmp_path):
+        import pytest
+        from mcp_ref_core import auth
+        v = auth.DynamicTokenVerifier(tmp_path / "tokens.json")
+        created = v.create("alice", 30)
+        with pytest.raises(ValueError):
+            v.update(created["id"], expires_days=0)
+        with pytest.raises(ValueError):
+            v.update(created["id"], name="")

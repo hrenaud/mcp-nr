@@ -8,6 +8,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 ### Sécurité
 
+- **Robustesse `auth.py` (core)** : `verify_token` lève une `RuntimeError` explicite si `fastmcp.AccessToken` est indisponible au runtime (au lieu d'un `TypeError` opaque) ; `update()` valide ses entrées (`name` non vide, `expires_days > 0`). (review #2/#3)
 - **Rate limiting `rgaa_analyser`** : limiteur en mémoire (fenêtre glissante, 10 req/60 s) sur l'outil qui effectue une requête HTTP vers une URL arbitraire — atténue le vecteur DoS. Timeout réseau de `fetcher_html` ramené de 30 s à 10 s (paramétrable). (review #17/#18)
 - **Fail-safe auth** (`core/factory.py`, `run_main`) : en transport HTTP, le serveur refuse désormais de **servir** si aucun token valide n'est présent, au lieu de basculer silencieusement en mode sans authentification. Override explicite via `MCP_ALLOW_NO_AUTH=1` (avec WARNING). Le contrôle est au moment de servir (pas à l'import) pour ne pas casser `--health` ni les commandes CLI de gestion des tokens. Évite qu'un volume de tokens vide/mal monté n'expose un MCP sans auth (cf. incident prod rgesn).
 

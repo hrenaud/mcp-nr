@@ -124,6 +124,8 @@ class DynamicTokenVerifier(_get_token_verifier_base()):
             info = self._tokens.get(token)
         if not info:
             return None
+        if AccessToken is None:
+            raise RuntimeError("fastmcp AccessToken indisponible — vérifier l'installation de fastmcp.")
         return AccessToken(
             token=token,
             client_id=info["client_id"],
@@ -193,6 +195,10 @@ class DynamicTokenVerifier(_get_token_verifier_base()):
         return None
 
     def update(self, token_id: str, name: Optional[str] = None, expires_days: Optional[int] = None) -> Optional[dict]:
+        if name is not None and not name.strip():
+            raise ValueError("name ne peut pas être vide.")
+        if expires_days is not None and expires_days <= 0:
+            raise ValueError("expires_days doit être > 0.")
         tokens = charger_tokens(self._path)
         for token_val, info in tokens.items():
             if info.get("id") == token_id:
