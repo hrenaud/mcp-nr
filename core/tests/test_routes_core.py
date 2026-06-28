@@ -111,3 +111,49 @@ class TestToolDefinitionsFromMcp:
         assert "desc sample" in (d["description"] or "")
         assert isinstance(d["inputSchema"], dict)
         assert "properties" in d["inputSchema"]
+
+
+class TestGetBaseUrlFromRequest:
+    """Le /guide (et homepage/install) doit refléter le domaine réel de la requête."""
+
+    def _req(self, headers, scheme="http"):
+        from unittest.mock import MagicMock
+        r = MagicMock()
+        r.headers = headers
+        r.url.scheme = scheme
+        return r
+
+    def test_env_override_wins(self, monkeypatch):
+        monkeypatch.setenv("MCP_BASE_URL", "https://configured.example")
+        req = self._req({"host": "ignored.example"})
+        assert routes._get_base_url(req) == "https://configured.example"
+
+    def test_uses_forwarded_host_and_proto(self, monkeypatch):
+        monkeypatch.delenv("MCP_BASE_URL", raising=False)
+        req = self._req({"x-forwarded-host": "mcp.example.org", "x-forwarded-proto": "https"})
+        assert routes._get_base_url(req) == "https://mcp.example.org"
+
+    def test_uses_host_header_when_no_forwarded(self, monkeypatch):
+        monkeypatch.delenv("MCP_BASE_URL", raising=False)
+        req = self._req({"host": "mcp.example.org:8002"}, scheme="http")
+        assert routes._get_base_url(req) == "http://mcp.example.org:8002"
+
+    def test_forwarded_host_liste_prend_le_premier(self, monkeypatch):
+        monkeypatch.delenv("MCP_BASE_URL", raising=False)
+        req = self._req({"x-forwarded-host": "mcp.example.org, internal", "x-forwarded-proto": "https, http"})
+        assert routes._get_base_url(req) == "https://mcp.example.org"
+
+    def test_rejects_malicious_host_falls_back(self, monkeypatch):
+        monkeypatch.delenv("MCP_BASE_URL", raising=False)
+        monkeypatch.setenv("MCP_PORT", "8000")
+        monkeypatch.setenv("MCP_HOST", "0.0.0.0")
+        req = self._req({"host": "evil.com$(id)"})
+        url = routes._get_base_url(req)
+        assert "$(id)" not in url
+        assert url == "http://localhost:8000"
+
+    def test_no_request_falls_back_to_localhost(self, monkeypatch):
+        monkeypatch.delenv("MCP_BASE_URL", raising=False)
+        monkeypatch.setenv("MCP_PORT", "8000")
+        monkeypatch.setenv("MCP_HOST", "0.0.0.0")
+        assert routes._get_base_url() == "http://localhost:8000"

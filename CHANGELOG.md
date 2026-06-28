@@ -20,6 +20,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 ### Corrigé
 
+- **URL de base détectée depuis la requête** : les routes `/`, `/guide` et `/install.sh` utilisent désormais le domaine réel de la requête (`X-Forwarded-Host`/`X-Forwarded-Proto` derrière un reverse proxy, sinon en-tête `Host`) au lieu de retomber sur `http://localhost:<port>`. `MCP_BASE_URL` reste prioritaire ; le host est validé (`[A-Za-z0-9.\-]`, port optionnel) pour écarter toute injection dans le script d'installation.
 - **`data.charger_cache` thread-safe** (greenit, rgaa, rgesn) : verrou double-checked sur le cache mémoire — évite le rechargement concurrent redondant en HTTP multithread (idem `charger_audit_types` côté rgaa). Appliqué identiquement aux 3 MCP (règle d'or). (review #16)
 - **`test_metadata.py` (greenit)** : `test_calculer_taux_ecoindex_moyen_with_real_cache` lisait les valeurs de premier niveau du cache (`meta` + `fiches`) au lieu de la sous-clé `fiches` — bug de test latent masqué par la pollution d'état entre tests.
 - **`_helpers.validate_themes` (core)** : le message d'erreur ne cite plus `rgaa_statistiques` (nom d'outil spécifique à RGAA). `core` ne doit connaître aucun MCP — docstring du module généralisé. (review #11/#47)

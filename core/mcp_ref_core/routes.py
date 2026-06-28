@@ -7,6 +7,7 @@ _get_tool_definitions) are injected by each MCP after import.
 
 import json
 import os
+import re
 import logging
 from html import escape
 from typing import Any
@@ -60,10 +61,29 @@ def register_version_resource(mcp, charger_cache_fn) -> None:
         }, ensure_ascii=False, indent=2)
 
 
-def _get_base_url() -> str:
+_HOST_RE = re.compile(r"^[A-Za-z0-9.\-]+(:[0-9]+)?$")
+
+
+def _get_base_url(request=None) -> str:
+    # 1. Override explicite de l'opérateur.
     url = os.environ.get("MCP_BASE_URL", "").rstrip("/")
     if url:
         return url
+    # 2. Domaine réel de la requête (derrière un reverse proxy : X-Forwarded-*).
+    if request is not None:
+        fwd_host = request.headers.get("x-forwarded-host")
+        raw_host = fwd_host if isinstance(fwd_host, str) and fwd_host else request.headers.get("host")
+        if isinstance(raw_host, str):
+            host = raw_host.split(",")[0].strip()
+            if host and _HOST_RE.match(host):
+                fwd_proto = request.headers.get("x-forwarded-proto")
+                scheme = fwd_proto.split(",")[0].strip() if isinstance(fwd_proto, str) and fwd_proto else None
+                if not scheme:
+                    scheme = getattr(getattr(request, "url", None), "scheme", "http") or "http"
+                    if not isinstance(scheme, str):
+                        scheme = "http"
+                return f"{scheme}://{host}"
+    # 3. Repli local.
     host = os.environ.get("MCP_HOST", "0.0.0.0")
     port = os.environ.get("MCP_PORT", "8000")
     display_host = "localhost" if host in ("0.0.0.0", "") else host
@@ -533,7 +553,7 @@ async def _http_homepage(request) -> "Response":
     from data import charger_cache
     cache = charger_cache()
     fiches_count = len(cache.get(_ITEMS_KEY, {}))
-    base_url = escape(_get_base_url())
+    base_url = escape(_get_base_url(request))
     status_html = (
         f'<span class="badge ok">{fiches_count} entrées chargées</span>'
         if fiches_count else
@@ -710,12 +730,11 @@ async def _http_admin_delete_token(request) -> "Response":
 
 async def _http_install_script(request) -> "Response":
     from starlette.responses import PlainTextResponse
-    import re
     # Garde-fou : _MCP_ID est injecté dans un script shell ; on interdit tout
     # caractère hors [a-z0-9-] pour écarter une corruption/injection de remplacement.
     if not re.fullmatch(r"[a-z][a-z0-9-]*", _MCP_ID or ""):
         raise ValueError(f"_MCP_ID invalide '{_MCP_ID}' — doit matcher [a-z][a-z0-9-]*")
-    base_url = _get_base_url()
+    base_url = _get_base_url(request)
     mcp_url = f"{base_url}/mcp"
     token_request_url = _get_token_request_url()
     script = (
@@ -792,7 +811,7 @@ async def _http_guide(request) -> "Response":
 
     # Return HTML (default behavior) - get tools once for rendering
     tools = _get_tool_definitions()
-    base_url = escape(_get_base_url())
+    base_url = escape(_get_base_url(request))
     token_request_url = _get_token_request_url()
     if token_request_url and (token_request_url.startswith("http://") or token_request_url.startswith("https://")):
         token_request_url = escape(token_request_url)
