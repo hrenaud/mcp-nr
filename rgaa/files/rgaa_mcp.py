@@ -64,7 +64,7 @@ def _check_rate_limit() -> None:
 _BASE_DIR = Path(__file__).parent
 TOKENS_FILE = str(_BASE_DIR.parent / "tokens" / "tokens.json")
 
-VERSION = "2.1.3"
+VERSION = "2.2.0"
 _routes_mod._VERSION = VERSION
 _routes_mod._REFERENTIEL_VERSION = charger_cache().get("meta", {}).get("version", "")
 _routes_mod._MCP_NAME = "RGAA MCP"
