@@ -783,7 +783,10 @@ def _tool_definitions_from_mcp() -> list[dict[str, Any]]:
     if _mcp_instance is None:
         return []
     try:
-        from fastmcp.tools.tool import FunctionTool
+        try:
+            from fastmcp.tools.function_tool import FunctionTool
+        except ImportError:  # compat FastMCP plus anciens
+            from fastmcp.tools.tool import FunctionTool
         components = _mcp_instance._local_provider._components
         tools = [c for c in components.values() if isinstance(c, FunctionTool)]
     except Exception:
