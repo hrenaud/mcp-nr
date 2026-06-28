@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Ajouté
+
+- `rgaa_criteres_prioritaires` : liste les critères classés par niveau de priorité WCAG (A le plus prioritaire > AA > AAA). Chaque critère reçoit le niveau le plus contraignant qu'il référence (partition sans double comptage, contrairement au filtre `niveau_wcag` de `rgaa_lister_criteres`). Filtre optionnel par palier ; `repartition` donne le décompte global par niveau.
+
 ---
 
 ## [2.1.3] — 2026-06-27

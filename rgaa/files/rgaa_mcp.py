@@ -130,6 +130,24 @@ mcp = factory.create_mcp("RGAA MCP", TOKENS_FILE, guide_extra_sections_fn=_rgaa_
 # OUTILS : Référentiel
 # ============================================================================
 
+# Niveaux WCAG du plus prioritaire au moins prioritaire (A > AA > AAA).
+_NIVEAUX_PRIORITE = ("A", "AA", "AAA")
+
+
+def _niveau_prioritaire(critere: dict) -> Optional[str]:
+    """Niveau WCAG le plus contraignant (= le plus prioritaire) référencé par le critère.
+
+    Un critère RGAA peut renvoyer vers plusieurs critères WCAG de niveaux différents ;
+    sa priorité est celle du niveau le plus exigeant rencontré (A avant AA avant AAA).
+    """
+    refs = critere.get("wcag", [])
+    for niveau in _NIVEAUX_PRIORITE:
+        token = f"({niveau})"
+        if any(token in ref for ref in refs):
+            return niveau
+    return None
+
+
 @mcp.tool(
     output_schema={
         "type": "object",
@@ -200,6 +218,102 @@ def rgaa_lister_criteres(theme: Optional[int] = None, niveau_wcag: Optional[Lite
                 "niveau": c.get("niveau"),
             }
             for c in criteres
+        ],
+    }
+
+
+@mcp.tool(
+    output_schema={
+        "type": "object",
+        "properties": {
+            "total": {"type": "integer"},
+            "repartition": {
+                "type": "object",
+                "properties": {
+                    "A": {"type": "integer"},
+                    "AA": {"type": "integer"},
+                    "AAA": {"type": "integer"},
+                },
+                "required": ["A", "AA", "AAA"],
+            },
+            "criteres": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "theme": {"type": "integer"},
+                        "titre": {"type": "string"},
+                        "niveau": {"type": "string"},
+                        "automatisable": {"type": "boolean"},
+                    },
+                    "required": ["id", "theme", "titre", "niveau", "automatisable"],
+                },
+            },
+        },
+        "required": ["total", "repartition", "criteres"],
+    },
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+    },
+)
+def rgaa_criteres_prioritaires(niveau: Optional[Literal["A", "AA", "AAA"]] = None) -> dict:
+    """
+    Liste les critères RGAA classés par niveau de priorité WCAG.
+
+    La priorité décroît avec le niveau : A (le plus prioritaire) > AA > AAA. Chaque
+    critère reçoit le niveau le plus contraignant qu'il référence. Sans filtre, les
+    critères sont triés du plus prioritaire au moins prioritaire ; `repartition`
+    donne le décompte global par niveau (toujours sur tout le référentiel).
+
+    Args:
+        niveau: Restreint à un palier de priorité (A, AA ou AAA). None = tous.
+
+    Returns:
+        {"total": N, "repartition": {"A": .., "AA": .., "AAA": ..}, "criteres": [...]}
+    """
+    if niveau is not None and niveau not in _NIVEAUX_PRIORITE:
+        raise ToolError(
+            f"Niveau '{niveau}' invalide. Les niveaux acceptés sont : A, AA, AAA. "
+            f"Utilise rgaa_criteres_prioritaires() sans filtre pour tous les critères."
+        )
+
+    cache = charger_cache()
+    repartition = {n: 0 for n in _NIVEAUX_PRIORITE}
+    enrichis = []
+    for c in cache["criteres"].values():
+        n = _niveau_prioritaire(c)
+        if n is None:
+            continue
+        repartition[n] += 1
+        enrichis.append((n, c))
+
+    ordre = {n: i for i, n in enumerate(_NIVEAUX_PRIORITE)}
+
+    def _tri(item):
+        n, c = item
+        parts = tuple(int(p) for p in c["id"].split(".") if p.isdigit())
+        return (ordre[n], parts)
+
+    enrichis.sort(key=_tri)
+    if niveau is not None:
+        enrichis = [(n, c) for n, c in enrichis if n == niveau]
+
+    return {
+        "total": len(enrichis),
+        "repartition": repartition,
+        "criteres": [
+            {
+                "id": c["id"],
+                "theme": c["theme"],
+                "titre": c["titre"],
+                "niveau": n,
+                "automatisable": c["automatisable"],
+            }
+            for n, c in enrichis
         ],
     }
 

@@ -33,20 +33,21 @@
 
 ## RGAA MCP
 
-### Outils (10)
+### Outils (11)
 
-| Outil                  | Description                                                     |
-| ---------------------- | --------------------------------------------------------------- |
-| `rgaa_lister_criteres` | Liste les critères filtrables par thème ou niveau WCAG          |
-| `rgaa_obtenir_critere` | Détail d'un critère (tests, WCAG, niveau)                       |
-| `rgaa_chercher`        | Recherche dans les critères et le glossaire                     |
-| `rgaa_glossaire`       | Définition d'un terme du glossaire                              |
-| `rgaa_statistiques`    | Statistiques (niveaux, thèmes, tests)                           |
-| `rgaa_analyser`        | Analyse statique d'une URL (thèmes 1,2,5,6,8,9,11,12)           |
-| `rgaa_checklist`       | Checklist de tests manuels par thème ou critère                 |
-| `rgaa_taux_conformite` | Calcule le taux de conformité à partir des résultats            |
-| `rgaa_types_audit`     | Les 3 types d'audit RGAA et leur cadre légal                    |
-| `rgaa_criteres_audit`  | Critères pour un type d'audit (complet, rapide, complémentaire) |
+| Outil                        | Description                                                     |
+| ---------------------------- | --------------------------------------------------------------- |
+| `rgaa_lister_criteres`       | Liste les critères filtrables par thème ou niveau WCAG          |
+| `rgaa_obtenir_critere`       | Détail d'un critère (tests, WCAG, niveau)                       |
+| `rgaa_chercher`              | Recherche dans les critères et le glossaire                     |
+| `rgaa_glossaire`             | Définition d'un terme du glossaire                              |
+| `rgaa_statistiques`          | Statistiques (niveaux, thèmes, tests)                           |
+| `rgaa_analyser`              | Analyse statique d'une URL (thèmes 1,2,5,6,8,9,11,12)           |
+| `rgaa_checklist`             | Checklist de tests manuels par thème ou critère                 |
+| `rgaa_taux_conformite`       | Calcule le taux de conformité à partir des résultats            |
+| `rgaa_types_audit`           | Les 3 types d'audit RGAA et leur cadre légal                    |
+| `rgaa_criteres_audit`        | Critères pour un type d'audit (complet, rapide, complémentaire) |
+| `rgaa_criteres_prioritaires` | Critères classés par priorité WCAG (A > AA > AAA)               |
 
 ### Prompts (11)
 

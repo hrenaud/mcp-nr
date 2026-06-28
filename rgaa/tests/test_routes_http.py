@@ -84,6 +84,7 @@ class TestGetToolDefinitions:
             "rgaa_taux_conformite",
             "rgaa_types_audit",
             "rgaa_criteres_audit",
+            "rgaa_criteres_prioritaires",
         }
         assert tool_names == expected_names, f"Tool names mismatch. Got {tool_names}"
 
