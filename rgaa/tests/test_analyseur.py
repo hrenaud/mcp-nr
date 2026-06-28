@@ -336,3 +336,36 @@ class TestComplexScenario:
         assert theme6 and theme6["statut"] == "NC"  # empty link
         assert theme9 and theme9["statut"] == "NC"  # heading jump
         assert theme11 and theme11["statut"] == "NC"  # unlabeled input
+
+
+def _critere(res, cid):
+    return next(c for c in res["criteres"] if c["id"] == cid)
+
+
+class TestCouvertureManquante:
+    """Chemins NC non couverts auparavant (review #25/#26/#50)."""
+
+    def test_theme12_skip_link_absent_est_NC(self):
+        html = '<html lang="fr"><head><title>T</title><meta charset="utf-8"></head><body><p>x</p></body></html>'
+        res = analyser_html(html, [12])
+        assert _critere(res, "12.11")["statut"] == "NC"
+
+    def test_theme12_skip_link_present_est_C(self):
+        html = '<html lang="fr"><head><title>T</title><meta charset="utf-8"></head><body><a href="#contenu">Aller au contenu</a></body></html>'
+        res = analyser_html(html, [12])
+        assert _critere(res, "12.11")["statut"] == "C"
+
+    def test_theme5_7_th_sans_scope_est_NC(self):
+        html = '<html lang="fr"><head><title>T</title><meta charset="utf-8"></head><body><table><caption>c</caption><tr><th>H</th></tr></table></body></html>'
+        res = analyser_html(html, [5])
+        assert _critere(res, "5.7")["statut"] == "NC"
+
+    def test_theme8_5_title_vide_est_NC(self):
+        html = '<html lang="fr"><head><title></title><meta charset="utf-8"></head><body></body></html>'
+        res = analyser_html(html, [8])
+        assert _critere(res, "8.5")["statut"] == "NC"
+
+    def test_theme8_6_charset_absent_est_NC(self):
+        html = '<html lang="fr"><head><title>T</title></head><body></body></html>'
+        res = analyser_html(html, [8])
+        assert _critere(res, "8.6")["statut"] == "NC"

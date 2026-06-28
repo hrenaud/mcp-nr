@@ -352,3 +352,14 @@ def test_tool_definitions_non_vides():
     assert "rgesn_statistiques" in noms
     assert "rgesn_taux_conformite" in noms
     assert "rgesn_checklist" in noms
+
+
+# ============================================================================
+# Tests : cas limites (review #31)
+# ============================================================================
+
+def test_obtenir_critere_inexistant_leve_erreur():
+    import rgesn_mcp
+    from fastmcp.exceptions import ToolError
+    with pytest.raises(ToolError):
+        rgesn_mcp.rgesn_obtenir_critere("CRITERE_INEXISTANT_XYZ")
