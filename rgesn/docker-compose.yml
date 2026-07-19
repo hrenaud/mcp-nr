@@ -9,7 +9,7 @@ services:
       dockerfile: rgesn/Dockerfile
     image: rgesn-mcp
     ports:
-      - "8002:8000"
+      - "${HOST_PORT:-8002}:8000"
     environment:
       MCP_TRANSPORT: ${MCP_TRANSPORT:-http}
       MCP_HOST: ${MCP_HOST:-0.0.0.0}

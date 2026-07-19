@@ -8,6 +8,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 ---
 
+## [2.3.0] — 2026-07-19
+
+### Modifié
+
+- **Port hôte configurable** (`docker-compose.yml` des 3 MCP) : le mapping de port publié sur l'hôte est désormais piloté par la variable d'environnement `HOST_PORT`, avec la valeur actuelle en fallback (`8000` greenit, `8001` rgaa, `8002` rgesn). Le port interne du conteneur reste fixé à `8000` (aligné sur `MCP_PORT`).
+
+---
+
 ## [2.2.0] — 2026-06-28
 
 ### Sécurité

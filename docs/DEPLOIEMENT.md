@@ -19,7 +19,7 @@ Chaque service gère ses propres tokens dans un volume Docker dédié.
 ### Prérequis
 
 - Docker Engine 24+ et Docker Compose v2
-- Ports 8000, 8001, 8002 disponibles (ou adapter dans les docker-compose.yml)
+- Ports 8000, 8001, 8002 disponibles (ou adapter via la variable `HOST_PORT`, cf. ci-dessous)
 - Cloner ce dépôt sur le serveur
 
 ### Construire et lancer les services
@@ -58,14 +58,15 @@ curl http://localhost:8002/   # rgesn
 
 À configurer dans le `docker-compose.yml` de chaque service ou via un fichier `.env` :
 
-| Variable                | Défaut    | Description                                                                 |
-| ----------------------- | --------- | --------------------------------------------------------------------------- |
-| `MCP_TRANSPORT`         | `stdio`   | `http` pour le mode serveur                                                 |
-| `MCP_HOST`              | `0.0.0.0` | Adresse d'écoute interne                                                    |
-| `MCP_PORT`              | `8000`    | Port interne (doit correspondre au mapping Docker)                          |
-| `MCP_BASE_URL`          | auto      | URL publique si derrière un reverse proxy — critique pour les liens générés |
-| `MCP_TOKEN_REQUEST_URL` | vide      | URL du formulaire de demande de token (affiché sur la page d'accueil)       |
-| `ADMIN_TOKEN`           | vide      | Token admin pour l'API de gestion des tokens (voir ci-dessous)              |
+| Variable                | Défaut                                  | Description                                                                 |
+| ----------------------- | --------------------------------------- | --------------------------------------------------------------------------- |
+| `HOST_PORT`             | `8000`/`8001`/`8002` (selon le service) | Port exposé sur l'hôte (mapping Docker), voir `docker-compose.yml`          |
+| `MCP_TRANSPORT`         | `stdio`                                 | `http` pour le mode serveur                                                 |
+| `MCP_HOST`              | `0.0.0.0`                               | Adresse d'écoute interne                                                    |
+| `MCP_PORT`              | `8000`                                  | Port interne (doit correspondre au mapping Docker)                          |
+| `MCP_BASE_URL`          | auto                                    | URL publique si derrière un reverse proxy — critique pour les liens générés |
+| `MCP_TOKEN_REQUEST_URL` | vide                                    | URL du formulaire de demande de token (affiché sur la page d'accueil)       |
+| `ADMIN_TOKEN`           | vide                                    | Token admin pour l'API de gestion des tokens (voir ci-dessous)              |
 
 **Auth HTTP :** l'authentification est automatique. Si le fichier `tokens/tokens.json` contient des tokens valides, l'accès HTTP est protégé par un token Bearer. Si le fichier est vide ou inexistant, l'accès est ouvert. Il n'existe pas de contrôle explicite pour forcer ou désactiver l'auth indépendamment des tokens.
 

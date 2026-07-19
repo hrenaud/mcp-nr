@@ -4,6 +4,14 @@
 
 ---
 
+## [2.3.0] — 2026-07-19
+
+### Modifié
+
+- `docker-compose.yml` : port hôte configurable via `HOST_PORT` (fallback `8001`).
+
+---
+
 ## [2.2.0] — 2026-06-28
 
 ### Ajouté

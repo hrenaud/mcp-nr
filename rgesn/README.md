@@ -33,6 +33,7 @@ docker run --rm -i rgesn-mcp
 
 | Variable                | Défaut    | Description                                      |
 | ----------------------- | --------- | ------------------------------------------------ |
+| `HOST_PORT`             | `8002`    | Port exposé sur l'hôte (mapping docker-compose)  |
 | `MCP_TRANSPORT`         | `stdio`   | Mode de transport : `stdio` ou `http`            |
 | `MCP_HOST`              | `0.0.0.0` | Adresse d'écoute (mode `http`)                   |
 | `MCP_PORT`              | `8000`    | Port interne (exposé en 8002 via docker-compose) |
