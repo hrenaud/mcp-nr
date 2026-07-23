@@ -68,7 +68,7 @@ curl http://localhost:8002/   # rgesn
 | `MCP_TOKEN_REQUEST_URL` | vide                                    | URL du formulaire de demande de token (affiché sur la page d'accueil)       |
 | `ADMIN_TOKEN`           | vide                                    | Token admin pour l'API de gestion des tokens (voir ci-dessous)              |
 
-**Auth HTTP :** l'authentification est automatique. Si le fichier `tokens/tokens.json` contient des tokens valides, l'accès HTTP est protégé par un token Bearer. Si le fichier est vide ou inexistant, l'accès est ouvert. Il n'existe pas de contrôle explicite pour forcer ou désactiver l'auth indépendamment des tokens.
+**Auth HTTP :** l'authentification est automatique. Si le fichier `tokens/tokens.json` contient des tokens valides, l'accès HTTP est protégé par un token Bearer. Si le fichier est vide ou inexistant, l'accès est ouvert. `ADMIN_TOKEN` protège uniquement l'API `/admin/tokens` et n'active pas l'authentification des MCP.
 
 **Exemple** pour rgaa derrière un reverse proxy :
 
