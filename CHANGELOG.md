@@ -6,6 +6,10 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 ## [Unreleased]
 
+### Corrigé
+
+- **Activation de l'auth MCP** (`core/factory.py`) : le transport HTTP démarre sans token lorsque `tokens/tokens.json` est absent, vide ou ne contient que des tokens expirés. L'authentification Bearer est activée uniquement par la présence d'au moins un token client valide ; `ADMIN_TOKEN` reste limité à l'API `/admin/tokens`.
+
 ---
 
 ## [2.3.0] — 2026-07-19

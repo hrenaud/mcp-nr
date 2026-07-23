@@ -107,17 +107,6 @@ def run_main(mcp, version: str, mcp_name: str, cache_fn, items_key: str, tokens_
         host = os.environ.get("MCP_HOST", "0.0.0.0")
         port = int(os.environ.get("MCP_PORT", "8000"))
         active_tokens = tokens_pour_auth(tokens_path)
-        # Fail-safe : ne jamais SERVIR en HTTP sans authentification de façon silencieuse.
-        if not active_tokens and os.environ.get("MCP_ALLOW_NO_AUTH") != "1":
-            raise RuntimeError(
-                f"{mcp_name}: transport HTTP mais aucun token valide dans {tokens_file}. "
-                "Générez un token, ou forcez MCP_ALLOW_NO_AUTH=1 pour démarrer sans auth."
-            )
-        if not active_tokens:
-            logger.warning(
-                "%s: ⚠️ AUTH DÉSACTIVÉE (MCP_ALLOW_NO_AUTH=1) — serveur HTTP ouvert sans token.",
-                mcp_name,
-            )
         auth_info = f"activée ({len(active_tokens)} token(s))" if active_tokens else "désactivée"
         logger.info("Auth: %s", auth_info)
         logger.info("HTTP: %s:%d", host, port)
