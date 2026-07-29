@@ -120,9 +120,9 @@ def greenit_mon_outil(param1: str) -> dict:
 
 ## Calcul EcoIndex
 
-La logique de calcul est dans `data.py` (fonction `calculer_ecoindex`). Elle implémente l'algorithme officiel EcoIndex avec quantiles pour 3 métriques : nœuds DOM, requêtes HTTP, poids en Ko.
+La logique de calcul est dans `data.py` (fonction `calculer_ecoindex`). Elle implémente l'algorithme officiel EcoIndex avec quantiles pour 3 métriques : nœuds DOM, requêtes HTTP, poids en Ko. Le résultat inclut également les impacts estimés de GES et de consommation d'eau.
 
-L'outil `greenit_calculer_ecoindex` ne navigue pas sur le web — il reçoit les 3 métriques déjà mesurées. C'est Claude (via Playwright) qui mesure la page avant d'appeler l'outil.
+L'outil `greenit_calculer_ecoindex` ne navigue pas sur le web — il reçoit les 3 métriques déjà mesurées. C'est Claude (via Playwright) qui mesure la page avant d'appeler l'outil. Les appelants doivent utiliser le protocole DOM documenté par l'outil : il compte l'élément `<svg>` mais pas ses descendants, parcourt récursivement les Shadow DOM ouverts et ne peut pas mesurer les Shadow DOM fermés.
 
 ---
 

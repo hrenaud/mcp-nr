@@ -127,9 +127,18 @@ def _greenit_guide_extra_sections() -> str:
 2. Naviguer vers la page
 3. Attendre 3 secondes
 4. Faire défiler jusqu'en bas progressivement
-5. Attendre 3 secondes
-6. Mesurer DOM, requêtes, taille
-7. Appeler greenit_calculer_ecoindex(dom_nodes, requests, size_kb)</code></pre>
+ 5. Attendre 3 secondes
+ 6. Mesurer DOM, requêtes, taille
+ 7. Appeler greenit_calculer_ecoindex(dom_nodes, requests, size_kb)</code></pre>
+    <p>Pour mesurer le DOM, exécuter ce script dans Playwright :</p>
+    <pre><code>const countDomNodes = (root) =&gt;
+  [...root.querySelectorAll('*')].reduce((total, element) =&gt; {
+    if (element.parentElement?.closest('svg')) return total;
+    return total + 1 + (element.shadowRoot ? countDomNodes(element.shadowRoot) : 0);
+  }, 0);
+
+return countDomNodes(document);</code></pre>
+    <p>Ce comptage inclut l'élément <code>&lt;svg&gt;</code>, mais exclut tous ses descendants. Il parcourt récursivement les Shadow DOM ouverts ; les Shadow DOM fermés ne peuvent pas être mesurés.</p>
     <table>
       <thead><tr><th>Grade</th><th>Score</th></tr></thead>
       <tbody>
@@ -845,10 +854,24 @@ def greenit_calculer_ecoindex(dom_nodes: int, requests: int, size_kb: float, url
     1. Ouvrir un contexte avec viewport 1920x1080 (spec EcoIndex officielle)
     2. Naviguer vers la page
     3. Attendre 3 secondes
-    4. Faire défiler jusqu'en bas progressivement
-    5. Attendre 3 secondes
-    6. Mesurer nœuds DOM, requêtes HTTP, taille totale en Ko
-    7. Appeler cet outil avec les 3 métriques
+     4. Faire défiler jusqu'en bas progressivement
+     5. Attendre 3 secondes
+     6. Mesurer les nœuds DOM avec ce script Playwright :
+
+        const countDomNodes = (root) =>
+          [...root.querySelectorAll('*')].reduce((total, element) => {
+            if (element.parentElement?.closest('svg')) return total;
+            return total + 1 + (element.shadowRoot ? countDomNodes(element.shadowRoot) : 0);
+          }, 0);
+
+        return countDomNodes(document);
+
+        Ce comptage inclut l'élément <svg>, mais exclut tous ses descendants.
+        Il parcourt récursivement les Shadow DOM ouverts ; les Shadow DOM fermés
+        ne peuvent pas être mesurés.
+
+     7. Mesurer les requêtes HTTP et la taille totale en Ko
+     8. Appeler cet outil avec les 3 métriques
 
     Args:
         dom_nodes: Nombre de nœuds dans le DOM
@@ -909,11 +932,24 @@ def audit_ecoindex(url: str, focus: str = "all") -> str:
 URL: {url}
 Focus: {focus} (all/dom/requests/size)
 
-Étapes:
-1. Charger la page et mesurer ses métriques (DOM nodes, requêtes HTTP, taille KB)
-2. Utiliser greenit_calculer_ecoindex avec les métriques mesurées
-3. Interpréter le score EcoIndex (0-100) et le grade (A-G)
-4. Recommander des optimisations si score < 50
+    Étapes:
+    1. Charger la page et mesurer ses métriques (DOM nodes, requêtes HTTP, taille KB)
+    2. Mesurer les nœuds DOM dans Playwright avec ce script :
+
+       const countDomNodes = (root) =>
+         [...root.querySelectorAll('*')].reduce((total, element) => {{
+           if (element.parentElement?.closest('svg')) return total;
+           return total + 1 + (element.shadowRoot ? countDomNodes(element.shadowRoot) : 0);
+         }}, 0);
+
+       return countDomNodes(document);
+
+       Ce comptage inclut l'élément <svg>, mais exclut tous ses descendants.
+       Il parcourt récursivement les Shadow DOM ouverts ; les Shadow DOM fermés
+       ne peuvent pas être mesurés.
+    3. Utiliser greenit_calculer_ecoindex avec les métriques mesurées
+    4. Interpréter le score EcoIndex (0-100) et le grade (A-G)
+    5. Recommander des optimisations si score < 50
 
 Outils disponibles:
 - greenit_calculer_ecoindex(dom_nodes, requests, size_kb) → {{"score": float, "grade": str}}

@@ -651,3 +651,15 @@ class TestGuideGreenItEcoIndex:
         body = resp.body.decode()
         assert "EcoIndex" in body
         assert "greenit_calculer_ecoindex" in body
+
+    def test_guide_ecoindex_prescribes_svg_and_shadow_dom_counting(self):
+        import asyncio
+
+        req = MagicMock()
+        req.headers = {"accept": "text/html"}
+        response = asyncio.run(routes._http_guide(req))
+        body = response.body.decode()
+
+        assert "countDomNodes" in body
+        assert "shadowRoot" in body
+        assert "svg" in body

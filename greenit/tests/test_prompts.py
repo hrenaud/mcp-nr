@@ -32,6 +32,13 @@ class TestGreenITPrompts:
         assert isinstance(result, str)
         assert "dom" in result.lower(), "Template should mention the focus parameter"
 
+    def test_audit_ecoindex_prescribes_svg_and_shadow_dom_counting(self):
+        result = mcp_module.audit_ecoindex("https://example.com")
+
+        assert "countDomNodes" in result
+        assert "shadowRoot" in result
+        assert "svg" in result
+
     def test_rapport_impact_returns_template(self):
         """Test rapport_impact prompt exists and returns a non-empty template."""
         result = mcp_module.rapport_impact("test results")
