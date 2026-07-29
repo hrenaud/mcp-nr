@@ -113,7 +113,7 @@ def _greenit_guide_extra_sections() -> str:
 
     <h2>8. Calculer l'EcoIndex</h2>
     <p>L'EcoIndex est calculé à partir de 3 métriques mesurées avec Playwright :</p>
-    <div class="note">Le serveur MCP pilote automatiquement Playwright en appliquant le protocole de mesure officiel EcoIndex. Il vous suffit de fournir une URL — Claude se charge du reste.</div>
+    <div class="note">Les appelants mesurent les métriques avec Playwright, puis les transmettent à l'outil. Le serveur MCP ne charge aucune URL et ne pilote aucun navigateur.</div>
     <table>
       <thead><tr><th>Paramètre</th><th>Description</th></tr></thead>
       <tbody>
@@ -830,7 +830,7 @@ def greenit_lister_ressources() -> dict:
 
 
 @mcp.tool(
-    description="Calcule l'EcoIndex (score + grade) à partir des 3 métriques brutes : nœuds DOM, requêtes HTTP, taille KB",
+    description="Calcule l'EcoIndex, son grade et les impacts estimés (GES en g CO2e, eau en cl) à partir des 3 métriques brutes : nœuds DOM, requêtes HTTP, taille KB",
     annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True),
     output_schema={
         "type": "object",
@@ -880,7 +880,9 @@ def greenit_calculer_ecoindex(dom_nodes: int, requests: int, size_kb: float, url
         url:       URL de la page mesurée (optionnel, pour contexte)
 
     Returns:
-        JSON avec url, métriques, score (0-100) et grade (A-G)
+        JSON avec url, métriques, score (0-100), grade (A-G), émissions de GES
+        estimées en g CO2e (greenhouse_gases_g) et consommation d'eau estimée en cl
+        (water_consumption_cl).
     """
     try:
         # Valider que dom_nodes est non-négatif
@@ -948,13 +950,14 @@ Focus: {focus} (all/dom/requests/size)
        Il parcourt récursivement les Shadow DOM ouverts ; les Shadow DOM fermés
        ne peuvent pas être mesurés.
     3. Utiliser greenit_calculer_ecoindex avec les métriques mesurées
-    4. Interpréter le score EcoIndex (0-100) et le grade (A-G)
+    4. Interpréter le score EcoIndex (0-100), le grade (A-G), les émissions de GES
+       estimées (g CO2e) et la consommation d'eau estimée (cl)
     5. Recommander des optimisations si score < 50
 
 Outils disponibles:
-- greenit_calculer_ecoindex(dom_nodes, requests, size_kb) → {{"score": float, "grade": str}}
+ - greenit_calculer_ecoindex(dom_nodes, requests, size_kb) → {{"score": float, "grade": str, "greenhouse_gases_g": float, "water_consumption_cl": float}}
 
-Génère un rapport structuré avec score, grade, et 3-5 recommandations d'amélioration."""
+ Génère un rapport structuré avec score, grade, impacts GES/eau, et 3-5 recommandations d'amélioration."""
 
 
 @mcp.prompt()

@@ -589,6 +589,15 @@ class TestCalculerEcoindex:
         assert result["greenhouse_gases_g"] == 1.0
         assert result["water_consumption_cl"] == 1.5
 
+    def test_returns_intermediate_impacts_to_two_decimal_places(self):
+        # cnumr/ecoindex_js 1.x reference values for DOM=450, requests=38,
+        # and size=280 KB.
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(450, 38, 280))
+
+        assert result["score"] == 71.29
+        assert result["greenhouse_gases_g"] == 1.57
+        assert result["water_consumption_cl"] == 2.36
+
     def test_url_optional_defaults_empty(self):
         result = json.loads(mcp_module.greenit_calculer_ecoindex(100, 10, 100))
         assert result["url"] == ""

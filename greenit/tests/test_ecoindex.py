@@ -35,6 +35,15 @@ class TestEcoIndex:
         assert result["greenhouse_gases_g"] == 1.0
         assert result["water_consumption_cl"] == 1.5
 
+    def test_impacts_intermediaires_suivent_la_reference_ecoindex(self):
+        # cnumr/ecoindex_js 1.x: GHG = 2 + 2 * (50 - score) / 100;
+        # water = 3 + 3 * (50 - score) / 100.
+        result = calculer_ecoindex(450, 38, 280.0)
+
+        assert result["score"] == 71.29
+        assert result["greenhouse_gases_g"] == 1.57
+        assert result["water_consumption_cl"] == 2.36
+
     def test_grade_a_above_80(self):
         result = calculer_ecoindex(0, 0, 0.0)
         assert result["grade"] == "A"
