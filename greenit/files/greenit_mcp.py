@@ -831,7 +831,9 @@ def greenit_lister_ressources() -> dict:
             "requests": {"type": "integer", "description": "Nombre de requêtes HTTP mesurées"},
             "size_kb": {"type": "number", "description": "Taille totale en kilo-octets"},
             "score": {"type": "integer", "description": "Score EcoIndex (0-100)"},
-            "grade": {"type": "string", "description": "Grade EcoIndex (A-G)"}
+            "grade": {"type": "string", "description": "Grade EcoIndex (A-G)"},
+            "greenhouse_gases_g": {"type": "number", "description": "Émissions de GES estimées en grammes CO2e"},
+            "water_consumption_cl": {"type": "number", "description": "Consommation d'eau estimée en centilitres"},
         }
     }
 )
@@ -875,6 +877,8 @@ def greenit_calculer_ecoindex(dom_nodes: int, requests: int, size_kb: float, url
             "size_kb": size_kb,
             "score": result["score"],
             "grade": result["grade"],
+            "greenhouse_gases_g": result["greenhouse_gases_g"],
+            "water_consumption_cl": result["water_consumption_cl"],
         }, ensure_ascii=False, indent=2)
 
     except ToolError:

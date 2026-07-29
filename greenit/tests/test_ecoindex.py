@@ -29,6 +29,12 @@ class TestEcoIndex:
         assert isinstance(result["score"], float)
         assert isinstance(result["grade"], str)
 
+    def test_retourne_les_impacts_ecoindex(self):
+        result = calculer_ecoindex(0, 0, 0.0)
+
+        assert result["greenhouse_gases_g"] == 1.0
+        assert result["water_consumption_cl"] == 1.5
+
     def test_grade_a_above_80(self):
         result = calculer_ecoindex(0, 0, 0.0)
         assert result["grade"] == "A"

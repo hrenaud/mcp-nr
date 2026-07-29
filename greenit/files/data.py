@@ -85,7 +85,14 @@ def calculer_ecoindex(dom: int, requests: int, size_kb: float) -> dict:
         if score > g["value"]:
             grade = g["grade"]
             break
-    return {"score": round(score, 2), "grade": grade}
+    greenhouse_gases_g = round(2 + 2 * (50 - score) / 100, 2)
+    water_consumption_cl = round(3 + 3 * (50 - score) / 100, 2)
+    return {
+        "score": round(score, 2),
+        "grade": grade,
+        "greenhouse_gases_g": greenhouse_gases_g,
+        "water_consumption_cl": water_consumption_cl,
+    }
 
 
 def _fiches() -> dict:

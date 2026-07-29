@@ -583,6 +583,12 @@ class TestCalculerEcoindex:
         assert result["grade"] in ("A", "B", "C", "D", "E", "F", "G")
         assert result["url"] == "https://example.com"
 
+    def test_returns_ecological_impacts(self):
+        result = json.loads(mcp_module.greenit_calculer_ecoindex(0, 0, 0))
+
+        assert result["greenhouse_gases_g"] == 1.0
+        assert result["water_consumption_cl"] == 1.5
+
     def test_url_optional_defaults_empty(self):
         result = json.loads(mcp_module.greenit_calculer_ecoindex(100, 10, 100))
         assert result["url"] == ""
