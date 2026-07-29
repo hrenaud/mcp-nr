@@ -128,7 +128,7 @@ class TestEcoIndexCalculation:
         """Test that return value has correct structure."""
         result = calculer_ecoindex(200, 50, 400.0)
         assert isinstance(result, dict)
-        assert len(result) == 2
+        assert set(result) == {"score", "grade", "greenhouse_gases_g", "water_consumption_cl"}
         assert "score" in result
         assert "grade" in result
         assert isinstance(result["score"], float)
