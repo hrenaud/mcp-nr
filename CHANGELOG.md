@@ -4,7 +4,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 ---
 
-## [Unreleased]
+## [2.3.2] — 2026-07-29
+
+### Corrigé
+
+- Retourne les impacts estimés de GES et de consommation d'eau avec chaque calcul EcoIndex.
+- Documente un comptage DOM qui exclut les descendants SVG et parcourt les Shadow DOM ouverts.
 
 ---
 
