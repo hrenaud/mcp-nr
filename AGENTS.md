@@ -14,6 +14,7 @@ Monorepo de serveurs MCP pour les référentiels du numérique responsable (gree
 - Docker build depuis la racine : `docker build -f greenit/Dockerfile .`
 - Tests depuis `<mcp>/files/` : `cd greenit/files && pytest ../tests/ -v`
 - Toute modification destinée à la production suit le cycle complet : tests, pull request, fusion autorisée explicitement, release patch, tag et push. Ne pas s'arrêter après les tests, le commit ou la pull request ; l'utilisateur peut explicitement demander de ne pas créer de release.
+- Tous les fichiers Superpowers (spécifications, plans et tâches) vont sous `.superpowers/`, jamais sous `docs/`.
 
 ## Architecture
 

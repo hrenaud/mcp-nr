@@ -14,7 +14,7 @@ Claude peut :
 - Obtenir le détail complet d'une fiche (description, exemples, validations)
 - Chercher des pratiques par mot-clé ou thème
 - Comparer plusieurs fiches
-- Calculer un EcoIndex pour une page web
+- Calculer un EcoIndex pour une page web avec score, grade, `greenhouse_gases_g` numérique (g CO2e) et `water_consumption_cl` numérique (cl)
 - Identifier les pratiques prioritaires selon un contexte projet
 
 ### rgaa — Accessibilité numérique

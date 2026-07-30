@@ -598,6 +598,7 @@ class TestCalculerEcoindex:
         assert "greenhouse_gases_g (g CO2e)" in tool.description
         assert "water_consumption_cl (cl)" in tool.description
         properties = tool.output_schema["properties"]
+        assert properties["score"]["type"] == "number"
         assert properties["greenhouse_gases_g"]["type"] == "number"
         assert properties["water_consumption_cl"]["type"] == "number"
 
