@@ -39,6 +39,12 @@ class TestGreenITPrompts:
         assert "shadowRoot" in result
         assert "svg" in result
 
+    def test_audit_ecoindex_documents_impact_field_names_and_units(self):
+        result = mcp_module.audit_ecoindex("https://example.com")
+
+        assert "greenhouse_gases_g (g CO2e)" in result
+        assert "water_consumption_cl (cl)" in result
+
     def test_rapport_impact_returns_template(self):
         """Test rapport_impact prompt exists and returns a non-empty template."""
         result = mcp_module.rapport_impact("test results")

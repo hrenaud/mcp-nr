@@ -589,6 +589,18 @@ class TestCalculerEcoindex:
         assert result["greenhouse_gases_g"] == 1.0
         assert result["water_consumption_cl"] == 1.5
 
+    def test_tool_documentation_names_numeric_impact_fields_and_units(self):
+        import asyncio
+
+        tools = asyncio.run(mcp_module.mcp.list_tools())
+        tool = next(tool for tool in tools if tool.name == "greenit_calculer_ecoindex")
+
+        assert "greenhouse_gases_g (g CO2e)" in tool.description
+        assert "water_consumption_cl (cl)" in tool.description
+        properties = tool.output_schema["properties"]
+        assert properties["greenhouse_gases_g"]["type"] == "number"
+        assert properties["water_consumption_cl"]["type"] == "number"
+
     def test_returns_intermediate_impacts_to_two_decimal_places(self):
         # cnumr/ecoindex_js 1.x reference values for DOM=450, requests=38,
         # and size=280 KB.

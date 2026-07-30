@@ -74,7 +74,7 @@ def _compute_quantile(quantiles: list, value: float) -> float:
 
 
 def calculer_ecoindex(dom: int, requests: int, size_kb: float) -> dict:
-    """Calcule le score EcoIndex (0–100) et le grade (A–G)."""
+    """Renvoie score EcoIndex, grade, `greenhouse_gases_g` numérique (g CO2e) et `water_consumption_cl` numérique (cl)."""
     q_dom  = _compute_quantile(_QUANTILES_DOM, dom)
     q_req  = _compute_quantile(_QUANTILES_REQ, requests)
     q_size = _compute_quantile(_QUANTILES_SIZE, size_kb)

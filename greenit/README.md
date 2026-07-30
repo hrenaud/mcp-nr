@@ -16,7 +16,7 @@ Serveur MCP donnant accès au référentiel des 119 bonnes pratiques d'éco-conc
 | `greenit_obtenir_statistiques`   | Distributions et top 5 par score combiné                                       |
 | `greenit_lister_lifecycles`      | Les 7 phases du cycle de vie avec nombre de fiches                             |
 | `greenit_lister_ressources`      | Les 8 types de ressources sauvegardées avec nombre de fiches                   |
-| `greenit_calculer_ecoindex`      | Score EcoIndex (0–100, grade A–G), impacts GES/eau, à partir de DOM/HTTP/poids |
+| `greenit_calculer_ecoindex`      | Renvoie score EcoIndex (0–100), grade (A–G), `greenhouse_gases_g` numérique (g CO2e) et `water_consumption_cl` numérique (cl), à partir de DOM/HTTP/poids |
 
 Les appelants doivent mesurer le DOM avec le protocole Playwright documenté par l'outil : il compte l'élément `<svg>` mais pas ses descendants, parcourt les Shadow DOM ouverts et ne peut pas mesurer les Shadow DOM fermés.
 

@@ -830,7 +830,7 @@ def greenit_lister_ressources() -> dict:
 
 
 @mcp.tool(
-    description="Calcule l'EcoIndex, son grade et les impacts estimés (GES en g CO2e, eau en cl) à partir des 3 métriques brutes : nœuds DOM, requêtes HTTP, taille KB",
+    description="Calcule l'EcoIndex et renvoie score, grade et les champs numériques greenhouse_gases_g (g CO2e) et water_consumption_cl (cl) à partir des 3 métriques brutes : nœuds DOM, requêtes HTTP, taille KB",
     annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True),
     output_schema={
         "type": "object",
@@ -880,9 +880,8 @@ def greenit_calculer_ecoindex(dom_nodes: int, requests: int, size_kb: float, url
         url:       URL de la page mesurée (optionnel, pour contexte)
 
     Returns:
-        JSON avec url, métriques, score (0-100), grade (A-G), émissions de GES
-        estimées en g CO2e (greenhouse_gases_g) et consommation d'eau estimée en cl
-        (water_consumption_cl).
+        JSON avec url, métriques, score (0-100), grade (A-G), greenhouse_gases_g
+        numérique (g CO2e) et water_consumption_cl numérique (cl).
     """
     try:
         # Valider que dom_nodes est non-négatif
@@ -950,14 +949,15 @@ Focus: {focus} (all/dom/requests/size)
        Il parcourt récursivement les Shadow DOM ouverts ; les Shadow DOM fermés
        ne peuvent pas être mesurés.
     3. Utiliser greenit_calculer_ecoindex avec les métriques mesurées
-    4. Interpréter le score EcoIndex (0-100), le grade (A-G), les émissions de GES
-       estimées (g CO2e) et la consommation d'eau estimée (cl)
+    4. Interpréter le score EcoIndex (0-100), le grade (A-G), greenhouse_gases_g
+       numérique (g CO2e) et water_consumption_cl numérique (cl)
     5. Recommander des optimisations si score < 50
 
 Outils disponibles:
  - greenit_calculer_ecoindex(dom_nodes, requests, size_kb) → {{"score": float, "grade": str, "greenhouse_gases_g": float, "water_consumption_cl": float}}
 
- Génère un rapport structuré avec score, grade, impacts GES/eau, et 3-5 recommandations d'amélioration."""
+  Génère un rapport structuré avec score, grade, greenhouse_gases_g (g CO2e),
+  water_consumption_cl (cl) et 3-5 recommandations d'amélioration."""
 
 
 @mcp.prompt()
@@ -974,7 +974,7 @@ Résultats à analyser: {resultats}
 
 Format du rapport:
 - Titre: "Rapport d'Impact Environnemental"
-- Résumé: Score EcoIndex global et interprétation
+- Résumé: Score EcoIndex, grade, greenhouse_gases_g (g CO2e), water_consumption_cl (cl) et interprétation
 - Détails par métrique: DOM, requêtes HTTP, taille
 - Recommandations: 5-10 actions classées par impact potentiel
 - Ressources économisées: Estimation énergie/CO2 sauvegardés par optimisation
@@ -1105,7 +1105,7 @@ URL: {url}
 4. Générer rapport rapide (5 min de review)
 
 Format rapport:
-- EcoIndex score/grade de la page
+- Score EcoIndex, grade, greenhouse_gases_g (g CO2e) et water_consumption_cl (cl) de la page
 - Top 5 recommandations manquantes
 - Estimation impact si implémentées
 - 1 action immédiate recommandée

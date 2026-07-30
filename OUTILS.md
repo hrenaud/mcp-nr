@@ -14,7 +14,7 @@
 | `greenit_obtenir_statistiques`   | Statistiques avancées du référentiel                                   |
 | `greenit_lister_lifecycles`      | Liste les 7 phases du cycle de vie                                     |
 | `greenit_lister_ressources`      | Liste les 8 types de ressources sauvegardées                           |
-| `greenit_calculer_ecoindex`      | Calcule l'EcoIndex (score + grade) à partir de DOM, requests, size     |
+| `greenit_calculer_ecoindex`      | Renvoie score, grade, `greenhouse_gases_g` numérique (g CO2e) et `water_consumption_cl` numérique (cl) à partir de DOM, requêtes et taille |
 
 ### Prompts (8)
 
