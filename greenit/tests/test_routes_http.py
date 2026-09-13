@@ -82,6 +82,7 @@ class TestGetToolDefinitions:
             "greenit_lister_lifecycles",
             "greenit_lister_ressources",
             "greenit_calculer_ecoindex",
+            "greenit_obtenir_methodologie_ecoindex",
         }
         assert tool_names == expected_names, f"Tool names mismatch. Got {tool_names}"
 
@@ -660,6 +661,5 @@ class TestGuideGreenItEcoIndex:
         response = asyncio.run(routes._http_guide(req))
         body = response.body.decode()
 
-        assert "countDomNodes" in body
-        assert "shadowRoot" in body
-        assert "svg" in body
+        assert "greenit_obtenir_methodologie_ecoindex" in body
+        assert "seule méthode normalisée" in body

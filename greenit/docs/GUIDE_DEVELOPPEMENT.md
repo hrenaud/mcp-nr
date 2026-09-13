@@ -14,7 +14,7 @@ greenit/
 │   ├── preparer_donnees.py   # Mise à jour des données depuis l'API
 │   └── greenit_cache.json    # Cache statique (source de vérité)
 ├── tests/
-│   ├── test_tools.py          # Tests unitaires des 9 outils MCP
+│   ├── test_tools.py          # Tests unitaires des 10 outils MCP
 │   ├── test_routes_http.py    # Tests des routes HTTP (/, /guide, admin)
 │   ├── test_admin_api.py      # Tests de l'API d'administration des tokens
 │   ├── test_data.py           # Tests du calcul EcoIndex et du cache
@@ -122,7 +122,11 @@ def greenit_mon_outil(param1: str) -> dict:
 
 La logique de calcul est dans `data.py` (fonction `calculer_ecoindex`). Elle implémente l'algorithme officiel EcoIndex avec quantiles pour 3 métriques : nœuds DOM, requêtes HTTP, poids en Ko. Le résultat renvoie le score, le grade, `greenhouse_gases_g` numérique (g CO2e) et `water_consumption_cl` numérique (cl).
 
-L'outil `greenit_calculer_ecoindex` ne navigue pas sur le web — il reçoit les 3 métriques déjà mesurées et renvoie score, grade, `greenhouse_gases_g` numérique (g CO2e) et `water_consumption_cl` numérique (cl). C'est Claude (via Playwright) qui mesure la page avant d'appeler l'outil. Les appelants doivent utiliser le protocole DOM documenté par l'outil : il compte l'élément `<svg>` mais pas ses descendants, parcourt récursivement les Shadow DOM ouverts et ne peut pas mesurer les Shadow DOM fermés.
+L'outil `greenit_calculer_ecoindex` ne navigue pas sur le web. Il reçoit uniquement les 3 métriques déjà mesurées et renvoie un dictionnaire avec le score, le grade, `greenhouse_gases_g` numérique (g CO2e) et `water_consumption_cl` numérique (cl).
+
+Avant toute collecte, l'appelant doit invoquer `greenit_obtenir_methodologie_ecoindex`. Son résultat structuré contient la séquence de navigation, les règles de chaque métrique, leurs limites et le JavaScript navigateur complet. C'est la seule méthode normalisée du MCP GreenIT pour alimenter le calculateur et obtenir des scores comparables.
+
+Pour `dom_nodes`, cette convention compte les descendants de `document.body` sans compter `body`, parcourt récursivement les Shadow DOM ouverts et exclut les enfants directs des éléments `<svg>`. Les Shadow DOM fermés ne sont pas observables. Pour le réseau, elle compte la navigation et les entrées Resource Timing, puis additionne leurs `transferSize` en divisant les octets par 1024. Le cache et l'absence de `Timing-Allow-Origin` peuvent produire des tailles nulles.
 
 ---
 

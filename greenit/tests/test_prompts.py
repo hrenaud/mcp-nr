@@ -32,12 +32,11 @@ class TestGreenITPrompts:
         assert isinstance(result, str)
         assert "dom" in result.lower(), "Template should mention the focus parameter"
 
-    def test_audit_ecoindex_prescribes_svg_and_shadow_dom_counting(self):
+    def test_audit_ecoindex_uses_the_normalized_methodology_tool(self):
         result = mcp_module.audit_ecoindex("https://example.com")
 
-        assert "countDomNodes" in result
-        assert "shadowRoot" in result
-        assert "svg" in result
+        assert "greenit_obtenir_methodologie_ecoindex" in result
+        assert "seule méthode normalisée" in result
 
     def test_audit_ecoindex_documents_impact_field_names_and_units(self):
         result = mcp_module.audit_ecoindex("https://example.com")

@@ -130,15 +130,7 @@ def _greenit_guide_extra_sections() -> str:
  5. Attendre 3 secondes
  6. Mesurer DOM, requêtes, taille
  7. Appeler greenit_calculer_ecoindex(dom_nodes, requests, size_kb)</code></pre>
-    <p>Pour mesurer le DOM, exécuter ce script dans Playwright :</p>
-    <pre><code>const countDomNodes = (root) =&gt;
-  [...root.querySelectorAll('*')].reduce((total, element) =&gt; {
-    if (element.parentElement?.closest('svg')) return total;
-    return total + 1 + (element.shadowRoot ? countDomNodes(element.shadowRoot) : 0);
-  }, 0);
-
-return countDomNodes(document);</code></pre>
-    <p>Ce comptage inclut l'élément <code>&lt;svg&gt;</code>, mais exclut tous ses descendants. Il parcourt récursivement les Shadow DOM ouverts ; les Shadow DOM fermés ne peuvent pas être mesurés.</p>
+    <p><code>greenit_obtenir_methodologie_ecoindex</code> retourne les règles et le JavaScript complet de collecte. C'est la seule méthode normalisée du MCP GreenIT à utiliser pour obtenir des scores comparables.</p>
     <table>
       <thead><tr><th>Grade</th><th>Score</th></tr></thead>
       <tbody>
@@ -830,7 +822,153 @@ def greenit_lister_ressources() -> dict:
 
 
 @mcp.tool(
-    description="Calcule l'EcoIndex et renvoie score, grade et les champs numériques greenhouse_gases_g (g CO2e) et water_consumption_cl (cl) à partir des 3 métriques brutes : nœuds DOM, requêtes HTTP, taille KB",
+    description=(
+        "Retourne la seule méthode normalisée du MCP GreenIT pour collecter "
+        "dom_nodes, requests et size_kb dans un navigateur, sans Lighthouse. "
+        "À utiliser pour alimenter greenit_calculer_ecoindex avec des mesures comparables."
+    ),
+    annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True),
+    output_schema={
+        "type": "object",
+        "properties": {
+            "normative": {"type": "boolean"},
+            "comparability": {"type": "string"},
+            "collection_sequence": {
+                "type": "array",
+                "items": {"type": "string"},
+            },
+            "metrics": {
+                "type": "object",
+                "properties": {
+                    "dom_nodes": {
+                        "type": "object",
+                        "properties": {
+                            "unit": {"type": "string"},
+                            "rule": {"type": "string"},
+                        },
+                        "required": ["unit", "rule"],
+                    },
+                    "requests": {
+                        "type": "object",
+                        "properties": {
+                            "unit": {"type": "string"},
+                            "rule": {"type": "string"},
+                        },
+                        "required": ["unit", "rule"],
+                    },
+                    "size_kb": {
+                        "type": "object",
+                        "properties": {
+                            "unit": {"type": "string"},
+                            "rule": {"type": "string"},
+                        },
+                        "required": ["unit", "rule"],
+                    },
+                },
+                "required": ["dom_nodes", "requests", "size_kb"],
+            },
+            "browser_javascript": {"type": "string"},
+            "limits": {
+                "type": "array",
+                "items": {"type": "string"},
+            },
+        },
+        "required": [
+            "normative",
+            "comparability",
+            "collection_sequence",
+            "metrics",
+            "browser_javascript",
+            "limits",
+        ],
+    },
+)
+def greenit_obtenir_methodologie_ecoindex() -> dict:
+    """Retourne la convention de collecte des métriques EcoIndex du MCP."""
+    return {
+        "normative": True,
+        "comparability": (
+            "Cette convention est la seule méthode normalisée du MCP GreenIT. "
+            "Utilisez-la pour alimenter greenit_calculer_ecoindex afin que les "
+            "scores soient comparables."
+        ),
+        "collection_sequence": [
+            "Ouvrir un nouveau contexte navigateur avec un cache froid et un viewport de 1920x1080, conformément au protocole EcoIndex.",
+            "Naviguer vers la page et attendre 3 secondes après son chargement.",
+            "Faire défiler progressivement la page jusqu'en bas, puis attendre 3 secondes.",
+            "Exécuter browser_javascript une seule fois et transmettre ses trois valeurs à greenit_calculer_ecoindex.",
+        ],
+        "metrics": {
+            "dom_nodes": {
+                "unit": "éléments",
+                "rule": (
+                    "Compter les éléments descendants de document.body sans compter body, "
+                    "parcourir récursivement les shadowRoot ouverts et exclure du compte "
+                    "les enfants directs des éléments <svg>."
+                ),
+            },
+            "requests": {
+                "unit": "requêtes HTTP",
+                "rule": (
+                    "Compter l'entrée PerformanceNavigationTiming courante et toutes les "
+                    "entrées PerformanceResourceTiming présentes au moment de la mesure."
+                ),
+            },
+            "size_kb": {
+                "unit": "KB transférés (octets / 1024)",
+                "rule": (
+                    "Additionner transferSize de la navigation et de toutes les ressources, "
+                    "puis diviser le total en octets par 1024, sans arrondir."
+                ),
+            },
+        },
+        "browser_javascript": '''() => {
+  const countDomNodes = (root) => {
+    let count = 0;
+
+    for (const element of root.querySelectorAll("*")) {
+      if (element.parentElement?.localName !== "svg") {
+        count += 1;
+      }
+      if (element.shadowRoot) {
+        count += countDomNodes(element.shadowRoot);
+      }
+    }
+
+    return count;
+  };
+
+  const resources = performance.getEntriesByType("resource");
+  const navigation = performance.getEntriesByType("navigation")[0];
+  const networkEntries = navigation ? [navigation, ...resources] : resources;
+
+  return {
+    dom_nodes: document.body ? countDomNodes(document.body) : 0,
+    requests: networkEntries.length,
+    size_kb: networkEntries.reduce(
+      (bytes, entry) => bytes + (entry.transferSize || 0),
+      0
+    ) / 1024
+  };
+}''',
+        "limits": [
+            "Les Shadow DOM fermés ne sont pas observables depuis la page et ne peuvent pas être comptés.",
+            "Le cache peut produire un transferSize nul ; la convention impose donc un nouveau contexte à cache froid.",
+            "Les ressources cross-origin sans en-tête Timing-Allow-Origin peuvent exposer un transferSize nul.",
+            "Resource Timing ne représente pas nécessairement chaque redirection comme une entrée distincte.",
+        ],
+    }
+
+
+@mcp.tool(
+    description=(
+        "Calcule uniquement l'EcoIndex à partir de dom_nodes, requests et size_kb, "
+        "puis renvoie score, grade, greenhouse_gases_g (g CO2e) et "
+        "water_consumption_cl (cl). Pour des scores comparables, collectez les "
+        "métriques avec la seule méthode normalisée retournée par "
+        "greenit_obtenir_methodologie_ecoindex : dom_nodes compte les descendants "
+        "de document.body, les Shadow DOM ouverts et exclut les enfants directs de <svg>."
+    ),
     annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True),
     output_schema={
         "type": "object",
@@ -846,32 +984,12 @@ def greenit_lister_ressources() -> dict:
         }
     }
 )
-def greenit_calculer_ecoindex(dom_nodes: int, requests: int, size_kb: float, url: str = "") -> str:
+def greenit_calculer_ecoindex(dom_nodes: int, requests: int, size_kb: float, url: str = "") -> dict:
     """
-    Calcule l'EcoIndex à partir des 3 métriques brutes mesurées par Playwright.
+    Calcule l'EcoIndex à partir des 3 métriques brutes déjà collectées.
 
-    Protocole de mesure recommandé avec Playwright :
-    1. Ouvrir un contexte avec viewport 1920x1080 (spec EcoIndex officielle)
-    2. Naviguer vers la page
-    3. Attendre 3 secondes
-     4. Faire défiler jusqu'en bas progressivement
-     5. Attendre 3 secondes
-     6. Mesurer les nœuds DOM avec ce script Playwright :
-
-        const countDomNodes = (root) =>
-          [...root.querySelectorAll('*')].reduce((total, element) => {
-            if (element.parentElement?.closest('svg')) return total;
-            return total + 1 + (element.shadowRoot ? countDomNodes(element.shadowRoot) : 0);
-          }, 0);
-
-        return countDomNodes(document);
-
-        Ce comptage inclut l'élément <svg>, mais exclut tous ses descendants.
-        Il parcourt récursivement les Shadow DOM ouverts ; les Shadow DOM fermés
-        ne peuvent pas être mesurés.
-
-     7. Mesurer les requêtes HTTP et la taille totale en Ko
-     8. Appeler cet outil avec les 3 métriques
+    Utiliser exclusivement greenit_obtenir_methodologie_ecoindex pour mesurer
+    ces métriques dans un navigateur. Le calculateur ne collecte aucune donnée.
 
     Args:
         dom_nodes: Nombre de nœuds dans le DOM
@@ -880,8 +998,9 @@ def greenit_calculer_ecoindex(dom_nodes: int, requests: int, size_kb: float, url
         url:       URL de la page mesurée (optionnel, pour contexte)
 
     Returns:
-        JSON avec url, métriques, score (0-100), grade (A-G), greenhouse_gases_g
-        numérique (g CO2e) et water_consumption_cl numérique (cl).
+        Dictionnaire avec url, métriques, score (0-100), grade (A-G),
+        greenhouse_gases_g numérique (g CO2e) et water_consumption_cl
+        numérique (cl).
     """
     try:
         # Valider que dom_nodes est non-négatif
@@ -894,7 +1013,7 @@ def greenit_calculer_ecoindex(dom_nodes: int, requests: int, size_kb: float, url
         validate_nonnegative(size_kb, "size_kb")
 
         result = _calculer_ecoindex_impl(dom_nodes, requests, size_kb)
-        return json.dumps({
+        return {
             "url": url,
             "dom_nodes": dom_nodes,
             "requests": requests,
@@ -903,7 +1022,7 @@ def greenit_calculer_ecoindex(dom_nodes: int, requests: int, size_kb: float, url
             "grade": result["grade"],
             "greenhouse_gases_g": result["greenhouse_gases_g"],
             "water_consumption_cl": result["water_consumption_cl"],
-        }, ensure_ascii=False, indent=2)
+        }
 
     except ToolError:
         raise
@@ -934,26 +1053,17 @@ URL: {url}
 Focus: {focus} (all/dom/requests/size)
 
     Étapes:
-    1. Charger la page et mesurer ses métriques (DOM nodes, requêtes HTTP, taille KB)
-    2. Mesurer les nœuds DOM dans Playwright avec ce script :
-
-       const countDomNodes = (root) =>
-         [...root.querySelectorAll('*')].reduce((total, element) => {{
-           if (element.parentElement?.closest('svg')) return total;
-           return total + 1 + (element.shadowRoot ? countDomNodes(element.shadowRoot) : 0);
-         }}, 0);
-
-       return countDomNodes(document);
-
-       Ce comptage inclut l'élément <svg>, mais exclut tous ses descendants.
-       Il parcourt récursivement les Shadow DOM ouverts ; les Shadow DOM fermés
-       ne peuvent pas être mesurés.
-    3. Utiliser greenit_calculer_ecoindex avec les métriques mesurées
+    1. Appeler greenit_obtenir_methodologie_ecoindex. C'est la seule méthode normalisée
+       du MCP GreenIT à utiliser pour obtenir des scores comparables.
+    2. Charger la page et collecter dom_nodes, requests et size_kb en suivant exactement
+       la séquence et le JavaScript retournés par ce tool, sans Lighthouse.
+    3. Utiliser greenit_calculer_ecoindex avec les métriques mesurées.
     4. Interpréter le score EcoIndex (0-100), le grade (A-G), greenhouse_gases_g
        numérique (g CO2e) et water_consumption_cl numérique (cl)
     5. Recommander des optimisations si score < 50
 
 Outils disponibles:
+ - greenit_obtenir_methodologie_ecoindex() → règles normatives et JavaScript navigateur
  - greenit_calculer_ecoindex(dom_nodes, requests, size_kb) → {{"score": float, "grade": str, "greenhouse_gases_g": float, "water_consumption_cl": float}}
 
   Génère un rapport structuré avec score, grade, greenhouse_gases_g (g CO2e),
