@@ -1,5 +1,17 @@
 # Changelog — GreenIT MCP
 
+## [2.3.3] — 2026-09-13
+
+### Ajouté
+
+- `greenit_obtenir_methodologie_ecoindex`, seule méthode normalisée de collecte de `dom_nodes`, `requests` et `size_kb` pour des scores comparables.
+
+### Corrigé
+
+- `greenit_calculer_ecoindex` retourne désormais un dictionnaire structuré au lieu d'une chaîne JSON sérialisée.
+
+---
+
 ## [2.3.2] — 2026-07-29
 
 ### Corrigé

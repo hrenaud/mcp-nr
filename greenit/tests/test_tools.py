@@ -555,36 +555,41 @@ class TestListerRessources:
 # ============================================================================
 
 class TestCalculerEcoindex:
+    def test_returns_structured_dictionary(self):
+        result = mcp_module.greenit_calculer_ecoindex(100, 10, 100)
+
+        assert isinstance(result, dict)
+
     def test_zero_inputs_score_100(self):
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(0, 0, 0))
+        result = mcp_module.greenit_calculer_ecoindex(0, 0, 0)
         assert result["score"] == pytest.approx(100.0, rel=1e-2)
         assert result["grade"] == "A"
 
     def test_good_page_grade_a(self):
         # dom=200, req=20, size_kb=200 → score >80
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(200, 20, 200))
+        result = mcp_module.greenit_calculer_ecoindex(200, 20, 200)
         assert result["score"] > 80
         assert result["grade"] == "A"
 
     def test_bad_page_grade_low(self):
         # dom=2000, req=150, size_kb=6000 → score <25
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(2000, 150, 6000))
+        result = mcp_module.greenit_calculer_ecoindex(2000, 150, 6000)
         assert result["score"] < 25
         assert result["grade"] in ("E", "F", "G")
 
     def test_score_clamped_between_0_and_100(self):
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(0, 0, 0))
+        result = mcp_module.greenit_calculer_ecoindex(0, 0, 0)
         assert 0 <= result["score"] <= 100
 
     def test_returns_expected_keys(self):
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(500, 50, 500, url="https://example.com"))
+        result = mcp_module.greenit_calculer_ecoindex(500, 50, 500, url="https://example.com")
         for key in ("url", "dom_nodes", "requests", "size_kb", "score", "grade"):
             assert key in result
         assert result["grade"] in ("A", "B", "C", "D", "E", "F", "G")
         assert result["url"] == "https://example.com"
 
     def test_returns_ecological_impacts(self):
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(0, 0, 0))
+        result = mcp_module.greenit_calculer_ecoindex(0, 0, 0)
 
         assert result["greenhouse_gases_g"] == 1.0
         assert result["water_consumption_cl"] == 1.5
@@ -597,6 +602,11 @@ class TestCalculerEcoindex:
 
         assert "greenhouse_gases_g (g CO2e)" in tool.description
         assert "water_consumption_cl (cl)" in tool.description
+        assert "greenit_obtenir_methodologie_ecoindex" in tool.description
+        assert "seule méthode normalisée" in tool.description
+        assert "document.body" in tool.description
+        assert "Shadow DOM ouverts" in tool.description
+        assert "enfants directs de <svg>" in tool.description
         properties = tool.output_schema["properties"]
         assert properties["score"]["type"] == "number"
         assert properties["greenhouse_gases_g"]["type"] == "number"
@@ -605,14 +615,14 @@ class TestCalculerEcoindex:
     def test_returns_intermediate_impacts_to_two_decimal_places(self):
         # cnumr/ecoindex_js 1.x reference values for DOM=450, requests=38,
         # and size=280 KB.
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(450, 38, 280))
+        result = mcp_module.greenit_calculer_ecoindex(450, 38, 280)
 
         assert result["score"] == 71.29
         assert result["greenhouse_gases_g"] == 1.57
         assert result["water_consumption_cl"] == 2.36
 
     def test_url_optional_defaults_empty(self):
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(100, 10, 100))
+        result = mcp_module.greenit_calculer_ecoindex(100, 10, 100)
         assert result["url"] == ""
 
     def test_tool_is_registered(self):
@@ -620,6 +630,52 @@ class TestCalculerEcoindex:
         tools = asyncio.run(mcp_module.mcp.list_tools())
         names = [t.name for t in tools]
         assert "greenit_calculer_ecoindex" in names
+
+
+class TestObtenirMethodologieEcoindex:
+    def test_returns_the_only_normalized_measurement_method(self):
+        result = mcp_module.greenit_obtenir_methodologie_ecoindex()
+
+        assert isinstance(result, dict)
+        assert result["normative"] is True
+        assert "seule méthode normalisée" in result["comparability"].lower()
+        assert set(result["metrics"]) == {"dom_nodes", "requests", "size_kb"}
+
+    def test_browser_javascript_covers_dom_network_and_transfer_size(self):
+        script = mcp_module.greenit_obtenir_methodologie_ecoindex()["browser_javascript"]
+
+        assert script.startswith("() => {")
+        assert "document.body" in script
+        assert "element.shadowRoot" in script
+        assert 'element.parentElement?.localName !== "svg"' in script
+        assert "getEntriesByType(\"resource\")" in script
+        assert "getEntriesByType(\"navigation\")" in script
+        assert "transferSize" in script
+        assert "Lighthouse" not in script
+
+    def test_documents_measurement_limits(self):
+        limits = " ".join(
+            mcp_module.greenit_obtenir_methodologie_ecoindex()["limits"]
+        ).lower()
+
+        assert "shadow dom fermés" in limits
+        assert "cache" in limits
+        assert "timing-allow-origin" in limits
+
+    def test_tool_is_registered_with_structured_output_and_annotations(self):
+        import asyncio
+
+        tools = asyncio.run(mcp_module.mcp.list_tools())
+        tool = next(
+            tool
+            for tool in tools
+            if tool.name == "greenit_obtenir_methodologie_ecoindex"
+        )
+
+        assert tool.output_schema["type"] == "object"
+        assert tool.annotations.readOnlyHint is True
+        assert tool.annotations.destructiveHint is False
+        assert tool.annotations.idempotentHint is True
 
 
 # ============================================================================
@@ -1298,13 +1354,13 @@ class TestCalculerEcoindexEdgeCases:
 
     def test_zero_all_metrics_gives_perfect_score(self):
         """Test that 0,0,0 gives score of 100 and grade A."""
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(0, 0, 0))
+        result = mcp_module.greenit_calculer_ecoindex(0, 0, 0)
         assert result["score"] == 100.0
         assert result["grade"] == "A"
 
     def test_large_values_give_low_score(self):
         """Test that very large metrics give low score."""
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(10000, 1000, 10000))
+        result = mcp_module.greenit_calculer_ecoindex(10000, 1000, 10000)
         assert result["score"] < 50
         assert result["grade"] in ("E", "F", "G", "D")
 
@@ -1315,7 +1371,7 @@ class TestCalculerEcoindexEdgeCases:
     ])
     def test_parametrized_valid_inputs(self, dom, req, size_kb):
         """Test valid input combinations."""
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(dom, req, size_kb))
+        result = mcp_module.greenit_calculer_ecoindex(dom, req, size_kb)
         assert 0 <= result["score"] <= 100
         assert result["grade"] in ("A", "B", "C", "D", "E", "F", "G")
 
@@ -1336,62 +1392,62 @@ class TestCalculerEcoindexEdgeCases:
 
     def test_float_dom_nodes_accepted(self):
         """Test that float values for dom_nodes are accepted."""
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(100.5, 10, 100))
+        result = mcp_module.greenit_calculer_ecoindex(100.5, 10, 100)
         assert "score" in result
         assert "grade" in result
 
     def test_very_small_decimal_values(self):
         """Test with very small decimal values."""
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(0.1, 0.1, 0.1))
+        result = mcp_module.greenit_calculer_ecoindex(0.1, 0.1, 0.1)
         assert 0 <= result["score"] <= 100
         assert result["grade"] in ("A", "B", "C", "D", "E", "F", "G")
 
     def test_url_parameter_optional(self):
         """Test that url parameter is optional."""
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(100, 10, 100))
+        result = mcp_module.greenit_calculer_ecoindex(100, 10, 100)
         assert result["url"] == ""
 
     def test_url_parameter_included_in_result(self):
         """Test that url parameter is included in result when provided."""
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(
+        result = mcp_module.greenit_calculer_ecoindex(
             100, 10, 100, url="https://example.com"
-        ))
+        )
         assert result["url"] == "https://example.com"
 
     def test_grade_corresponds_to_score(self):
         """Test that grade correctly corresponds to score ranges."""
         # Test grade A (80-100)
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(100, 10, 100))
+        result = mcp_module.greenit_calculer_ecoindex(100, 10, 100)
         assert result["grade"] == "A", f"score={result['score']}: expected A, got {result['grade']}"
         assert 80 <= result["score"] <= 100
 
         # Test grade B (70-79)
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(100, 30, 1500))
+        result = mcp_module.greenit_calculer_ecoindex(100, 30, 1500)
         assert result["grade"] == "B", f"score={result['score']}: expected B, got {result['grade']}"
         assert 70 <= result["score"] < 80
 
         # Test grade C (55-69)
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(100, 70, 1700))
+        result = mcp_module.greenit_calculer_ecoindex(100, 70, 1700)
         assert result["grade"] == "C", f"score={result['score']}: expected C, got {result['grade']}"
         assert 55 <= result["score"] < 70
 
         # Test grade D (40-54)
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(100, 190, 1900))
+        result = mcp_module.greenit_calculer_ecoindex(100, 190, 1900)
         assert result["grade"] == "D", f"score={result['score']}: expected D, got {result['grade']}"
         assert 40 <= result["score"] < 55
 
         # Test grade E (25-39)
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(500, 190, 1900))
+        result = mcp_module.greenit_calculer_ecoindex(500, 190, 1900)
         assert result["grade"] == "E", f"score={result['score']}: expected E, got {result['grade']}"
         assert 25 <= result["score"] < 40
 
         # Test grade F (10-24)
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(900, 260, 1900))
+        result = mcp_module.greenit_calculer_ecoindex(900, 260, 1900)
         assert result["grade"] == "F", f"score={result['score']}: expected F, got {result['grade']}"
         assert 10 <= result["score"] < 25
 
         # Test grade G (0-9)
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(2000, 300, 3000))
+        result = mcp_module.greenit_calculer_ecoindex(2000, 300, 3000)
         assert result["grade"] == "G", f"score={result['score']}: expected G, got {result['grade']}"
         assert 0 <= result["score"] < 10
 
@@ -2225,14 +2281,14 @@ class TestBoundaryConditions:
 
     def test_calculer_ecoindex_very_large_values(self):
         """Test calculer_ecoindex with very large metric values."""
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(10000, 500, 50000))
+        result = mcp_module.greenit_calculer_ecoindex(10000, 500, 50000)
         assert result["score"] >= 0
         assert result["score"] <= 100
         assert result["grade"] in ("A", "B", "C", "D", "E", "F", "G")
 
     def test_calculer_ecoindex_zero_size_kb(self):
         """Test calculer_ecoindex with zero size_kb."""
-        result = json.loads(mcp_module.greenit_calculer_ecoindex(100, 10, 0))
+        result = mcp_module.greenit_calculer_ecoindex(100, 10, 0)
         assert result["score"] >= 0
         assert result["score"] <= 100
 

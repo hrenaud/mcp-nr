@@ -4,6 +4,18 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), [Semantic Ver
 
 ---
 
+## [2.3.3] — 2026-09-13
+
+### Ajouté
+
+- GreenIT expose `greenit_obtenir_methodologie_ecoindex` comme seule méthode normalisée de collecte des métriques EcoIndex.
+
+### Corrigé
+
+- `greenit_calculer_ecoindex` retourne un objet structuré plutôt qu'une chaîne JSON sérialisée.
+
+---
+
 ## [2.3.2] — 2026-07-29
 
 ### Corrigé

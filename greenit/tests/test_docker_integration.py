@@ -110,7 +110,7 @@ class TestDockerToolsIntegration:
             pytest.skip(f"Impossible d'importer le module: {e}")
 
     def test_expected_tools_are_defined(self):
-        """Vérifier que tous les outils attendus (9) sont disponibles."""
+        """Vérifier que tous les outils attendus (10) sont disponibles."""
         import sys
         sys.path.insert(0, str(Path(__file__).parent.parent / "files"))
         try:
@@ -124,6 +124,7 @@ class TestDockerToolsIntegration:
                 "greenit_lister_lifecycles",
                 "greenit_lister_ressources",
                 "greenit_calculer_ecoindex",
+                "greenit_obtenir_methodologie_ecoindex",
                 "greenit_obtenir_statistiques",
             ]
 
